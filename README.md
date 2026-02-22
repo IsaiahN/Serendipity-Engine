@@ -1,0 +1,2 @@
+# Serendipity Engine
+Automated StoryMaker
