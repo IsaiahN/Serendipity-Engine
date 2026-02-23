@@ -180,6 +180,24 @@ Creations/
 
 ## Phase 1 — Create the Author
 
+### Author Mode — Choose One Before Proceeding
+
+**Option A — Generate the Author (default)**
+Roll all attributes below using the randomization engine. Produces a stranger whose psychology, wound, and worldview will filter the entire story through an unfamiliar lens. Recommended for full system exploration, breaking creative defaults, and generating stories you would not write from your own instincts. Proceed with all Phase 1 rolls below.
+
+**Option B — You Are the Author**
+Use this when you want the story to feel like yours — when you are writing as yourself, as a real person, or as a deliberate persona (an alter ego, a named author identity, or a version of yourself you are consciously constructing).
+
+1. Open `MetaFiles/author-profile-template.md`
+2. Fill out every field — Identity, Personality, Development, Voice & Craft, Writing Identity, Blind Spots, and the Big Picture Statement (written last)
+3. If an LLM is assisting you: paste the template into the session and have the LLM ask you each question in turn, then compile your answers into the final file
+4. Save the completed profile as `Creations/story-{datetime}/author.md`
+5. Skip all rolls below and proceed directly to Phase 2
+
+*The profile template covers every field a generated author would have — the same data, produced through reflection rather than randomization. The Big Picture Statement is still required and must still be written last. If your answers conflict with each other, do not resolve the conflict — it is a phase tension you carry into the story. Document it.*
+
+---
+
 *The Author is the first character. Everything that follows is filtered through their lens. Some authors let their creations run away from them and allow new perspectives to change their own worldview. Others grip the reins tightly and bend the world to their ideology (see: Ayn Rand). Knowing which kind of author you're writing is as important as any other attribute.*
 
 Roll randomly from each of the following. Where attributes conflict with each other, **do not resolve the conflict** — that dichotomy is a feature. It is a phase tension the author carries into every decision they make about the story.
@@ -442,6 +460,44 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Resonance final check** — Is the same theme question present in at least 4 of 6 domains?
 - [ ] If any gaps are found: update outline, character files, or world-building before proceeding
 - [ ] All questions from all `questions.md` files are answered in the story folder
+
+---
+
+## The Bridge — Phase 7 → Phase 8
+
+*This section exists because completing the architecture and beginning the draft are two different acts — and the gap between them is where most writers stall. The preparation is done. The world is built. The characters are fully inhabited. The outline is complete. And yet the first sentence does not appear.*
+
+*That gap is not a preparation failure. It is a threshold problem. The system has done everything it can do. What follows is on the writer.*
+
+*Before opening the first chapter file, answer these questions directly — not as checklist items, but as honest statements. Write the answers in a scratch note, say them aloud, or simply hold them. They are not gatekeeping. They are orientation.*
+
+---
+
+**1. What is the first thing that happens in this story?**
+
+Not the first chapter's goal. Not the inciting incident. The first *thing* — the first image, action, line of dialogue, or sensory detail the reader encounters. If you cannot answer this specifically, the outline's opening chapter needs one more pass. The first sentence of a story is not written randomly — it is the door. You need to know what the door looks like before you open it.
+
+**2. Whose voice is this?**
+
+Re-read `author.md` Voice Fingerprint and `narrator.md` side by side. Say one sentence aloud in the narrator's voice before writing anything. Not a perfect sentence. Any sentence. The voice must be physically present before the draft begins — not retrieved from memory, but active. If you cannot hear it, read three pages of the prose style you rolled in `author.md` and come back.
+
+**3. What does the reader not yet know that you do?**
+
+Name the three most important things the reader will not know at the end of Chapter 1 that they will know by the end of the story. These are your withheld facts — the structural gap between the reader's current knowledge and the story's full truth. Knowing what you are withholding is what gives the early chapters their tension. You are not withholding randomly. You are withholding deliberately, and that deliberateness is what makes the first chapter feel like it knows where it is going even when the reader does not.
+
+**4. What are you most afraid to write in this story?**
+
+There is always an answer. It may be a character who is too close to someone real. A scene that requires emotional honesty you have been avoiding. An ending that does not let anyone off the hook. A perspective you are not sure you can inhabit without distortion. Name it. You do not have to write it today. But knowing where it is means you will not accidentally write around it for 200 pages and only notice at the end.
+
+**5. What is the first scene you are genuinely excited to write?**
+
+Not obligated to write. Not architecturally necessary to write. *Excited* to write. If you cannot name one, the story is structurally complete but emotionally cold — and you will feel that coldness in every session. Go back to the author's wound and the Big Picture Statement. Find the scene where those two things meet at full pressure. That scene is usually somewhere in the middle of the outline. Hold it as the destination. Write toward it.
+
+---
+
+*When you can answer all five — not perfectly, but honestly — open the Chapter 1 notes file and begin Step 0.*
+
+*The architecture is load-bearing. The first sentence will be wrong. Write it anyway. The system has done its job. The rest is yours.*
 
 ---
 

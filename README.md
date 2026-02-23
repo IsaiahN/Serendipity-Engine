@@ -3,6 +3,22 @@
 
 ---
 
+## Quick Navigation
+
+| I want to… | Go here |
+|---|---|
+| **Start generating a story now** | `MetaFiles/Master-Story-Checklist.md` |
+| **Write as myself, not a generated author** | `MetaFiles/author-profile-template.md` |
+| **Understand how the system works** | [How to Use It](#how-to-use-it) |
+| **Use this with an LLM** | [Writing Workshop in a Box](#writing-workshop-in-a-box--using-this-with-an-llm) |
+| **Reverse-engineer an existing story** | [Decomposition](#decomposition) |
+| **Extend, adapt, or write a sequel** | [Decomposition](#decomposition) — Build and Extend / Weaponize sections |
+| **Understand why the system is built this way** | [The Three Theoretical Pillars](#the-three-theoretical-pillars) |
+| **See all reference files** | [Key Files at a Glance](#key-files-at-a-glance) |
+| **See why writing is hard** | [Why Writing Is Hard](#why-writing-is-hard) |
+
+---
+
 ## What This Is
 
 The Serendipity Engine is a reference system for generating fully realized stories from scratch. It works by building a story from the outside in — first the author, then the narrator, then the world, then the characters, then the relationships, then the story itself — using seeded randomization at every step to break creative defaults and produce combinations that wouldn't emerge from deliberate selection.
@@ -10,6 +26,8 @@ The Serendipity Engine is a reference system for generating fully realized stori
 It is not a writing tool. It does not write the story. It generates the complete architecture — the author's psychology, the world's rules, every character's identity and wound, every relationship's dynamic — so that when writing begins, the structural decisions have already been made by the system rather than by the operator's preferences or blind spots.
 
 The goal is to make the author a stranger to their own story. Strange combinations produce genuine discovery.
+
+**The system is medium-agnostic and format-agnostic.** The architecture it builds — wound, world, cast, relationships, tonal arc — is the same regardless of what you are making. Novels, screenplays, stage plays, graphic novels, audio dramas, video game narratives, short stories, narrative podcasts, long-form journalism, biography, documentary. The Narrator phase and prose style selection are where medium-specific decisions live; everything else transfers directly. If it has characters, a world, and something at stake, this system can build it.
 
 ---
 
@@ -24,7 +42,7 @@ A character is conscious when they are caught between two conflicting knowledge 
 A story world is a distributed intelligence system. No single character can carry the full intelligence of a theme. The protagonist is one neuron — important, but temporary. What the world learns through the protagonist, and whether that learning persists after they're gone, is the story's true subject. Character diversity isn't a moral goal; it's a structural requirement. Four archetype functions must be distributed across the cast for the network to function.
 
 **3. The Seven Story Deaths** (`MetaFiles/seven-story-deaths.md`)
-Adapted from the Antilife Equation — the seven conditions that kill intelligence in networks apply equally to stories. A story can be killed by: centralizing everything in one character (The Monolith), letting consequences vanish (Amnesia), treating hierarchy as natural (Hierarchy), severing the cast from each other (Isolation), repeating instead of varying (Monoculture), locking the world in the past (Stasis), or cutting the story off from anything larger than itself (Closure). These aren't writing tips. They are structural failure modes that operate invisibly until the draft is dead.
+The seven conditions that kill intelligence in networks apply equally to stories. A story can be killed by: centralizing everything in one character (The Monolith), letting consequences vanish (Amnesia), treating hierarchy as natural (Hierarchy), severing the cast from each other (Isolation), repeating instead of varying (Monoculture), locking the world in the past (Stasis), or cutting the story off from anything larger than itself (Closure). These aren't writing tips. They are structural failure modes that operate invisibly until the draft is dead.
 
 ---
 
@@ -42,7 +60,29 @@ The checklist walks the full pipeline in order:
 6. **Map the Relationships** — roll dynamics, attachment styles, and structures for every significant pair. Build the relationship graph.
 7. **Build the Story** — know the ending first. Then the arc, tonal arc, subplot map, and outline.
 8. **Review against the MetaFiles and craft reference** — Phase 7 checks all three theory files plus the 7-element story diagnostic (`Story/story-elements.md`) before writing begins.
-9. **Execute chapter by chapter** — with a per-chapter checklist and a running relationship graph.
+9. **Cross the bridge** — a short dedicated section between Phase 7 and Phase 8 addresses the threshold problem: the gap between a fully built story and the first sentence of the draft. Five orientation questions that are not gatekeeping — they are the act of turning to face the work.
+10. **Execute chapter by chapter** — with a per-chapter checklist and a running relationship graph.
+
+---
+
+## Writing Workshop in a Box — Using This With an LLM
+
+The Serendipity Engine is designed to be used collaboratively with a large language model. Every reference file is a briefing. Every checklist step is an instruction the LLM can execute, reflect back, or ask you questions from. The system does not require an LLM — but with one, it becomes a full structural writing workshop that runs in a single session.
+
+**What you can do with an LLM and this system:**
+
+- **Generate complete story architecture** — paste the relevant reference files as context and run the checklist phase by phase. The LLM rolls, selects, synthesizes, and produces the output files. You get a complete author profile, world, cast, relationship graph, and outlined story before a single word of prose is written.
+- **Generate a first-pass draft** — once the architecture exists, the LLM has everything it needs: the author's voice fingerprint, the narrator's type and reliability level, every character's wound and speech pattern, the tonal arc, and the chapter outline. A first-pass chapter is a legitimate output of a fully populated session. Treat it as raw material — not finished prose, but scaffolding with real structure under it.
+- **Use the system as a structural editor** — paste an existing draft and run the Decomposition Mode. The LLM audits your work against the same framework used to build it, surfacing gaps, missing threads, and structural failures you cannot see from inside your own draft.
+- **Run the author questions interactively** — instead of filling out `MetaFiles/author-profile-template.md` alone, have the LLM ask you each question in turn, push back on vague answers, and compile your responses into the final author profile. This turns the template into a real interview.
+
+**If you want the story to feel like yours:**
+
+Do not generate a randomized author. Make yourself the Author.
+
+Open `MetaFiles/author-profile-template.md`. Answer every field — your actual wound, your actual voice, your actual blind spots, your actual Big Picture Statement. The system will then build the world, cast, and story around the psychology you brought in, rather than a stranger's. The randomization still operates in every other phase — the world's genre, the characters' attributes, the relationship dynamics — but the lens through which all of it is filtered will be yours.
+
+This is the difference between using the system to explore what a story could be and using it to build the story only you could write.
 
 ---
 
@@ -94,6 +134,12 @@ Given an existing work — a novel, a play, a screenplay, a short story — you 
 - **Unpack what made a story work** — map the architecture beneath the prose, identify what decisions (character type, wound, arc shape, plot structure, tonal arc) were load-bearing, and see the framework the author used even if they never named it
 - **Find gaps in the narrative or lore** — the audit surfaces threads the story opened and didn't close, world-building that was sketched but not developed, and structural weaknesses the original author may not have noticed or chose to accept
 - **Create prequels, sequels, spinoffs, and POV shifts** — once the world's architecture is decomposed, you have a blueprint for extending it; the same framework that built the original story tells you what territory it left unexplored; a POV shift (the same story from a different character's perspective) is a direct output of the character and relationship decompositions
+- **Build and extend trilogies and multi-installment series** — a decomposed first story becomes the structural floor for every installment that follows. The sequel's job is not to repeat the first story — it is to use the established world, cast, and rules as a known ceiling and then push through it: deeper into the world, further along the character arcs, or into territory the first story deliberately left dark. A well-designed series also doubles back — a later installment can make a decision or image from the first story suddenly *revelatory*, recontextualizing it entirely without contradicting it. This is what authors withhold: not because the material doesn't exist, but because one story cannot hold everything the world contains. Decomposition surfaces what was withheld — the threads planted but not paid off, the characters sketched but not developed, the rules established but never tested to their limit — and those gaps are the sequel's natural territory.
+
+  **The test for a revelatory update:** it must make prior installments *more true*, not *differently true*. When it works, the audience holds the new fact against everything they already knew and feels the click of recognition — the sense that this was always the case and they simply hadn't seen it yet. When it fails, they feel confusion or betrayal instead, because the new fact contradicts the emotional logic of what came before rather than deepening it. Recognition and confusion are not matters of taste — they are structural outcomes. Recognition means the groundwork was in the earlier story. Confusion means it wasn't.
+
+  **Why prequels fail:** a prequel is not a story set earlier in the timeline — that is a location, not a reason to exist. A prequel earns its existence only if it answers a question the original story *raised but could not answer from inside its own frame*: what created the conditions the protagonist inherited? What happened to produce the wound that made the villain? What was the world before the rules the original took for granted were established? A prequel built to answer those questions uses the original as its load-bearing ceiling — every scene is in conversation with something the audience already knows, adding depth downward. A prequel built instead to mine audience attachment to a world — to deliver more of a thing people liked — has no structural reason to exist. It can only produce callbacks, never revelation. The framework catches this at Phase 1: if the prequel's Big Picture Statement cannot be stated independently of nostalgia for the original, the story has no wound at its center and no question it exists to answer.
+- **Expand the world and weaponize its own logic** — a decomposed world carries more than its plot used. The hallmarks, mechanics, societies, and rules that were established in service of one story's argument can be turned, combined, or collided in a subsequent story to produce effects the first installment made possible but never delivered. The most devastating twists in long-form fiction are not invented from nothing — they are made by taking two things the audience already accepts as true about this world and showing them what happens when those two things are in the same room at the same time. The reader already knows both facts. They simply never held them together. Decomposition maps all the world's live wires — the mechanics with untested edge cases, the societies with unresolved contradictions, the hallmarks whose symbolic weight was established but never fully spent — and those are the exact points where a writer can apply pressure to produce shock, grief, revelation, or devastation that lands because it was always structurally inevitable.
 - **Generate derivative works in different registers** — a decomposed story combined with a *different* author profile, writing style, tonal arc, or medium (novel → play, play → film adaptation) is the structural engine behind works like *Wicked* relative to *The Wizard of Oz*: same world, same characters, different author psychology, different POV, different thematic angle, transformed result
 
 The difference between *The Wizard of Oz* and *Wicked* is not that Gregory Maguire wrote about Oz. It is that he decomposed Oz with a different author Enneagram, inverted the POV to the Wicked Witch, shifted the moral alignment of the Wizard from True Neutral to something darker, and changed the tonal register from earnest-wonder to political-cynicism. Every one of those is a Serendipity Engine lever.
@@ -110,6 +156,7 @@ The full structural decomposition of L. Frank Baum's *The Wonderful Wizard of Oz
 | File | Purpose |
 |---|---|
 | `MetaFiles/Master-Story-Checklist.md` | **Start here.** Complete 8-phase workflow |
+| `MetaFiles/author-profile-template.md` | **Real Author / Persona template.** Use instead of Phase 1 rolls when you are writing as yourself or a deliberate persona. Covers every Phase 1 field through reflection rather than randomization — Identity, Personality, Development, Voice & Craft, Writing Identity, Blind Spots, and Big Picture Statement. |
 | `MetaFiles/randomization-engine.md` | Datetime seeding + roll derivation algorithm |
 | `MetaFiles/relationship-graph-template.csv` | Relationship matrix — copy per story. Three tiers: **major** characters (full rows/columns), **minor** characters (append `(minor)` — sparse cells, load-bearing ones filled), **society/group** characters (append `(society)` — governing bodies, oppressed peoples, institutions, collective identities that act as pressure systems on individuals). |
 
@@ -168,7 +215,9 @@ Most would-be authors sit down believing writing is one skill. It isn't. It is s
 | **Voice** | The prose itself. Sentence rhythm, register, the specific vocabulary a character or narrator reaches for under pressure. The per-character voice fingerprint — speech rhythm, vocabulary register, dialogue tic, metaphor family, defensive speech pattern, subtext default — is rolled the same way any other attribute is. |
 | **Tonal control across time** | Sustaining, escalating, or deliberately breaking the story's emotional register across a draft that may take months or years to write. Tone drifts. The writer's real season leaks into the fictional one. Managing that drift — using it when it serves, correcting it when it doesn't — is craft at the level of the whole work, not the scene. The tonal arc is designed in Phase 6 and checked at the start of every drafting session. |
 
-The Serendipity Engine addresses all six structurally. The quality of what the system produces from that structure is still on the writer — but the ground is load-bearing before the first sentence is written.
+There is a seventh failure mode that operates before any of the six disciplines are engaged: **mistaking content for story**. A writer who starts from world — from setting, lore, characters, timeline — rather than from wound has no question the story exists to answer. They produce material that is recognizable and internally consistent, sometimes beautiful, but structurally hollow. Readers who already care about the world will enjoy it. Everyone else will call it a tour. The same failure applies to sequels, prequels, and spinoffs that are built from audience attachment to a prior work rather than from a new wound with a new question: they can only produce callbacks, not revelation. The system catches this at Phase 1 — no world, no character, no outline is built until the Big Picture Statement exists. That statement is the wound made explicit. If it cannot be written, the story does not yet exist.
+
+The Serendipity Engine addresses all seven structurally. The quality of what the system produces from that structure is still on the writer — but the ground is load-bearing before the first sentence is written.
 
 ---
 

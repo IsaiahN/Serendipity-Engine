@@ -1,7 +1,5 @@
 # The Seven Story Deaths
-## The Antilife Equation Applied to Storytelling
-
-*Adapted from the Antilife Equation (Isaiah Nwukor, February 2026)*
+## The Antilife Seals Applied to Storytelling
 
 *The seven conditions that kill intelligence in networks also kill stories. Each seal describes a failure mode — for characters, for worlds, for casts, for narratives. They are most useful in three ways: as a **diagnostic** (what's wrong with this draft?), as a **conflict engine** (what force is the world pushing against?), and as an **antagonist architecture** (what does this villain actually embody?)*
 
@@ -192,7 +190,7 @@ The cleanest villain designs combine seals deliberately:
 
 ### The Fractal Check — World Building Application
 
-The Antilife Equation is **fractal**: the same failure modes appear at every scale. When designing a world, check for the seals at each level:
+The Antilife seals are **fractal**: the same failure modes appear at every scale. When designing a world, check for the seals at each level:
 
 | Scale | What antilife looks like |
 |---|---|
