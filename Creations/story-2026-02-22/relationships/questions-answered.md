@@ -17,7 +17,7 @@
 - Twenty years of surface correspondence (letters at holidays) over a foundational rupture that neither of them has named directly. Maren left. Ruth stayed. They have both been performing the version of sisterhood that doesn't require confronting why.
 - Roll R192: seed × 192 = last 12 = 899626513952 → window = 899 → 899 mod 18 + 1 = 899 - 49×18 = 899 - 882 = 17 → 17 + 1 = 18 → *Strained family bond* ✓ Confirmed.
 
-**Maren ↔ Claude Dupree**
+**Maren ↔ Jean-Luc Dupree**
 - Type: Professional partnership with accumulated loyalty
 - They met in 1940 when Maren hired him as a researcher for a case that needed French-Canadian connections. He never left. The relationship has never been defined — it exists in the permanent space between "colleague" and "only person who knows" and neither of them is interested in reducing it to a category.
 - Roll R193: seed × 193 = last 12 = 102228735378 → window = 102 → 102 mod 18 + 1 = 102 - 5×18 = 102 - 90 = 12 → 12 + 1 = 13 → *Trusted ally with history* ✓ Confirmed.
@@ -51,9 +51,9 @@
 - Unresolved tension: The thing Ruth knows and hasn't said. The reason Maren came back and won't fully admit.
 - Arc direction: Rupture → tentative repair, not full reconciliation.
 
-**Maren ↔ Claude**
-- Dynamic: *Earned trust, voluntarily maintained*. Neither of them had to stay. They have both stayed. This is the relationship in the story that works — which means it is also the one the story takes least interest in, and Claude's function is partly to model what surviving looks like when the wound doesn't become the whole person.
-- Unresolved tension: Jean-Paul. Claude's missing brother, who echoes the case in ways he hasn't voiced yet.
+**Maren ↔ Jean-Luc**
+- Dynamic: *Earned trust, voluntarily maintained*. Neither of them had to stay. They have both stayed. This is the relationship in the story that works — which means it is also the one the story takes least interest in, and Jean-Luc's function is partly to model what surviving looks like when the wound doesn't become the whole person.
+- Unresolved tension: Jean-Paul. Jean-Luc's missing brother, who echoes the case in ways he hasn't voiced yet.
 - Arc direction: Growing. The Jean-Paul conversation in Act 3 is the only relationship in the story that ends with both parties knowing more than they knew before.
 
 **Maren ↔ Eicher**
@@ -77,7 +77,7 @@
 
 **Power distribution in the cast:**
 - *Formal hierarchy:* Eicher holds institutional authority over all community members. Outside the community, he has no formal power.
-- *Information hierarchy:* Esther (most) → Ruth (second) → Maren (building) → Claude (partial but strategic) → Eicher (certain about the wrong things).
+- *Information hierarchy:* Esther (most) → Ruth (second) → Maren (building) → Jean-Luc (partial but strategic) → Eicher (certain about the wrong things).
 - *Emotional authority:* Ruth holds the room in any scene she's in — everyone else organizes around what Ruth is feeling, including characters who don't realize they're doing it.
 
 **Load-bearing relationships:**
@@ -93,4 +93,4 @@ Maren ↔ Clara. The community decided their love was inadmissible. Both of them
 Maren ↔ Esther. The reader will read this as neutral (source/witness). It is not. Esther is managing Maren. She is deciding, in real time, what to tell her — using Maren's investigation to determine the truth, then deciding what of that truth to render legible in the memoir. Maren is a research instrument. Maren does not know this. The reader figures it out at the same time as Maren does, in the last ten pages.
 
 **Found family structure:**
-Claude + Maren constitute the story's only functional found family unit. This is deliberately not idealized — they argue, they don't always tell each other the truth, Claude has a theory about 1933 he's been sitting on for a week. But they have chosen each other in a world that did not offer easy belonging, which is the specific thing this story is about.
+Jean-Luc + Maren constitute the story's only functional found family unit. This is deliberately not idealized — they argue, they don't always tell each other the truth, Jean-Luc has a theory about 1933 he's been sitting on for a week. But they have chosen each other in a world that did not offer easy belonging, which is the specific thing this story is about.

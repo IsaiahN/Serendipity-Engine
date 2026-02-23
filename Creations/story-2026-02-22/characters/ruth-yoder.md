@@ -75,6 +75,22 @@ Ruth Yoder (married name Schlabach) is fifty-eight and has been invisible by des
 
 ---
 
+## Voice Fingerprint *(derived from wound + ISFJ-T + 2w1)*
+
+| Attribute | Value | Derivation |
+|---|---|---|
+| **Speech Rhythm** | Circling / Recursive | ISFJ approaches things indirectly; 2w1 adds the duty-to-others layer; she approaches what she means from the side because direct approach feels like an imposition |
+| **Vocabulary Register** | Plain / Working | Mennonite community; practical; domestic; no display; the vocabulary of things that need doing |
+| **Volume / Pacing** | Quiet under pressure | ISFJ-T under threat gets softer; her defense is gentleness that makes confrontation feel violent in response; she does not raise her voice; she makes the other person feel they would be doing wrong to push |
+| **Dialogue Tic** | Qualifies everything — "probably," "maybe," "I think," "I suppose" | People-pleasing flaw; every statement is softened as a habit; she hedges not out of uncertainty but out of the constant social calculation of how much she can safely occupy |
+| **Metaphor Family** | Domesticity / Household — seasons, food, the garden | Everything reduced to what the house requires or provides; "the frost came early this year" means more than it says |
+| **Defensive Speech Pattern** | Agrees immediately → then acts differently | 2w1 under pressure; says yes to defuse; her yes is not agreement, it is a delay tactic; the actual response comes later in her behavior, not her words |
+| **Subtext Default** | Cannot say "I'm angry at you specifically" | Routes through general observations about how things are, seasonal metaphors, or asking if you've eaten; the anger is never named; it is occasionally audible |
+
+**Arc voice change:** "You left me here." Three words, no qualifiers, direct accusation. This is the only line Ruth speaks in the entire story without hedging it. The circling stops completely for exactly one sentence. Then it returns. The arc is those three words and the silence after them.
+
+---
+
 ## Name Notes
 
 **Ruth Yoder Schlabach:** Ruth — a biblical name the Mennonite community would have recognized as carrying the weight of loyalty and faithfulness (the Ruth of the Bible who said "wherever you go, I will go"). The irony: Ruth stayed, which looks like faithfulness to the community, but her deepest faithfulness has been to the individuals the community condemned. She chose Ruth well. She married into Schlabach — a common Mennonite surname — and is known in the community by her husband's name, which she uses without comment. She thinks of herself as Ruth Yoder privately. She has not stopped being Maren's sister.

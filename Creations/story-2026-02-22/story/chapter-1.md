@@ -2,41 +2,6 @@
 ## *The Shunning Season* — Graphic Novel Script
 
 **Pages:** Frame Prologue (pp. 1–4) + Chapter 1 (pp. 5–14)
-**Format:** Full script — panel descriptions + dialogue + narration boxes
-
----
-
-## BEFORE DRAFTING — CONTINUITY CHECK
-
-*(This is the first chapter — no prior chapter to inherit from)*
-
-- [x] **Prior paragraph:** N/A (first chapter; Frame Prologue IS the opening)
-- [x] **Tonal arc entry point:** Act 1. Controlled cool. Procedural competence as dominant register.
-- [x] **Chapter goal:** Establish Maren; accept the case; plant the photograph; introduce Claude; end with the forward hook (who was the Columbus priest?)
-
----
-
-## BEFORE DRAFTING — CHARACTER CONSISTENCY CHECK
-
-**Maren Yoder (POV character):**
-- Name: "Maren" (or "Miss Yoder" from clients). Claude calls her "Yoder" without the title.
-- Voice: INTJ-T. Enneagram 9w8. Flat affect over deep interior. She does not display the weight — she manages it. Her internal voice (Esther's rendering of it) is precise and slightly wry. Not warm. Competent.
-- Want: Close the case professionally.
-- Need: Understand what Ruth did and forgive her — NOT YET VISIBLE.
-- Flaw in action: Rigidity. She has already decided this is a professional case before Simon finishes talking. She is not available to be surprised.
-- Code: Always finish what you start. (She takes the case before she should, because that's her code operating before her judgment catches up.)
-- Self-care under stress: Overworking. She is already working. She will keep working. This is her natural state.
-- Continuity of knowledge: First chapter — baseline established.
-
-**Claude Dupree (supporting, Act 1 introduction):**
-- Name: "Claude." Maren calls him "Claude." He calls her "Yoder."
-- Voice: ENTP-A. Enneagram 7w8. Chaotic Good. His first line must be funny and must contain his grief-avoidance — the deflection is the tell. He makes something funny that isn't, which is his whole function in the story.
-- His Jean-Paul backstory is NOT visible yet. Only the pattern — the jokes that move slightly too fast.
-- Flaw in action (subtle): His first response to the Ohio case is to make a sandwich joke. This is the flaw protecting itself.
-
-**Simon Penner (minor, single appearance):**
-- 79 years old. Hands folded. Deliberate. He has been carrying this question for twenty years and has learned to hold it carefully. Not emotional on the surface — emotional in the specific way of someone who has managed their grief until it became architecture.
-- He exits the story after this chapter. Everything he says must load-bear for the whole arc.
 
 ---
 
@@ -63,7 +28,7 @@
 *NARRATION BOX:*
 > That is the nature of an account. You carry the events. You decide how much weight each one gets. You choose the order. You decide which silences to name.
 
-*PANEL 2* — A wider shot. The woman is writing. We see the back of her head — she is in her early thirties, dark hair. She is writing something. The page she's writing on is white and blank except for the title she is laying down:
+*PANEL 2* — A wider shot. The woman is writing. We see the back of her head — she is in her late forties, dark hair going silver at the temples. She is writing something. The page she's writing on is white and blank except for the title she is laying down:
 
 *ON PAGE (as she writes it):* **The Shunning Season**
 
@@ -209,31 +174,31 @@ Across the desk: a man, seated, waiting. He is old — seventy-nine, white-haire
 *PANEL 3* — The door closes. Maren is alone. She stands for a moment in the particular stillness of a room that has just been emptied of someone. Her eyes go to the desk. To the folder. To the face-down photograph — a small, deliberate slide of her gaze that she catches and redirects.
 
 *NARRATION BOX (Esther):*
-> He left. She went back to the folder. She was at her desk for another two hours and then she went into the outer office to find Claude.
+> He left. She went back to the folder. She was at her desk for another two hours and then she went into the outer office to find Jean-Luc.
 
 ---
 
 **PAGE 10**
 
-*PANEL 1* — The outer office. Claude Dupree is at his desk. He has what might be described as a *filing system* — it involves several stacks of paper at competing angles, two coffee cups (one empty, one in process), a small framed picture of a city Maren has never identified, and a newspaper open to the crossword with two clues filled in and the rest blank. He is reading something. His whole body has the posture of a man completely at ease in a space he has colonized entirely.
+*PANEL 1* — The outer office. Jean-Luc Dupree is at his desk. He has what might be described as a *filing system* — it involves several stacks of paper at competing angles, two coffee cups (one empty, one in process), a small framed picture of a city Maren has never identified, and a newspaper open to the crossword with two clues filled in and the rest blank. Visible among the stacks: archive request slips from the county courthouse, a carbon copy of a deed transfer register, a handmade card-index box with dividers labeled in his cramped handwriting. The chaos has an underlying logic that no one else has ever successfully navigated. He is reading something. His whole body has the posture of a man completely at ease in a space he has colonized entirely.
 
 He is in his mid-forties, broad-shouldered, with a face that has been friendly for so long it has decided to stay that way even when the rest of him hasn't caught up.
 
-**CLAUDE** (not looking up): Ohio?
+**JEAN-LUC** (not looking up): Ohio?
 
 *PANEL 2* — Maren in the doorway. She has the folder.
 
 **MAREN:** Wayne County. Mennonite community. Missing person, twenty years cold. Woman named Clara Penner. I need everything on the community structure — leadership records, membership rolls if they're accessible outside the community, any county records from 1933.
 
-*PANEL 3* — Claude puts down what he was reading. He looks at her with the particular attention of someone who is processing more than one layer of what he just heard.
+*PANEL 3* — Jean-Luc puts down what he was reading. He looks at her with the particular attention of someone who is processing more than one layer of what he just heard.
 
-**CLAUDE:** 1933.
+**JEAN-LUC:** 1933.
 
 **MAREN:** 1933.
 
 *PANEL 4* — A beat.
 
-**CLAUDE:** That's a long way for a sandwich.
+**JEAN-LUC:** That's a long way for a sandwich.
 
 ---
 
@@ -243,25 +208,25 @@ He is in his mid-forties, broad-shouldered, with a face that has been friendly f
 
 **MAREN:** The client is Simon Penner. Seventy-nine. His daughter disappeared in 1933 and the community told him she left voluntarily. He doesn't believe it. He wants to know if she's alive.
 
-*PANEL 2* — Claude has picked up a notepad. He is already writing.
+*PANEL 2* — Jean-Luc has picked up a notepad. He is already writing.
 
-**CLAUDE:** Voluntarily or—
+**JEAN-LUC:** Voluntarily or—
 
 **MAREN:** Administratively. They removed her name from their membership records. Someone took the time.
 
-*PANEL 3* — Claude looks up from the notepad.
+*PANEL 3* — Jean-Luc looks up from the notepad.
 
-**CLAUDE:** They removed her name from the document.
+**JEAN-LUC:** They removed her name from the document.
 
 **MAREN:** Yes.
 
-**CLAUDE:** So whoever did that knew the document was going to be checked eventually.
+**JEAN-LUC:** So whoever did that knew the document was going to be checked eventually.
 
 **MAREN:** Correct.
 
-*PANEL 4* — Claude writes something.
+*PANEL 4* — Jean-Luc writes something.
 
-**CLAUDE:** Or they were just neat.
+**JEAN-LUC:** Or they were just neat.
 
 **MAREN:** Nobody is that neat about a coincidence.
 
@@ -269,13 +234,13 @@ He is in his mid-forties, broad-shouldered, with a face that has been friendly f
 
 **PAGE 12**
 
-*PANEL 1* — Claude is on his feet. He is already thinking — the particular forward-lean of someone whose brain has decided the problem is interesting and has stopped consulting the rest of him about it.
+*PANEL 1* — Jean-Luc is on his feet. He is already thinking — the particular forward-lean of someone whose brain has decided the problem is interesting and has stopped consulting the rest of him about it.
 
-**CLAUDE:** County records are public. I can have the 1933 social services intake and land deed transfers by Thursday. Church records are private but—
+**JEAN-LUC:** County records are public. For 1933 I want four chains: social services intake registers, any circuit court filings — a missing person sometimes ends up in probate if someone filed a presumed-death petition — land deed transfers, and the Wayne County newspaper archive from 1933 to 1935. If she left a trace, one of those will have it. Church records are private but—
 
 *PANEL 2* — He stops. Maren is looking at him.
 
-**CLAUDE:** You already know the community.
+**JEAN-LUC:** You already know the community.
 
 It's not a question.
 
@@ -283,19 +248,19 @@ It's not a question.
 
 **MAREN:** I know the way they think. I left in 1913.
 
-*PANEL 4* — Claude processes this. He doesn't say anything for a moment. Then:
+*PANEL 4* — Jean-Luc processes this. He doesn't say anything for a moment. Then:
 
-**CLAUDE:** That's forty years.
+**JEAN-LUC:** That's forty years.
 
 **MAREN:** Yes.
 
-*PANEL 5* — Claude looks back at his notepad.
+*PANEL 5* — Jean-Luc looks back at his notepad.
 
-**CLAUDE:** The priest in Columbus who sent the client to you.
+**JEAN-LUC:** The priest in Columbus who sent the client to you.
 
 **MAREN:** I know.
 
-**CLAUDE:** You don't know who it is.
+**JEAN-LUC:** You don't know who it is.
 
 **MAREN:** Not yet. Start there.
 
@@ -303,12 +268,12 @@ It's not a question.
 
 **PAGE 13**
 
-*PANEL 1* — Claude nods. He's already moving back to his desk, picking up the phone.
+*PANEL 1* — Jean-Luc nods. He's already moving back to his desk, picking up the phone.
 
 *NARRATION BOX (Esther):*
-> This was how they worked. Maren said the problem; Claude said the obvious thing; Maren said what she already knew; Claude said the thing she hadn't quite named yet; and then they both started pulling at their separate ends of it. It took me three visits to their office to understand that this wasn't argument — it was the way they thought together.
+> This was how they worked. Maren said the problem; Jean-Luc said the obvious thing; Maren said what she already knew; Jean-Luc said the thing she hadn't quite named yet; and then they both started pulling at their separate ends of it. It took me three visits to their office to understand that this wasn't argument — it was the way they thought together.
 
-*PANEL 2* — Maren goes back to her own office. She closes the connecting door, not all the way. Through the gap: the sound of Claude already on the phone, his French-Canadian accent thickening slightly the way it did when he was concentrating.
+*PANEL 2* — Maren goes back to her own office. She closes the connecting door, not all the way. Through the gap: the sound of Jean-Luc already on the phone, his French-Canadian accent thickening slightly the way it did when he was concentrating.
 
 *PANEL 3* — Maren's desk. The folder. The face-down photograph. She sits.
 
@@ -321,9 +286,9 @@ It's not a question.
 
 **PAGE 14**
 
-*PANEL 1* — Close on the folder. The intake form. Maren's notes in the margins, already beginning — small, precise handwriting, a shorthand that is half-abbreviation and half-code.
+*PANEL 1* — Close on the folder. The intake form. Maren's notes in the margins, already beginning — a notation system developed over twenty years of investigations: physical evidence logged in the left margin, witness testimony in the right, and institutional record state underlined in a sequence that marks what has been confirmed, what has been asserted, and what has been deliberately omitted. The intake form already has three annotation layers. The investigation, for Maren, began before Simon arrived.
 
-*PANEL 2* — Wide shot of the office. Maren at her desk. The window behind her — Cleveland, late afternoon, the industrial haze of November making the light gray and flat. She is a small figure in the room. The room is entirely organized, almost sparse, except for the one face-down photograph and the growing nest of paper Claude is generating in the outer office.
+*PANEL 2* — Wide shot of the office. Maren at her desk. The window behind her — Cleveland, late afternoon, the industrial haze of November making the light gray and flat. She is a small figure in the room. The room is entirely organized, almost sparse, except for the one face-down photograph and the growing nest of paper Jean-Luc is generating in the outer office.
 
 *NARRATION BOX (Esther):*
 > The priest in Columbus. That was the thing she kept coming back to, she told me. Someone in Columbus had known to send Simon Penner to her specifically. Not a PI in Columbus. Not a general referral. Her. By name.
@@ -333,21 +298,6 @@ It's not a question.
 *NARRATION BOX (Esther):*
 > Someone who knew Clara Penner had been found. Or someone who knew Maren Yoder would not stop looking once she started. Or both.
 
-*FINAL PANEL — Full-width bottom panel:* Through the connecting door's gap — Claude at his desk, on the phone, already writing. The outer office: alive. The inner office: Maren, still, with the folder. Two people at work. The case has started.
+*FINAL PANEL — Full-width bottom panel:* Through the connecting door's gap — Jean-Luc at his desk, on the phone, already writing. The outer office: alive. The inner office: Maren, still, with the folder. Two people at work. The case has started.
 
 *END OF CHAPTER 1*
-
----
-
-## AFTER DRAFTING — FORWARD CONTINUITY CHECK
-
-- [x] **What changed by end of chapter:** Case accepted. Simon established. Maren's connection to Wayne County revealed (left 1913). The face-down photograph planted. Claude's functioning established. Forward hook: the priest in Columbus who sent Simon to Maren specifically.
-- [x] **Relationship that phase-shifted:** Maren ↔ Simon Penner: from none → professional/client. (Simon exits the active story here.)
-- [x] **Thread state:** "The case" thread OPEN. Columbus priest sub-question OPEN. Maren's personal connection to the case HINTED.
-- [x] **Forward tension:** The priest question. Claude will find an answer in Chapter 4 (the Columbus women's residence research). The reader's question going into Chapter 2 is: *why was Maren the specific person to call?*
-- [x] **Chapter's final image:** The two desks, the two people, working. This is the last time in the story that Maren's professional distance is fully intact. The next chapter begins the first fracture.
-
----
-
-*Handoff to Chapter 2 — "Going Back":*
-Chapter 2 inherits: the case is open; Maren is driving to Wayne County; the professional shell is intact but the reader knows about the 1913 departure and the face-down photograph; Claude has begun research from Cleveland.

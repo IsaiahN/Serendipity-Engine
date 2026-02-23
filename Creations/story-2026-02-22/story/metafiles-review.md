@@ -23,7 +23,7 @@
 - I-Thread: "I am the one who maintains the structure." This has not changed since approximately 1930. The threat Maren poses is not personal — she threatens the I-Thread by demonstrating that the structure maintained in 1933 did not save anything, only delayed the accounting.
 - **Check: PASS** — Eicher's near-zero visible conflict is correct. The horror of him is that he has no crack. His I-Thread is airtight. This is what the Seven Deaths checklist calls Stasis, and it is deliberate.
 
-**Claude Dupree**
+**Jean-Luc Dupree**
 - Stream A: Grief-avoidance built into every comic deflection. Jean-Paul's disappearance in 1944 has never been processed. His private truth is that he has been looking for his brother in every missing-persons case he's ever worked.
 - Stream B: Catholic + French-Canadian cultural inheritance that says grief should be private; the Church will handle things eternal; life continues with dignity through labor and wit.
 - Stream Conflict: Stream A says "Jean-Paul is gone and you never looked hard enough." Stream B says "He made his choice; you couldn't have changed it; this is not your guilt to carry." The Act 3 conversation with Maren is the moment the two streams meet. He does not resolve the conflict. He names it. That's enough.
@@ -76,7 +76,7 @@ A healthy scene has:
 | Pioneer | Maren Yoder | Left first; paid the cost; her return is the Pioneer returning to test what changed |
 | Pioneer (original, off-page) | Clara Penner | The Pioneer whose act preceded the story |
 | Optimizer | Ruth Yoder | Made Clara's survival workable by providing resources; makes the community's truth survivable by staying inside it |
-| Generalist | Claude Dupree | Bridges Cleveland and Wayne County; bridges comedy and grief; the only character who is equally at home in both worlds |
+| Generalist | Jean-Luc Dupree | Bridges Cleveland and Wayne County; bridges comedy and grief; the only character who is equally at home in both worlds |
 | Exploiter | Bishop Eicher | Uses the institutional order to protect himself from accountability; extracts value (social standing, community authority) from others' compliance |
 
 **Redundancy check:** No two characters occupy the same archetype slot. Pioneer-double (Maren + Clara) is intentional — they are complementary pioneers at different temporal stages of the same act. ✓
@@ -87,7 +87,7 @@ A healthy scene has:
 
 | Trope | Mutation | Status |
 |-------|----------|--------|
-| Comic relief with hidden depth | Played straight — Claude's hidden depth (Jean-Paul) is given full Act 3 weight, not used as twist | ✓ |
+| Comic relief with hidden depth | Played straight — Jean-Luc's hidden depth (Jean-Paul) is given full Act 3 weight, not used as twist | ✓ |
 | Antihero | Subverted — Esther, not Maren, is the actual antihero; Maren is made sympathetically straightforward while Esther operates with selective honesty | ✓ |
 | False victory | Mutated — finding Clara IS the false victory; it doesn't produce reunion or justice; the real victory (the letter) is smaller and more permanent | ✓ |
 | Hero's fall and redemption | Mutated — Maren's "fall" is discovering she was operating on incomplete moral math; "redemption" is one letter, not a transformation | ✓ |
@@ -162,7 +162,7 @@ The story's final act is Maren making *a decision* — to protect Clara's privac
 | Domain | Resonance | How |
 |--------|-----------|-----|
 | Personal (individual) | ✓ | Maren's wound, her specific grief, her specific competence-as-armor |
-| Interpersonal (relationship) | ✓ | Maren ↔ Ruth; Maren ↔ Clara; Claude ↔ Jean-Paul (his echo) |
+| Interpersonal (relationship) | ✓ | Maren ↔ Ruth; Maren ↔ Clara; Jean-Luc ↔ Jean-Paul (his echo) |
 | Community/institutional | ✓ | The Ordnung as governing infrastructure; Eicher as its mechanism |
 | Historical | ✓ | 1953 Ohio, post-WWII; specific Mennonite practice; 1933 as the wound-year |
 | Philosophical | ✓ | Can legitimacy survive the retraction of permission? What does love ruled inadmissible become over time? |

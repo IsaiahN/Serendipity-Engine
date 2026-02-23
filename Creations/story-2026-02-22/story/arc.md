@@ -68,18 +68,18 @@ Maren closes the case. She does not disclose Clara's location. She writes a lett
 | Beat | Page Range | Function |
 |------|------------|----------|
 | Opening | p. 15–18 | Ruth as mild obstruction — she's pleasant and remembers nothing useful |
-| Theme echo | p. 52–58 | Ruth's behavior in community meetings begins to pattern. Claude notices. |
+| Theme echo | p. 52–58 | Ruth's behavior in community meetings begins to pattern. Jean-Luc notices. |
 | Rupture | p. 81–87 | *"You left me here."* The confrontation that doesn't fully happen — Ruth doesn't confess; Maren doesn't ask the direct question; both leave something on the table |
 | Resolution | p. 103–106 | Maren finds Clara's letter (the wall document). The specific address of the women's residence in Columbus is in Ruth's handwriting, not Clara's. Ruth knew before she should have. |
 
-### Claude's Subplot (Jean-Paul Echo)
+### Jean-Luc's Subplot (Jean-Paul Echo)
 
 | Beat | Page Range | Function |
 |------|------------|----------|
-| Opening | p. 10–12 | Claude as comedy — his reactions to the case documents; his sandwiches; his theories about Ohio |
-| Theme echo | p. 63–67 | Claude finds Thomas Flint's file; shows it to Maren without comment; his silence is the first clue |
-| Rupture | p. 95–98 | Act 3, Claude tells Maren about Jean-Paul. His brother. The commune. 1944. He's been sitting on it since page 12. The scene is played very quietly. |
-| Resolution | p. 107–109 | The parallel closes: Claude's missing person was never going to be found. Maren's was. Neither of them can decide which is better. |
+| Opening | p. 10–12 | Jean-Luc as comedy — his reactions to the case documents; his sandwiches; his theories about Ohio |
+| Theme echo | p. 63–67 | Jean-Luc finds Thomas Flint's file; shows it to Maren without comment; his silence is the first clue |
+| Rupture | p. 95–98 | Act 3, Jean-Luc tells Maren about Jean-Paul. His brother. The commune. 1944. He's been sitting on it since page 12. The scene is played very quietly. |
+| Resolution | p. 107–109 | The parallel closes: Jean-Luc's missing person was never going to be found. Maren's was. Neither of them can decide which is better. |
 
 ### Esther's Subplot (Narrative Frame / Meta-Layer)
 

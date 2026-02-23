@@ -18,7 +18,7 @@
 | Enneagram | **Type 4 — Individualist, 4w5** *(R173/R174 — introspective, emotionally intense; 4w5: more withdrawn and intellectual; processes feelings through solitary creative work)* |
 | Moral Alignment | **True Neutral** *(R175 — avoids taking sides; seeks balance; genuinely believes extremes are dangerous; the character the story uses to force both sides to reckon with their certainty)* |
 | Character Type | **The person who knows more than they're saying** *(plot-level assignment)* |
-| Flaw | **Grief avoidance** *(R176 — she and Claude share this flaw; different wound, same mechanism; this is their foil pairing)*  |
+| Flaw | **Grief avoidance** *(R176 — she and Jean-Luc share this flaw; different wound, same mechanism; this is their foil pairing)*  |
 | Virtue | **Loyalty** *(R177)* |
 | Wound | **Survivor's guilt — sibling/parent died, they lived** *(R178 — her brother Thomas was the person the community sent to retrieve Clara in 1933; something happened to Thomas in that process; Esther survived it; her narration is, in part, shaped by that guilt)* |
 | Core Value | **Loyalty** *(same as virtue — she is what happens when loyalty becomes your entire identity)* |
@@ -52,6 +52,24 @@ Esther's narration contains three deliberate distortions:
 
 ---
 
+## Voice Fingerprint *(derived from wound + INFP-T + 4w5)*
+
+*Note: Esther has two voices — her narration voice (written, mature, in the frame) and her dialogue voice (spoken, 17, in the investigation scenes). The fingerprint governs both but manifests differently.*
+
+| Attribute | Value | Derivation |
+|---|---|---|
+| **Speech Rhythm** | Circling / Recursive | INFP + 4w5; she approaches the point from multiple directions; the narration returns to the same image from different angles because she is still deciding what the image means |
+| **Vocabulary Register** | Literary / Reference-dense | She has processed her entire interior life through narrative since childhood; her language has a writerly quality even in speech; she reaches for the precise word, not the available one |
+| **Volume / Pacing** | Quiet by default | 4w5 withdrawn; she listens more than she speaks in person; her voice is fullest in the narration, where she has time |
+| **Dialogue Tic** | Answers a question with a question | INFP + 4w5: she holds questions as questions; she does not claim certainty; even when she knows the answer she tests the question first |
+| **Metaphor Family** | Theater / Performance | She is the narrator; she is constitutionally aware that the story has an audience; she thinks in terms of what is seen versus what is behind the performance; what is in the frame versus what has been cut |
+| **Defensive Speech Pattern** | Goes quiet → then disappears | 4w5 + grief avoidance; when the emotional temperature rises past her threshold, she exits — physically or conversationally; the subject simply is no longer present when you look for it |
+| **Subtext Default** | Cannot say "I'm in pain" | Routes through academicization: she describes the situation as "simply what it was," "the expected outcome given the circumstances," or renders the pain in third person in the narration |
+
+**Arc voice change:** In the frame narrative's final pages, the literary vocabulary simplifies. Sentences shorten. She uses "I" more emphatically than she has anywhere else in the narration. The circling stops in the final paragraph. "I decided it was." No qualifiers. No circling. One sentence. This is the arc.
+
+---
+
 ## Character Function
 
 Esther is the story's **Pioneer** archetype in reverse — she is a Pioneer who turned back. She had access to the full truth at seventeen and chose, over the following thirty years, to carry it in a way that protected the people around her rather than illuminating the record. She is what happens when a Pioneer decides that discovery is less important than safety.
@@ -68,7 +86,7 @@ She is also the reader's mirror. The reader, like Esther, is being given partial
 
 ## Foil Pairings
 
-**Esther ↔ Claude:** Same flaw (grief avoidance). Same wound structure (someone disappeared, survivor's guilt). Different response: Claude runs forward into noise; Esther runs backward into archive and management. They are the same frequency at opposite phases.
+**Esther ↔ Jean-Luc:** Same flaw (grief avoidance). Same wound structure (someone disappeared, survivor's guilt). Different response: Jean-Luc runs forward into noise; Esther runs backward into archive and management. They are the same frequency at opposite phases.
 
 **Esther ↔ Maren:** Esther knows more than Maren. Esther is younger. Esther has less power in every visible register. And Esther has been shaping Maren's story from the frame position for thirty years without Maren knowing. The power dynamic is inverted from its apparent form.
 

@@ -8,7 +8,7 @@
 ## The Cast
 
 **How many characters does this story need?**
-Five named, fully developed characters: Maren (protagonist), Eicher (antagonist), Claude (supporting/comic bridge), Ruth (supporting/emotional fulcrum), Esther (frame narrator). Plus one off-page catalyst character — Clara Penner — who never fully appears but whose absence drives everything.
+Five named, fully developed characters: Maren (protagonist), Eicher (antagonist), Jean-Luc (supporting/comic bridge), Ruth (supporting/emotional fulcrum), Esther (frame narrator). Plus one off-page catalyst character — Clara Penner — who never fully appears but whose absence drives everything.
 
 **Who is the protagonist?**
 Maren Yoder. Supporting protagonist by roll — the story's center of narrative attention without being its center of moral gravity.
@@ -20,7 +20,7 @@ Bishop Ezra Eicher — a systemic villain. He is not in direct personal oppositi
 All five are load-bearing. Clara Penner is also load-bearing in her absence — she is the case and the wound simultaneously. Removing any one of the five would collapse a different structural beam:
 - Remove Maren: no investigation, no return
 - Remove Eicher: no institutional resistance, no stakes
-- Remove Claude: no air to breathe; the story drowns in its own gravity
+- Remove Jean-Luc: no air to breathe; the story drowns in its own gravity
 - Remove Ruth: the investigation has no emotional payoff; the pivot from "find Clara" to "understand Ruth" cannot happen
 - Remove Esther: the graphic novel loses its framing architecture; the story becomes a straightforward investigation instead of an interrogation of who controls the record
 
@@ -31,13 +31,13 @@ All five are load-bearing. Clara Penner is also load-bearing in her absence — 
 **Do any characters mirror each other?**
 - Maren ↔ Eicher: same wound frequency (community's verdict on their worth), opposite phase response (left vs. became the verdict-issuer)
 - Maren ↔ Ruth: same wound frequency (community obligation), same protectiveness virtue, opposite phase on departure/staying
-- Claude ↔ Esther: same flaw (grief avoidance), same wound structure (someone disappeared), opposite response direction
+- Jean-Luc ↔ Esther: same flaw (grief avoidance), same wound structure (someone disappeared), opposite response direction
 - Ruth ↔ Eicher: both operate through the community's formal channels; opposite moral operation underneath
 
 **What is the power hierarchy among the characters?**
 *Formal:* Eicher > Ruth (as community member) > Esther (as young woman) > Maren (as shunned outsider)
 *Actual:* Esther (controls the narrative) > Ruth (holds the true history of 1933) > Maren (has external authority the community cannot fully override) > Eicher (his power is formal and begins to lose its grip when the investigation produces evidence)
-*Information:* Esther knows the most. Maren knows least at the start. Claude knows Maren better than anyone. Ruth knows the community better than anyone.
+*Information:* Esther knows the most. Maren knows least at the start. Jean-Luc knows Maren better than anyone. Ruth knows the community better than anyone.
 
 **Are there characters who shift position in the hierarchy?**
 Yes — by Act 3, Ruth's position has shifted from hidden-optimizer to acknowledged-actor; Esther's position shifts from invisible teenager to recognized shaper of the account.
@@ -65,7 +65,7 @@ Esther. The reader will accept her as a reliable witness for at least half the b
 Maren — she carries Daven Yoder's wound (loved someone they couldn't have), his values (knowledge/truth, duty/responsibility), his self-care mechanism (overwork), and his flat emotional affect over a deep interior. The author has been warned about this in his author file. The character risks being over-invested. The counter-design: Maren is in her late 60s in 1953, which creates enough biographical distance from the 40-year-old author that the projection has room.
 
 **Which character does the author wish he could be?**
-Claude — who is free in ways Daven Yoder is not, who makes the darkness funny without erasing it, who has made peace with being an outsider by treating it as a vantage point rather than a wound.
+Jean-Luc — who is free in ways Daven Yoder is not, who makes the darkness funny without erasing it, who has made peace with being an outsider by treating it as a vantage point rather than a wound.
 
 ---
 
@@ -75,12 +75,12 @@ Claude — who is free in ways Daven Yoder is not, who makes the darkness funny 
 Checked: no redundancies. Each character occupies a unique structural and emotional position:
 - Maren: investigative lens + wound-carrier
 - Eicher: institutional resistance
-- Claude: bridge + air supply + subplot echo
+- Jean-Luc: bridge + air supply + subplot echo
 - Ruth: true knowledge + emotional fulcrum + the cost of staying
-- Esther: narrative control + meta-layer + grief echo of Claude
+- Esther: narrative control + meta-layer + grief echo of Jean-Luc
 
 **Is there a character the story needs that hasn't been created yet?**
 Clara Penner. She is the off-page catalyst — she needs minimal development because she is defined by her absence. What we know of her must be reconstructed from what others say, which is exactly right for the story's mechanism. She does not need a character file of her own, but should have a brief entry — a thumbnail, not a full sheet. *(Create: characters/clara-penner-thumbnail.md)*
 
 **Are any characters too similar in voice, role, or function?**
-Claude and Esther share a flaw and a wound structure but diverge completely in alignment, response, and narrative function. The similarity is intentional (foil pairing) and differentiated by everything else. ✓
+Jean-Luc and Esther share a flaw and a wound structure but diverge completely in alignment, response, and narrative function. The similarity is intentional (foil pairing) and differentiated by everything else. ✓

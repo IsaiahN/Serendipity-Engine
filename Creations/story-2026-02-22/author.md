@@ -96,6 +96,22 @@
 
 **Preferred genres:** LGBTQ+ Historical + Survival adventure. The gap between these two is telling: he gravitates toward stories about people who were punished for being themselves (LGBTQ+ Historical) and stories about endurance stripped of comfort (Survival adventure). His wound writes through both.
 
+### Author Voice Fingerprint *(R189–R195, derived from wound + MBTI + Enneagram)*
+
+*Derived per `Characters/Development/character-voice.md`. Voice is downstream of all other rolls — derived here from wound (loved someone he couldn't have) + INFJ-T + 8w7 + Anabaptist background + Deadpan prose tendency.*
+
+| Attribute | Value | Derivation |
+|---|---|---|
+| **Speech Rhythm** | Deliberate / Measured | INFJ controls the weight of words; 8w7 adds intensity that stays internal; he speaks when he has something to say and not before |
+| **Vocabulary Register** | Educated Casual | The Anabaptist background gives him plain-speech habits; the literary career gave him precision without display; he chooses Latinate words the way someone chooses them who learned English deliberately, not by inheritance |
+| **Volume / Pacing** | Measured regardless | INFJ-T + Enneagram 8: his affect is flat regardless of interior state; he does not signal emotion through volume |
+| **Dialogue Tic** | Falls silent exactly when silence is most uncomfortable for others | 8w7 under calm is strategic; the silence is presence, not absence; it forces the other person to speak into it |
+| **Metaphor Family** | Religion / Scripture | The Mennonite grammar is structural for him even after leaving; he still reaches for covenant, witness, burden, grace — not as belief, but as architecture |
+| **Defensive Speech Pattern** | Goes quiet → then strikes once, directly | The INFJ retreats inward first; the 8 arrives late but precisely; what comes out after the silence is not raised in volume but is said with a finality that closes the conversation |
+| **Subtext Default** | Cannot say "I need you" | Routes through service, duty, overwork; frames every emotional need as a practical obligation; "I still owe you something" instead of "I still miss you" |
+
+**Arc note:** The subtext default cracks in the act of writing this book. By the final draft, the Big Picture Statement is his closest public approximation of "I need to say this to someone." He writes it down. He calls it an abstract.
+
 ---
 
 ## Full Physical Description

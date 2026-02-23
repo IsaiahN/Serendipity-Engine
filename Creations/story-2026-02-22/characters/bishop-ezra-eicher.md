@@ -75,6 +75,22 @@ He knows, in the part of himself he does not visit, that this is not true.
 
 ---
 
+## Voice Fingerprint *(derived from wound + ENTJ-A + 1w9)*
+
+| Attribute | Value | Derivation |
+|---|---|---|
+| **Speech Rhythm** | Deliberate / Periodic | ENTJ structures arguments; 1w9 is quieter than 1w2; he builds long sentences that accumulate toward a conclusion he has already reached before speaking |
+| **Vocabulary Register** | Formal / Elevated | He is the Bishop; he uses the community's theological register — biblical, institutional, Latinate; no contractions; complete sentences |
+| **Volume / Pacing** | Measured regardless | His authority does not require volume; the stillness is the authority |
+| **Dialogue Tic** | Speaks for others — "what you're really asking is" / "what the community needs to understand is" | ENTJ reframes questions to control what is being asked; this is how he administers the conversation rather than participating in it |
+| **Metaphor Family** | Religion / Scripture — also Construction / Architecture | Foundations, structures, what the community has built; a wall that has stood for a hundred years; a covenant that holds the stones together |
+| **Defensive Speech Pattern** | Becomes precise to the point of pedantry | 1w9 under threat: he corrects language, demands definitional exactness, challenges premises; makes the conversation about the accuracy of the question rather than the answer |
+| **Subtext Default** | Cannot say "I was wrong" | Routes through reframing: "what happened was necessary for the community's welfare," "the decision was made in good faith given available information," "history will vindicate the approach" |
+
+**Arc note:** His voice does not change. This is the most frightening quality of the story's antagonist — the arc closes without Eicher's voice shifting by a single register. He is the same in the final chapter as in the first. The story's argument is that some people do not update, and the world moves on without their permission.
+
+---
+
 ## Name Notes
 
 **Ezra Eicher:** Ezra — a biblical scribe and priest, a man of the law who brought the written law back to the people. The name is exactly right. Eicher — German/Swiss-German surname common in Mennonite communities. He carries the name of his community's tradition in his name and knows it. He chose it as his public identity the moment he was appointed bishop and set aside what his mother called him, which was "Ezzie," which he has not permitted anyone to use since 1930.

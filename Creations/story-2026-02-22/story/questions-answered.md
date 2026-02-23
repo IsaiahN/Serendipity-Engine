@@ -103,7 +103,7 @@ That Esther's protection of Ruth is coming at a cost to Maren — that the story
 
 1. **Ruth's subplot** — Ruth stayed when Maren left. Ruth helped Clara leave. Ruth has spent twenty years carrying both facts and telling no one. Her subplot is the story's emotional fulcrum: the cost of being the one who stays.
 
-2. **Claude's subplot** — Claude Dupree, Maren's city partner, has his own missing person from his own past (a brother who left a Quebec commune under similar circumstances in the 1940s). His comic exterior conceals this. It surfaces in Act 3 and reframes his relationship with the investigation.
+2. **Jean-Luc's subplot** — Jean-Luc Dupree, Maren's city partner, has his own missing person from his own past (a brother who left a Quebec commune under similar circumstances in the 1940s). His comic exterior conceals this. It surfaces in Act 3 and reframes his relationship with the investigation.
 
 3. **Esther's subplot** — The reader gradually realizes that Esther's narration has been shaped. What Esther wants and why she wants it becomes its own question in the final act.
 

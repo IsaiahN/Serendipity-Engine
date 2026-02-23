@@ -22,7 +22,7 @@
 | `story/metafiles-review.md` | ✓ |
 | `characters/maren-yoder.md` | ✓ |
 | `characters/bishop-ezra-eicher.md` | ✓ |
-| `characters/claude-dupree.md` | ✓ |
+| `characters/Jean-Luc-dupree.md` | ✓ |
 | `characters/ruth-yoder.md` | ✓ |
 | `characters/esther-flint.md` | ✓ |
 | `characters/clara-penner-thumbnail.md` | ✓ |
@@ -77,9 +77,9 @@
 ### Chapter 1 — "The Case" (pp. 5–14)
 
 **Drafted:** ✓ *(See chapter-1.md for full text)*
-**What changed:** Case accepted. Simon Penner established as client. Maren's competence and professional distance established. Claude introduced. The face-down photograph planted.
+**What changed:** Case accepted. Simon Penner established as client. Maren's competence and professional distance established. Jean-Luc introduced. The face-down photograph planted.
 **Threads opened:** The case (Clara's fate), Maren's connection to the case (photograph)
-**Threads active:** Claude's comic register (operative throughout)
+**Threads active:** Jean-Luc's comic register (operative throughout)
 **Relationships shifted:** None yet — no community members present
 **Forward tension:** Simon Penner says "A priest in Columbus" gave him her name. Who was the priest? Why did someone in Columbus know to send Clara's father to this specific PI?
 
@@ -111,7 +111,7 @@
 | Chekhov's gun (letter in wall) | — | PENDING | Ch. 3 plants |
 | Ruth's secret | — | PENDING | Ch. 3 hints |
 | Thomas Flint | — | PENDING | Ch. 2 plants |
-| Claude ↔ Jean-Paul | — | PENDING | Ch. 4 opens |
+| Jean-Luc ↔ Jean-Paul | — | PENDING | Ch. 4 opens |
 | Esther as unreliable narrator | Frame prologue | ACTIVE (reader-level) | Prologue |
 | Eicher's obstruction | — | PENDING | Ch. 3 introduces |
 | The letter in the wall | — | PENDING | Ch. 5 opens |

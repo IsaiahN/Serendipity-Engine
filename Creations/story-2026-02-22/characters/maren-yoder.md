@@ -79,6 +79,22 @@ Coherent. ✓ The wound explains the flaw (she built rigid rules after her ident
 
 ---
 
+## Voice Fingerprint *(derived from wound + INTJ-T + 9w8)*
+
+| Attribute | Value | Derivation |
+|---|---|---|
+| **Speech Rhythm** | Clipped / Staccato | INTJ economy; 9w8 doesn't push, it states and stops; she delivers information and does not ornament it |
+| **Vocabulary Register** | Sparse-to-withholding | Decades as a PI; words are instruments; she uses as few as the job requires and holds the rest |
+| **Volume / Pacing** | Quiet by default — slows to make a point | 60+ years of professional authority built on compression; the quiet commands the room; she decelerates to emphasize, never accelerates |
+| **Dialogue Tic** | Repeats the last few words of what was said before responding | INTJ processing; also signals she has heard exactly what was said; creates a beat that lets the other person hear themselves |
+| **Metaphor Family** | Law / Justice | She thinks in evidence, verdicts, proof; her moral reasoning has an evidentiary structure; "that's useful information" is her highest expression of feeling |
+| **Defensive Speech Pattern** | Becomes formal | Rigidity flaw = professionalism as armor; under emotional threat she gets more procedural, not less; the formality is the defense |
+| **Subtext Default** | Cannot say "I'm afraid" | Routes through problem-solving; names the procedural challenge and ignores the human cost; "I need the Columbus address" instead of "I'm terrified of what I'll find" |
+
+**Arc voice change:** Under quiet devastation (Act 3), her sentences fragment. The clipped rhythm breaks further — incomplete thoughts, abandoned sentences. The formality fails in the moment on the Columbus street, and then returns harder afterward. "I didn't give them your address" is ten words where she would normally use five. The excess is the feeling.
+
+---
+
 ## Identity Questions *(Characters/Identity/questions.md)*
 
 **What is her gender identity?**
@@ -91,7 +107,7 @@ Her gender role was enforced — the assumption that she would marry, keep house
 Bisexual — though she has no word for it in 1953 and would not use one in public. She knows what she is. She has known for sixty years. She loved Clara, specifically, with a precision that she has not replicated since. She has loved men, also. Both are true. Neither truth has been easy to hold.
 
 **Is she out?**
-To herself, entirely. To one other person — Claude, her city partner, who worked it out in 1941 and asked her directly and she told him the truth because she was tired, that particular day, of the other option. She has never been out in any formal sense and doesn't expect to be.
+To herself, entirely. To one other person — Jean-Luc, her city partner, who worked it out in 1941 and asked her directly and she told him the truth because she was tired, that particular day, of the other option. She has never been out in any formal sense and doesn't expect to be.
 
 **Does her faith create conflict?**
 She was raised Mennonite; she is not religious in 1953 but carries the Mennonite framework in her bones. It comes out in her moral reasoning — the specific shape of her ethical thought has Anabaptist architecture even when the content has changed. She does not believe in God but she believes, without irony, in accountability and in debt. These are the same thing to her.
@@ -149,7 +165,7 @@ She carries **Amnesia** (Seal 2) as a defensive mechanism — she has profession
 
 **Full name:** Maren Yoder. She kept her family name when she left — not out of loyalty to the community, but because changing it would require acknowledging that the community had a name that was worth escaping. She doesn't give them that.
 
-**What different people call her:** "Maren" always. Nobody calls her "Miss Yoder" more than once. Claude sometimes calls her "Mar" in private; she has accepted this without comment. Her sister Ruth still calls her "Maren" with the specific Mennonite pronunciation that lands the stress differently. When Ruth says her name, it sounds like a word from another language, which it is.
+**What different people call her:** "Maren" always. Nobody calls her "Miss Yoder" more than once. Jean-Luc sometimes calls her "Mar" in private; she has accepted this without comment. Her sister Ruth still calls her "Maren" with the specific Mennonite pronunciation that lands the stress differently. When Ruth says her name, it sounds like a word from another language, which it is.
 
 **Is there a name from her past she's left behind?**
 The community sometimes appended family-identifier suffixes to names, to distinguish between multiple bearers of the same name. She was "Yoder's Maren" in childhood. She has not been anyone's anything for sixty years and finds this, on balance, preferable.
