@@ -137,3 +137,28 @@ Most would-be authors sit down believing writing is one skill. It isn't. It is s
 | **Tonal control across time** | Sustaining, escalating, or deliberately breaking the story's emotional register across a draft that may take months or years to write. Tone drifts. The writer's real season leaks into the fictional one. Managing that drift — using it when it serves, correcting it when it doesn't — is craft at the level of the whole work, not the scene. The tonal arc is designed in Phase 6 and checked at the start of every drafting session. |
 
 The Serendipity Engine addresses all six structurally. The quality of what the system produces from that structure is still on the writer — but the ground is load-bearing before the first sentence is written.
+
+---
+
+## Why "Serendipity"
+
+On the surface, the name describes the Author's experience: the system surfaces a story you didn't plan, full of specificity you couldn't have arrived at by deciding. You find something you weren't looking for. That is serendipitous.
+
+But the name holds at every level.
+
+Every character in a generated story arrives at their position the way real people arrive at theirs — through conditions they didn't choose. Family by circumstance. A world with specific rules by birth. Those rules determined what attachments were permitted and which were ruled inadmissible. The character's wound, flaw, and virtue emerged from the collision of those conditions with a psychology they also didn't choose. By the time the story begins, each character is already the product of a long chain of chances they never called.
+
+Their agency — what they do once they arrive — is real. The conditions themselves were serendipitous.
+
+So the name is true at every level simultaneously:
+
+- **The author** finds the story — circumstance determines what the story is about
+- **The characters** find themselves in the plot — born into positions that generate the conflict
+- **The reader** finds themselves in the story — the mirror structure invites them to become a co-observer, not just a recipient
+
+The characters didn't choose to be there. The author and the reader did — and that choice is what makes the mirror work. The author chose to build a world governed by conditions they didn't control. The reader chose to enter one. What they find inside is still serendipitous.
+
+All of them chose what to do once they arrived.
+
+That is also what stories are about. The engine isn't just a tool for generating them — it is a model of the thing stories have always been trying to describe: the specific territory where circumstance ends and personal will begins.
+

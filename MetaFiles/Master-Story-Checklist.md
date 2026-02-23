@@ -295,13 +295,25 @@ Before rolling any individual character, name the cast structure. This prevents 
 
 *Now you have all the ingredients. Work through the outline one chapter at a time. These are not vignettes — each chapter is a load-bearing piece of a continuous story. Every chapter must arrive from the previous one and leave the next one changed.*
 
-> **Chapter file output — prose only.** The checklist sections below (Before Drafting · During Drafting · After Drafting) are **process checks** — run them during the drafting session; they are not part of the chapter output file. The chapter file itself (`story/chapter-{n}.md`) contains only the prose: the story as the Author wrote it, in the Narrator's voice, in the story's chosen form. No section headers. No checklists. No continuity notes. The reader sees only the story. If production notes are needed — decisions made mid-draft, continuity flags, things to revisit — create a parallel `story/chapter-{n}-notes.md` for that material. The two files serve different purposes and must never be merged. is the story folder:** `Creations/story-{datetime}/`. Before drafting any chapter, the following files are open and consulted — not recalled from memory:
+> **Chapter file output — prose only.** The checklist sections below (Before Drafting · During Drafting · After Drafting) are **process checks** — run them during the drafting session; they are not part of the chapter output file. The chapter file itself (`story/chapter-{n}.md`) contains only the prose: the story as the Author wrote it, in the Narrator’s voice, in the story’s chosen form. No section headers. No checklists. No continuity notes. The reader sees only the story. Production notes, mid-draft decisions, continuity flags, and things to revisit live in a parallel `story/chapter-{n}-notes.md`. The two files serve different purposes and must never be merged. **The notes file is created before drafting begins — not after.** The Before Drafting sections are pre-flight; the After Drafting sections are handoff. See the step below.
+>
+> **The story folder is:** `Creations/story-{datetime}/`. Before drafting any chapter, the following files are open and consulted — not recalled from memory:
 - `author.md` — the author's lens, wound, prose style, and voice
 - `narrator.md` — POV, reliability, tense, distance
 - `characters/{name}.md` — for every character who appears: their identity, emotional register, MBTI/Enneagram, flaw/virtue/wound, speech patterns, what they want, what they're hiding
 - `relationships/relationship-graph.csv` — the current state of every pair; what has shifted since the last chapter
 - `story/arc.md` — where this chapter sits in the tonal arc and subproblem stack
 - `outline.md` — the chapter's intended goal, dominant tone, and active threads
+
+---
+
+### Step 0 — Create the Chapter Notes File
+
+- [ ] Create `story/chapter-{n}-notes.md` now, before opening the chapter file.
+- [ ] Populate the **Before Drafting — Continuity Check** and **Before Drafting — Character Consistency Check** sections from: the prior chapter’s handoff note in `story/chapter-checklist.md`, the current state of `story/arc.md`, and `outline.md` for this chapter’s goal and scene metadata.
+- [ ] Leave the After Drafting sections blank. They will be completed after the chapter is written.
+
+*The notes file is the pre-flight. The chapter file is the flight. Do not open the chapter file until the pre-flight is complete.*
 
 ---
 
@@ -340,8 +352,7 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] Did at least one relationship phase-shift in this chapter? Update `relationship-graph.csv` to reflect the current state of any pair that moved.
 - [ ] Did a subproblem thread change state (dormant → active, active → critical, critical → resolved, or a new thread opened)? Update `story/arc.md`.
 - [ ] Any new character introduced? Roll them properly and add their file to `characters/` before the next chapter begins.
-- [ ] Does the chapter's final image or line set up a question, a pressure, or an incompleteness that pulls the reader into the next chapter? A chapter that resolves cleanly with no forward tension is a stopping point, not a continuation.
-
+- [ ] Does the chapter's final image or line set up a question, a pressure, or an incompleteness that pulls the reader into the next chapter? A chapter that resolves cleanly with no forward tension is a stopping point, not a continuation.- [ ] Return to `story/chapter-{n}-notes.md` and complete the After Drafting sections: thread states, relationship shifts, any new character flags, and the one-sentence handoff to the next chapter. This is the source document for Step 0 of Chapter N+1.
 ---
 
 ## Final Confidence Check
