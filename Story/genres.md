@@ -1,7 +1,7 @@
 # Genres
 
 > **Author (Phase 1):** Randomly select 2 different sublists; pick 1 genre from each. These are the author's home genre and secondary influence — what they gravitates toward as a reader and writer. Note where this overlaps with or diverges from the story's genre blend.
-> **Story (Phase 3):** Randomly select 3 different sublists; pick 1 genre from each. The first is the primary genre; the other two are tonal or structural blends. Crossing incompatible sublists (e.g., Horror + Comedy + Romance) is intentional — the friction between them is the story's edge.
+> **Story (Phase 3):** Randomly select 3 **distinct** sublists; pick 1 genre from each. The first is the primary genre; the other two are tonal or structural blends. Crossing incompatible sublists (e.g., Horror + Comedy + Romance) is intentional — the friction between them is the story's edge. *Sublists must differ from one another — if a roll produces the same sublist as a prior selection in this sequence, use the next roll to re-select. Contrast between sublists is what makes blending produce complexity rather than redundancy.*
 > **Characters:** No genre roll. Genre belongs to the author and the story, not to individual characters.
 
 ---
@@ -194,6 +194,9 @@ Queer literary fiction
 ---
 
 ## Graphic & Visual
+
+> ⚠️ **FORMAT ROLL, NOT GENRE ROLL.** Entries in this sublist are mediums and formats, not narrative genres. If this sublist comes up during a genre selection: assign the result as the story's **FORMAT** (e.g., *graphic novel*, *manga*), then re-roll this genre slot from a different sublist. A format shapes how the story is delivered — it does not substitute for a narrative genre. The story still needs a genre; re-roll and get one.
+
 Art & photography
 Graphic novel
 Manga / Manhwa / Manhua

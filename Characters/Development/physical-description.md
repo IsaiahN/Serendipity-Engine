@@ -5,6 +5,11 @@
 > **Author & each character (individually):** Roll 1 from each section to build a complete physical profile. The author is a character too — their physical reality (chronic illness, physical labor, age, body) shapes what they notice and how they describe sensation.
 > **Contrast:** For closely paired characters (rivals, mentor/student, parent/child), deliberate physical contrast makes their dynamic legible on the page before dialogue or action. The contrast doesn't need to be dramatic — sometimes the most charged pairing is two people who look almost the same.
 
+> **⚡ Cascading Attribute — Roll Age First.**
+> Age is the architecturally primary attribute in this file. For the full dependency graph — including Age's cascade into Physical Condition, Life Status, Wound, and Emotional Register; bidirectional loops; multi-output nodes; and recommended roll sequence — see `Characters/Development/cascading-attributes.md`.
+>
+> Other cascading attributes in this file: **Build / Body Type** → Posture & Movement · Style / Presentation; **Distinguishing Features** ↔ Style / Presentation (visible tension between how someone looks and how they want to be read). See cascade map for full detail.
+
 ## Age Range
 Child (0–12)
 Teenager (13–17)

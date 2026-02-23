@@ -14,6 +14,8 @@ YYYYMMDDHHM → e.g. February 22 2026, 2:47 PM = 202602221447
 
 Write it as the first line of your `author.md` before any rolls are made. Every roll in every phase derives from this seed in sequence. Do not pick results manually — derive them. Do not re-roll because a result is strange — keep it.
 
+> **Getting the current date and time:** Run `Get-Date -Format "yyyyMMddHHmm"` in PowerShell (works on Windows, macOS, and Linux with no dependencies or permissions required), or `date +"%Y%m%d%H%M"` in Bash/Zsh. Alternatively, ask the LLM directly in the chat sidebar — the current date is available in its context. No installs, no environment variables, no file system permissions needed.
+
 ---
 
 ## Folder Structure
@@ -52,14 +54,19 @@ Creations/
 
 Roll randomly from each of the following. Where attributes conflict with each other, **do not resolve the conflict** — that dichotomy is a feature. It is a phase tension the author carries into every decision they make about the story.
 
+*Conflict types: (a) **Productive tension** — attributes that coexist in genuine friction without logical contradiction (Lawful Evil + Tragic Hero; INFJ + Enneagram 8w7 — uncomfortable but coherent). These are features — hold both without softening either. (b) **Illogical contradiction** — attributes that cannot simultaneously be true at the same point in time (Lawful Evil + Chaotic Good; devout fundamentalist + fervent atheist). When this occurs, treat them as **past state → current state**: the earlier roll describes who this person was shaped to become; the later roll describes who they actually are now. The gap between them is their wound, their arc, and their most interesting writing blind spot. Keep both rolls. Document the transition in the character file.*
+
+> **⚡ Cascading Attributes — Roll These First (Author)**
+> Before working through the Identity list below: establish **(1) Age Range** and **(2) Gender** first, regardless of where they appear in the list. The list is grouped by category for reference — it is not the roll sequence. Age cascades into religion, life status, wound, philosophy, and emotional register. Gender cascades into life status, religion, wound, and sexuality. Both cascade into the author's unconscious writing bias — what they attend to and what they cannot see. For the full dependency graph, bidirectional loops, and recommended 13-step roll sequence, see `Characters/Development/cascading-attributes.md`.
+
 ### Identity
+- [ ] **Age Range** — roll: 20s / 30s / 40s / 50s / 60s+ *(root node — roll this first. See `Characters/Development/cascading-attributes.md` for what it unlocks downstream.)*
 - [ ] **Gender** — `Characters/Identity/gender.md`
+- [ ] **Religion / Faith** — `Characters/Identity/religion-faith.md`
+- [ ] **Life Status** — `Characters/Identity/life-status.md` *(relationship status, parental status, living situation, financial upbringing, current financial status)*
 - [ ] **Romantic / Sexual Leaning** — `Characters/Identity/sexuality.md`
   - *Weight: heterosexual = ~50% probability; all other orientations share the remaining ~50%*
-- [ ] **Religion / Faith** — `Characters/Identity/religion-faith.md`
 - [ ] **Life Philosophy / Worldview** — `Characters/Identity/life-philosophy.md`
-- [ ] **Life Status** — `Characters/Identity/life-status.md` *(relationship status, parental status, living situation, financial upbringing, current financial status)*
-- [ ] **Current Age Range** — roll: 20s / 30s / 40s / 50s / 60s+ *(shapes what the author has lived through and what they're still inside)*
 - [ ] **Emotional Register** — `Characters/Identity/emotional-register.md` *(default tonal state; the mood through which the author sees everything)*
 - [ ] **Zodiac / Birthstone** — `Characters/Identity/zodiac-birthstone.md` *(optional — use for symbolic resonance or astrological flavor)*
 
@@ -129,17 +136,27 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 *Roll the world the way you rolled the Author. Attribute conflicts in the world are the structural antagonist forces — the seals in `MetaFiles/seven-story-deaths.md` that the story must push against.*
 
 - [ ] **Genre(s)** — `Story/genres.md` *(primary + secondary blend)*
+  - Roll 3 **distinct** sublists. If a roll produces the same sublist as a prior selection, re-roll — sublists must differ for the blend to produce contrast and complexity.
+  - If the **Graphic & Visual** sublist is rolled: assign the result as the story's **FORMAT** (graphic novel, manga, etc.) and re-roll this genre slot from a different sublist. A format is not a genre. See note in `Story/genres.md`.
 - [ ] **Themes & Tropes** — `Story/themes-and-tropes.md` *(name the theme as a question, not a statement; select 2–4 tropes to mutate)*
 - [ ] **Plot Structure** — `Story/plot-structure.md` *(select base structure; note conflict types and stakes level)*
 - [ ] **Narrative Techniques** — `Story/narrative-techniques.md` *(select 2–4 plot architecture techniques that define how this story is assembled: does it open in medias res? Is there a frame story? Where are the Chekhov's guns planted? What is the ticking clock? Record in `world/world-building.md`)*
 - [ ] **Plot Twist Architecture** — `Story/plot-twist-types.md` *(decide now whether this story has a twist and which structural category it belongs to — structural twists such as false protagonist, non-linear narrative, or reverse chronology cannot be retrofitted; commit before drafting begins. Reveal twists are handled in Phase 6.)*
-- [ ] **Answer all World Building questions** — `Story/World Building/questions.md` → output goes in `world/questions-answered.md`
+- [ ] **Society as Character** — Define the dominant social structure as a character entity before answering any world-building questions. Record in `world/world-building.md`: its **role** (what it claims to protect vs. what it actually protects), **want** (what it needs to preserve itself), **wound** (its internal contradiction), **flaw** (the pathology it perpetuates), **cost** (what it demands from every character who lives inside it), and **enforcement** (who administers the rules and on what terms). See `Characters/Development/character-types.md` — Society section.
+- [ ] **Story Time Span & Calendar** — `Story/World Building/time-and-calendar.md` → record in `world/world-building.md`: how long the story stretches, which seasons it passes through, which holidays or calendar markers fall within the span, and whether it follows a real-world or fictional calendar.
+- [ ] **Scenery & Setting** — `Story/World Building/scenery.md` → record in `world/world-building.md`: world-level terrain and climate; the primary country/region or world-equivalent; the default scene-level setting vocabulary for this story's world. — `Story/World Building/questions.md` → output goes in `world/questions-answered.md`
 - [ ] **Answer all Story questions** — `Story/questions.md` → output goes in `story/questions-answered.md`
 - [ ] **Check for Antilife Seals** — `MetaFiles/seven-story-deaths.md` *(which seals are present in the world by design? which are accidental?)*
 - [ ] **Resonance check** — `MetaFiles/story-network-theory.md` Part V *(does the same theme question echo in wound, relationship, world structure, genre, and trope?)*
 - [ ] Create `Creations/story-{datetime}/world/world-building.md`
 - [ ] Create `Creations/story-{datetime}/world/questions-answered.md` *(answers to `Story/World Building/questions.md`)*
 - [ ] Create `Creations/story-{datetime}/story/questions-answered.md` *(answers to `Story/questions.md`)*
+
+### Phase 3 Micro-Check *(run before moving to Phase 4)*
+- [ ] Does the theme question create a visible Stream A/B conflict for the protagonist? Can you state it in one sentence? (`MetaFiles/story-consciousness-theory.md` Part I)
+- [ ] Are the four network archetype functions (Pioneer / Optimizer / Generalist / Exploiter) present in the world's structural design — even before individual characters are built?
+- [ ] Which Antilife Seals are embedded in the world by deliberate design? Which are accidental defaults?
+- [ ] Can you state Society's want and its wound in one sentence? Is Society already acting as a pressure on the protagonist at the story's start — or does it become one?
 
 ---
 
@@ -154,14 +171,19 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Protagonist(s)** — name them; note their role in the story's central conflict
 - [ ] **Antagonist(s)** — person, system, or internal force; note which Antilife Seal(s) they carry
 - [ ] **Supporting cast** — named characters with their own arcs and stakes
-- [ ] **Throwaway / functional characters** — named but minimal; exist to move plot or ground the world
+- [ ] **Catalyst characters** — off-page or minimally present characters who are load-bearing in their *absence* rather than their presence (a missing person, a dead parent, a rumored figure). Use the Catalyst Character thumbnail format in `Characters/Development/character-types.md` — not a full roll suite.
+- [ ] **Extras / NPCs** — scene-functional characters with no arc of their own. Use the Extra format in `Characters/Development/character-types.md`. If an Extra becomes load-bearing during drafting, promote them and run the full per-character roll suite.
 - [ ] Confirm: Is there a character who exists only to serve the protagonist's arc with no arc of their own? If so — can they be cut, or given stakes?
 - [ ] Confirm: Are the four network archetype functions (Pioneer / Optimizer / Generalist / Exploiter) distributed across the named cast?
 - [ ] Cross-reference: `Characters/Questions.md` — *Who is the protagonist? Who is the antagonist? Which characters are load-bearing?*
 
 *Repeat this block for each named character:*
 
+> **⚡ Cascading Attributes — Roll These First (per character)**
+> Establish **(1) Age Range** and **(2) Gender** before any other attribute. Both are root nodes — Age cascades into physical condition, life status, wound, and emotional register; Gender cascades into life status, religion, philosophy, wound, and sexuality. For the full dependency graph, bidirectional loops, multi-output nodes, and recommended 13-step roll sequence, see `Characters/Development/cascading-attributes.md`.
+
 ### Per Character
+- [ ] **Age Range** — `Characters/Development/physical-description.md` *(roll this first — cascading attribute)*
 - [ ] **Gender** — `Characters/Identity/gender.md`
 - [ ] **Romantic / Sexual Leaning** — `Characters/Identity/sexuality.md` *(same 50/50 weight)*
 - [ ] **Religion / Faith** — `Characters/Identity/religion-faith.md`
@@ -187,11 +209,19 @@ Before rolling any individual character, name the cast structure. This prevents 
   - `Characters/Development/questions.md` — backstory, want vs. need, flaw & wound, arc, role in the story
   - `Characters/Names/questions.md` — name origin, usage, name as story device
   - Relevant sections of `Characters/Questions.md` — this character's function, whether they're load-bearing, what the story loses without them
+- [ ] **Per-character micro-check** — before creating the file, verify: (a) Can you state this character's Stream A vs. Stream B conflict in one sentence? (b) Which network archetype do they serve, and is it distinct from the protagonist's? (c) Which Antilife Seal are they most at risk of carrying?
 - [ ] Create `Creations/story-{datetime}/characters/{name}.md`
 
 ### After All Characters
+- [ ] **Cast Uniqueness — Roll Collision Check** — Compare attributes across all named characters. If two or more characters share the same combination of MBTI + wound + flaw, determine whether this is intentional (a foil pair built from the same emotional material, explicitly noted) or accidental duplication. A cast in which characters consistently agree is a cast without internal conflict. Minimum: no two characters share the same want, need, AND wound simultaneously. If they do, revise one. *(Author–protagonist attribute overlaps are tracked separately in `author.md` as projection risk.)*
 - [ ] Answer `Characters/Questions.md` at **cast level** — now that all characters exist, answer the roster questions about the whole cast: who mirrors whom, who is redundant, who is missing, what the power hierarchy is, which characters the reader will love / fear / misread
 - [ ] Create `Creations/story-{datetime}/characters/questions-answered.md` *(cast-level answers to `Characters/Questions.md` only — per-character question answers live in each character's own file)*
+
+### Phase 4 Micro-Check *(run after all characters exist, before Phase 5)*
+- [ ] Do all four network archetype functions (Pioneer / Optimizer / Generalist / Exploiter) appear across the named cast?
+- [ ] For each major character: can you state their Stream A / Stream B conflict in one sentence?
+- [ ] Is every Antilife Seal embedded in the world design also carried by at least one character in the cast?
+- [ ] Cast Uniqueness Check completed — no duplicate want + need + wound combinations?
 
 ---
 
@@ -217,12 +247,12 @@ Before rolling any individual character, name the cast structure. This prevents 
   - If the story uses a reveal twist (identity, allegiance, reality, information — see `Story/plot-twist-types.md`): write the ending first, then go back and plant the evidence. A twist that cannot be foreshadowed is a cheat.
 - [ ] **Title** — working title; can be revised
 - [ ] **Abstract** — 1 paragraph: what is this story about at the principle level (not plot summary)
-- [ ] **Short Description** — 2–3 sentences: the hook, the world, the central question
+- [ ] **Short Description** — 2–3 sentences: the hook, the world, the central question *(this is distinct from the Abstract — the Short Description is pitch-facing text, written as if answering "what's your book about?" in 30 seconds. Keep it short and aimed at a reader who knows nothing. The Abstract is the structural reference document, written for the author.)*
 - [ ] **Story Arc** — map the protagonist's arc using the chosen plot structure; note the subproblem stack state at each major beat (`Story/plot-structure.md` — Resolution Architecture)
 - [ ] **Tonal Arc** — map the story's emotional register across acts/chapters. This is distinct from the Author's default register. Using the emotional register list (`Characters/Identity/emotional-register.md`) as vocabulary, note the dominant tone for each act and where deliberate phase shifts occur (e.g., Act 1: Tense → Act 2 mid: Euphoric false peak → Act 2 end: Desolate → Act 3: Resolute). The tonal arc is the story's signal pattern — its interference design.
 - [ ] **Subplot Map** — list each subplot with: its opening event, its theme echo (how it asks the same question as the main plot differently), and its planned resolution or decay point
-- [ ] **Outline** — chapter by chapter: chapter number, working title, brief description of what happens, dominant tone for this chapter, which subproblem threads are active/critical/resolved at end of chapter
-- [ ] Create `Creations/story-{datetime}/abstract.md`
+- [ ] **Outline** — chapter by chapter: chapter number, working title, brief description of what happens, dominant tone for this chapter, which subproblem threads are active/critical/resolved at end of chapter, and per-chapter **scene metadata**: location (country/region → specific place), interior/exterior type, time of day, season and temporal context, and which setting function is active. See `Story/World Building/scenery.md` for the per-chapter scene metadata format. This is structural specification, not flavour.
+- [ ] Create `Creations/story-{datetime}/abstract.md` — three clearly separated sections: **Title**, **Short Description** (2–3 sentences, pitch-facing), **Abstract** (1 paragraph, principle-level)
 - [ ] Create `Creations/story-{datetime}/story/arc.md`
 - [ ] Create `Creations/story-{datetime}/outline.md`
 
@@ -263,7 +293,7 @@ Before rolling any individual character, name the cast structure. This prevents 
 
 *Now you have all the ingredients. Work through the outline one chapter at a time. These are not vignettes — each chapter is a load-bearing piece of a continuous story. Every chapter must arrive from the previous one and leave the next one changed.*
 
-**The ground truth for every chapter is the story folder:** `Creations/story-{datetime}/`. Before drafting any chapter, the following files are open and consulted — not recalled from memory:
+> **Chapter file output — prose only.** The checklist sections below (Before Drafting · During Drafting · After Drafting) are **process checks** — run them during the drafting session; they are not part of the chapter output file. The chapter file itself (`story/chapter-{n}.md`) contains only the prose: the story as the Author wrote it, in the Narrator's voice, in the story's chosen form. No section headers. No checklists. No continuity notes. The reader sees only the story. If production notes are needed — decisions made mid-draft, continuity flags, things to revisit — create a parallel `story/chapter-{n}-notes.md` for that material. The two files serve different purposes and must never be merged. is the story folder:** `Creations/story-{datetime}/`. Before drafting any chapter, the following files are open and consulted — not recalled from memory:
 - `author.md` — the author's lens, wound, prose style, and voice
 - `narrator.md` — POV, reliability, tense, distance
 - `characters/{name}.md` — for every character who appears: their identity, emotional register, MBTI/Enneagram, flaw/virtue/wound, speech patterns, what they want, what they're hiding
