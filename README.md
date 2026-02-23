@@ -68,7 +68,38 @@ Creations/          ← Generated stories live here (created per session, not tr
     relationships/
     world/
     story/
+Decomposition/      ← Reverse-engineered existing works (see below)
+  story-{title}/
+    test-{title}.md       ← the source text
+    author.md
+    narrator.md
+    abstract.md
+    outline.md
+    characters/
+    relationships/
+    world/
+    story/
 ```
+
+---
+
+## Decomposition
+
+The engine can also run in reverse.
+
+Given an existing work — a novel, a play, a screenplay, a short story — you can decompose it using the same phase structure as the checklist, inferring the attributes the author likely set (consciously or not) rather than rolling them fresh. The result is a complete structural audit of the source material in the engine's vocabulary.
+
+**What decomposition gives you:**
+
+- **Unpack what made a story work** — map the architecture beneath the prose, identify what decisions (character type, wound, arc shape, plot structure, tonal arc) were load-bearing, and see the framework the author used even if they never named it
+- **Find gaps in the narrative or lore** — the audit surfaces threads the story opened and didn't close, world-building that was sketched but not developed, and structural weaknesses the original author may not have noticed or chose to accept
+- **Create prequels, sequels, spinoffs, and POV shifts** — once the world's architecture is decomposed, you have a blueprint for extending it; the same framework that built the original story tells you what territory it left unexplored; a POV shift (the same story from a different character's perspective) is a direct output of the character and relationship decompositions
+- **Generate derivative works in different registers** — a decomposed story combined with a *different* author profile, writing style, tonal arc, or medium (novel → play, play → film adaptation) is the structural engine behind works like *Wicked* relative to *The Wizard of Oz*: same world, same characters, different author psychology, different POV, different thematic angle, transformed result
+
+The difference between *The Wizard of Oz* and *Wicked* is not that Gregory Maguire wrote about Oz. It is that he decomposed Oz with a different author Enneagram, inverted the POV to the Wicked Witch, shifted the moral alignment of the Wizard from True Neutral to something darker, and changed the tonal register from earnest-wonder to political-cynicism. Every one of those is a Serendipity Engine lever.
+
+**Reference decomposition:** [`Decomposition/story-the-wonderful-wizard-of-oz/`](Decomposition/story-the-wonderful-wizard-of-oz/)
+The full structural decomposition of L. Frank Baum's *The Wonderful Wizard of Oz* (1900), including author profile, narrator analysis, world-building audit, chapter-by-chapter outline, full attribute sheets for all six major characters, relationship graph, and a final comparison of what the engine would have generated differently. The source text is included at [`Decomposition/story-the-wonderful-wizard-of-oz/test-the-wizard-of-oz.md`](Decomposition/story-the-wonderful-wizard-of-oz/test-the-wizard-of-oz.md).
 
 ---
 
@@ -80,7 +111,7 @@ Creations/          ← Generated stories live here (created per session, not tr
 |---|---|
 | `MetaFiles/Master-Story-Checklist.md` | **Start here.** Complete 8-phase workflow |
 | `MetaFiles/randomization-engine.md` | Datetime seeding + roll derivation algorithm |
-| `MetaFiles/relationship-graph-template.csv` | Blank relationship matrix — copy per story |
+| `MetaFiles/relationship-graph-template.csv` | Relationship matrix — copy per story. Three tiers: **major** characters (full rows/columns), **minor** characters (append `(minor)` — sparse cells, load-bearing ones filled), **society/group** characters (append `(society)` — governing bodies, oppressed peoples, institutions, collective identities that act as pressure systems on individuals). |
 
 **Theory documents:**
 
@@ -112,6 +143,7 @@ Creations/          ← Generated stories live here (created per session, not tr
 | `Story/themes-and-tropes.md` | Theme clusters and trope patterns |
 | `Story/narrator.md` | Narrator types, POV, reliability, tense, distance |
 | `Story/genres.md` | Genre list — rolled for Author (Phase 1) and Story (Phase 3) |
+| `Story/world-hallmarks.md` | **Phase 3 active tool.** Read this file during Phase 3 — World Building to build `world/hallmarks.md`. Defines six hallmark categories (Object / Artifact, Place / Path, Force / Phenomenon, Mechanic / Rule, Symbol / Visual Motif, Event / Moment), the poster test and two supporting tests for qualification, the per-entry format (9 fields), and the boundary rules distinguishing hallmarks (escape the text; recognizable to outsiders) from callbacks (reward the prepared reader; do not survive outside the text). Full step-by-step build instructions in the checklist Phase 3 — World Hallmarks step. |
 
 ---
 

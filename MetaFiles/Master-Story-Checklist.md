@@ -4,6 +4,136 @@
 
 ---
 
+## ⚠️ DECOMPOSITION MODE — Read This First
+
+> **If you are generating a new story from scratch, skip this entire section and proceed to "Before You Begin — Seed the Engine" below. Nothing here applies.**
+>
+> **If you have been given an existing work to decompose — a novel, play, screenplay, short story, or any completed narrative text — this section replaces the standard generation pipeline. Phases 1–7 below are still your structural framework, but you are running them in reverse: inferring what the author likely built rather than generating it fresh. Phase 8 (chapter execution) is skipped entirely — the text already exists.**
+
+---
+
+### What Decomposition Is
+
+Decomposition is the process of reverse-engineering an existing work through the Serendipity Engine's vocabulary. Instead of rolling attributes to generate a story, you are reading a finished story and reconstructing the attribute set that produced it. The output is a forensic structural audit: what the author had (consciously or not), what the system would have generated, and where the work deviates from what the engine would have built.
+
+The output folder mirrors the Creations folder exactly — same files, same structure — but every claim is annotated with an epistemic marker:
+
+- **[CONFIRMED]** — directly verifiable from the text or from independently verifiable biographical/historical fact
+- **[INFERRED]** — a reasoned inference; state the reasoning explicitly beside it. "The author's Enneagram is likely 7w6 because…" is a valid annotation. A bare assertion is not.
+
+Do not collapse these two categories. The distinction between what the text proves and what it suggests is the decomposition's most important output.
+
+---
+
+### Step 0 — Get the Text Into a Readable Format
+
+Before any structural work begins, the source text must be accessible in full.
+
+- [ ] If the text has been pasted directly into the conversation context: confirm it is complete (check word count or chapter count against a known reference). Proceed.
+- [ ] If the text is too long for a single context: load it into a file at `Decomposition/story-{slug-title}/test-{slug-title}.md` — plain text, Markdown format, no reformatting of the prose. The file is source material, not output. Use `test-` as the filename prefix to distinguish it from generated output files.
+- [ ] **Read the full text before beginning any structural work.** Do not attempt partial decomposition from a synopsis or summary. Structural decisions (planted evidence, Chekhov's guns, late-chapter reveals) are only visible from the complete text. Decomposing a partial text will produce false attribute assignments.
+- [ ] Note: the source text file lives at the root of the story's decomposition folder alongside the output files — not in a subfolder.
+
+---
+
+### Step 1 — Create the Output Folder
+
+Create the following folder structure before writing any output file:
+
+```
+Decomposition/
+  story-{slug-title}/
+    test-{slug-title}.md          ← source text (from Step 0)
+    author.md                     ← Phase 1 output
+    narrator.md                   ← Phase 2 output
+    abstract.md                   ← Phase 6 partial output
+    outline.md                    ← Phase 6 output (chapter-by-chapter)
+    world/
+      world-building.md           ← Phase 3 output
+      questions-answered.md
+    story/
+      arc.md                      ← Phase 6 output
+      questions-answered.md
+    characters/
+      {character-name}.md         ← one file per major character
+      questions-answered.md       ← cast-level
+    relationships/
+      relationship-graph.csv
+      questions-answered.md
+```
+
+> **Which characters get a full file:** Major and load-bearing characters only — anyone whose removal would collapse a story thread. Supporting characters with no arc of their own use the Catalyst / Extra thumbnail format from `Characters/Development/character-types.md`. Do not build full attribute sheets for scene-functional extras.
+
+---
+
+### Step 2 — Use the Reference Files to Ground the Decomposition
+
+The reference files in `Characters/`, `Story/`, and `MetaFiles/` (everything outside `/Creations` and `/Decomposition`) are the vocabulary of the decomposition. Before assigning any attribute, open the relevant reference file and match the text's evidence against the options listed there — do not invent new categories.
+
+**Minimum reference files to read before starting:**
+
+| Phase | Reference files to consult |
+|---|---|
+| Author (Phase 1) | `MetaFiles/writing-prose-styles.md`, `Characters/Personality/mbti.md`, `Characters/Personality/enneagram.md`, `Characters/Personality/alignment.md`, `Characters/Development/flaws-virtues-wounds.md`, `Characters/Identity/life-philosophy.md` |
+| Narrator (Phase 2) | `Story/narrator.md` |
+| World (Phase 3) | `Story/genres.md`, `Story/themes-and-tropes.md`, `Story/plot-structure.md`, `Story/narrative-techniques.md`, `Story/plot-twist-types.md`, `MetaFiles/seven-story-deaths.md`, `MetaFiles/story-network-theory.md`, `MetaFiles/tonal-control.md` |
+| Characters (Phase 4) | `Characters/Personality/mbti.md`, `Characters/Personality/enneagram.md`, `Characters/Personality/alignment.md`, `Characters/Development/character-types.md`, `Characters/Development/flaws-virtues-wounds.md`, `Characters/Development/character-voice.md`, `MetaFiles/story-consciousness-theory.md` |
+| Relationships (Phase 5) | `Relationships/relationship-dynamics.md`, `Relationships/relationship-types.md`, `Relationships/relationship-structures.md`, `MetaFiles/relationship-graph-template.csv` |
+| Story Foundation (Phase 6) | `Story/plot-structure.md`, `MetaFiles/story-consciousness-theory.md`, `MetaFiles/story-network-theory.md` |
+
+Read the relevant reference file *before* assigning its attribute — not after. The goal is to match the text's evidence against the system's vocabulary, not to retrofit a label chosen without context.
+
+---
+
+### Step 3 — Run Phases 1–6 in Order, In Reverse
+
+Work through the standard phase structure, applying each phase's framework as an analytical lens rather than a generative one. The checklist items for each phase are the questions you are answering from the text — not rolls you are executing.
+
+**Phase 1 — Author:** Who wrote this, and what were they? If the author is known, use biographical and historical record for [CONFIRMED] attributes. Use the text's thematic preoccupations, prose style, and structural choices for [INFERRED] attributes. The author's wound is the thing the story keeps writing toward or away from — find the pattern across the whole text. Write the **Big Picture Finding** last (equivalent to the Big Picture Statement): what was this author trying to say that they could not say directly, and how does the architecture of the story serve that need?
+
+**Phase 2 — Narrator:** What type of narrator does this text use? What is the gap between the author's actual worldview and the narrator's performed one? Is the narrator reliable — and if unreliable, what does the text reveal that the narrator suppresses or distorts?
+
+**Phase 3 — World:** What genre blend does this text occupy? What is the theme as a *question* (not a statement)? Which plot structure? Which narrative techniques are demonstrably operating (Chekhov's guns can be confirmed by tracing the plant and the payoff in the text)? How does Society function as a character — what does it demand from the people inside it? Run the Seven Story Deaths audit: for each seal, is it accidental or deliberate? Identify the world hallmarks (`Story/world-hallmarks.md`): scan for objects, places, forces, and mechanics that recur with cultural resonance — things that have outlived their plot function and entered the story's identity. Use frequency, adaptation survival, and the poster test as filters. Output to `world/hallmarks.md`.
+
+**Phase 4 — Characters:** For each major character, assign the full attribute set using text evidence. Voice fingerprinting is more reliable in decomposition than in generation — you have actual dialogue. Map Stream A vs. Stream B for each character (what they privately know vs. what their world tells them) using quoted text as evidence. Assign network archetypes. Note foil pairs.
+
+**Phase 5 — Relationships:** Build the relationship graph from confirmed text events. The graph is three-tiered: **major characters** (full rows and columns, all cells written), **minor characters** (append `(minor)` to name — many blank cells, load-bearing ones filled), and **societies / collective groups** (append `(society)` to name — any group that functions as a pressure system, power structure, or collective identity: a governing body, an oppressed people, a criminal organization, a cultural institution, a school and its student body). Society rows are written in the collective voice of that group; society columns show how individual characters perceive and relate to that force. Societies do not have a SELF cell — use a brief description of the society's self-image in that diagonal position. Each cell should state how that character perceives the other at the story's close. Blank cells are valid for characters who never interact — the pattern of blanks is structural data, especially for minor and society entries.
+
+**Phase 6 — Story Foundation:** Map the protagonist's arc against the plot structure. Map the tonal arc chapter by chapter (or act by act). Write the abstract and outline. The outline is the most rigorous Phase 6 output — every chapter should be decomposed with: goal, dominant tone, active/critical/resolved thread states, scene metadata (location, interior/exterior, time of day, season), and key textual evidence (a direct quote or plot event that confirms the chapter's structural role).
+
+**Phase 7 — Review:** Run the Phase 7 MetaFiles checks as a diagnostic, not a pre-flight. You are not preparing to write — you are auditing what was already written. The gaps you find (seals that are accidental, threads that open and never close, network archetypes that are missing) are the decomposition's most generative output for anyone who wants to extend or adapt the work.
+
+**Phase 8 — Skip.** The text already exists. Do not write prose.
+
+---
+
+### Step 4 — Notes for the System: What Decomposition Reveals That Generation Cannot
+
+These are observations from working decompositions — patterns that appear consistently and are worth knowing before you start:
+
+**The author's wound is in the structural choices, not the content.**
+What an author cannot write is as diagnostic as what they do write. A story that eliminates all deserved consequences (for genre reasons or personal ones), resolves all ambiguity, or refuses to let any character who is good suffer — these are structural fingerprints of the author's flaw in action. Note them.
+
+**The Seven Story Deaths audit is more informative in decomposition than in generation.**
+In generation, you are guessing whether a seal will become active. In decomposition, you can see the outcome. An active Monolith seal — all narrative flowing through one character — is visible as: every plot event requires the protagonist's presence; the world cannot change without them; secondary characters have no arcs of their own. Confirm with specific chapter evidence.
+
+**Voice fingerprinting from existing dialogue is the most reliable attribute assignment in the whole decomposition.**
+Open `Characters/Development/character-voice.md` and work through Speech Rhythm, Vocabulary Register, Dialogue Tic, Metaphor Family, Defensive Speech Pattern, and Subtext Default for each character using direct quotes. This is ground truth — the author made these choices in the text.
+
+**The relationship graph should be built last.**
+Build it after all character files exist. Each cell is written from the perspective of the row character — use their voice, their level of awareness, and what they know at the story's close. If a character died or departed mid-story, write the cell in the voice of their final known state.
+
+**When the text contradicts what a standard roll would produce — the text wins.**
+Decomposition is not about finding the closest match in the reference files and forcing the text to fit it. If a character's behavior pattern does not cleanly match any single MBTI type, assign the closest match, annotate it [INFERRED — atypical], and describe the deviation. The mismatch may be the most interesting thing about the character.
+
+**The Big Picture Finding (equivalent to the Big Picture Statement) should be written last, after all other output files exist.**
+It synthesizes everything. Before it exists, the decomposition is a collection of attributes. After it exists, the decomposition is an argument about what the work was trying to do — and whether it succeeded.
+
+**Decomposition is the foundation for adaptation.**
+Once the structural audit exists, every Serendipity Engine lever is available for derivative work: change the author profile, invert the POV, shift the tonal arc, modify the moral alignment of the antagonist, transpose the world to a different medium. The difference between *The Wizard of Oz* and *Wicked* is a decomposition plus a new author Enneagram, a POV inversion, and a tonal register shift from earnest-wonder to political-cynicism. See `README.md` — Decomposition section for the full treatment of this.
+
+---
+
 ## Before You Begin — Seed the Engine
 
 Open `MetaFiles/randomization-engine.md`. Generate your session seed from the current datetime:
@@ -144,12 +274,34 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 - [ ] **Narrative Techniques** — `Story/narrative-techniques.md` *(select 2–4 plot architecture techniques that define how this story is assembled: does it open in medias res? Is there a frame story? Where are the Chekhov's guns planted? What is the ticking clock? Record in `world/world-building.md`)*
 - [ ] **Plot Twist Architecture** — `Story/plot-twist-types.md` *(decide now whether this story has a twist and which structural category it belongs to — structural twists such as false protagonist, non-linear narrative, or reverse chronology cannot be retrofitted; commit before drafting begins. Reveal twists are handled in Phase 6.)*
 - [ ] **Society as Character** — Define the dominant social structure as a character entity before answering any world-building questions. Record in `world/world-building.md`: its **role** (what it claims to protect vs. what it actually protects), **want** (what it needs to preserve itself), **wound** (its internal contradiction), **flaw** (the pathology it perpetuates), **cost** (what it demands from every character who lives inside it), and **enforcement** (who administers the rules and on what terms). See `Characters/Development/character-types.md` — Society section.
+- [ ] **World Hallmarks** — Open `Story/world-hallmarks.md` and use it to build `world/hallmarks.md` for this story.
+
+  A **hallmark** is an element so fused with the story's identity that it is recognizable outside the text — it survives adaptation, appears on merchandise, and evokes the whole world in a single image to someone who has never read the book. A **callback** rewards the prepared reader with mutual recognition (the "I know you know I know" register) but does not escape the text. Callbacks are not hallmarks. Target **5–15 hallmarks**. Fewer means the world is underbuilt. More than 15 means callbacks are creeping in — apply the poster test and cut.
+
+  **Step 1 — Scan all six categories** (see `Story/world-hallmarks.md` — Categories section for full definitions and examples):
+  - *Object / Artifact* — a physical item with disproportionate symbolic or plot weight that appears more than once
+  - *Place / Path* — a landmark or route that is not a society; characters are shaped by passing through it
+  - *Force / Phenomenon* — a non-character force acting on the world: weather, magic system, natural law, recurring threat without speaking roles
+  - *Mechanic / Rule* — a distinctive operating rule characters must navigate; often directly encodes the story's theme
+  - *Symbol / Visual Motif* — a recurring color, shape, or image that functions as the world's aesthetic signature
+  - *Event / Moment* — a recurring ceremony, ritual, or world event that does not require a named character to initiate
+
+  **Step 2 — Apply the three tests** to each candidate:
+  1. *Poster test* — Could this element stand alone and immediately evoke the whole world to an outsider who has never read the book? Yes → hallmark. No → callback; do not include.
+  2. *Recurrence test* — Does it appear more than once, or carry weight disproportionate to its page count?
+  3. *Theme test* — Does it echo the story's central theme question beyond its plot function?
+
+  **Step 3 — Write each entry** using the full format from `Story/world-hallmarks.md` (Format section): **Name · Category · First appearance · Last / peak appearance · Plot function · Symbolic weight · Recurrence pattern · Memorable factor · Theme echo.**
+
+  **Boundaries:** Named characters and societies belong in the relationship graph, not here. Setting descriptions belong in `world/world-building.md`. A hallmark is not "the city is vast" — it is the specific gate, color, or rule that makes this city unlike any other.
+
 - [ ] **Story Time Span & Calendar** — `Story/World Building/time-and-calendar.md` → record in `world/world-building.md`: how long the story stretches, which seasons it passes through, which holidays or calendar markers fall within the span, and whether it follows a real-world or fictional calendar.
 - [ ] **Scenery & Setting** — `Story/World Building/scenery.md` → record in `world/world-building.md`: world-level terrain and climate; the primary country/region or world-equivalent; the default scene-level setting vocabulary for this story's world. — `Story/World Building/questions.md` → output goes in `world/questions-answered.md`
 - [ ] **Answer all Story questions** — `Story/questions.md` → output goes in `story/questions-answered.md`
 - [ ] **Check for Antilife Seals** — `MetaFiles/seven-story-deaths.md` *(which seals are present in the world by design? which are accidental?)*
 - [ ] **Resonance check** — `MetaFiles/story-network-theory.md` Part V *(does the same theme question echo in wound, relationship, world structure, genre, and trope?)*
 - [ ] Create `Creations/story-{datetime}/world/world-building.md`
+- [ ] Create `Creations/story-{datetime}/world/hallmarks.md` *(built using `Story/world-hallmarks.md` — see World Hallmarks step above)*
 - [ ] Create `Creations/story-{datetime}/world/questions-answered.md` *(answers to `Story/World Building/questions.md`)*
 - [ ] Create `Creations/story-{datetime}/story/questions-answered.md` *(answers to `Story/questions.md`)*
 
@@ -235,6 +387,8 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Roll / assign relationship structures** — `Relationships/relationship-structures.md`
 - [ ] **Build the Relationship Graph** — copy `MetaFiles/relationship-graph-template.csv` into `Creations/story-{datetime}/relationships/relationship-graph.csv`, replace placeholder names with actual character names, fill each cell in that character's voice.
   - *Each cell should capture: current relationship state | emotional charge | any unresolved tension | arc direction (growing / decaying / static / unknown to them)*
+  - *Include all named minor characters — append `(minor)` to their name in both the row and column header. A minor character who only interacts meaningfully with one or two people will have many blank cells, and that asymmetry is the point: it shows exactly where their load-bearing weight sits. Do not omit a minor character because they have few relationships — their absence from most cells and presence in a few is itself structural data.*
+  - *Include named societies and collective groups that function as characters — append `(society)` to their name in both headers. Any group that acts as a pressure system, power structure, or collective identity in the story qualifies: a school, a nation, a criminal organization, a people defined by their shared oppression, a ruling body, a cultural institution. Society rows are written in the collective voice of that group; society columns show how individual characters perceive and relate to that force. Societies will have many blank cells — only fill where there is genuine relationship. The pattern of blanks and fills for a society entry reveals its reach and weight in the story. Societies do not have a SELF cell — use a brief description of the society's self-image or collective identity in that diagonal position.*
   - *Blank cell = characters have not met or are irrelevant to each other — intentional blanks are data*
 - [ ] Create `Creations/story-{datetime}/relationships/questions-answered.md` *(answers to `Relationships/questions.md` for each significant pair)*
 - [ ] Create `Creations/story-{datetime}/relationships/relationship-graph.csv`
