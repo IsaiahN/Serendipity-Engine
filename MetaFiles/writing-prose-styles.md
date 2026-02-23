@@ -54,6 +54,8 @@ Literary ambition applied to genre forms (horror, sci-fi, thriller, fantasy). El
 Fragmented attention, ironic sincerity, cultural reference-dense. Social media rhythms bleeding into prose. Genre fluidity. Identity-forward.
 *Touchstones: Sally Rooney, Ottessa Moshfegh, Carmen Maria Machado, Ocean Vuong*
 
+> **Non-real-world stories:** The eras above map to real-world literary history — but a fictional world has its own cultural timeline. If the story is set in a secondary world, an alternate history, or a non-terrestrial setting, the world may be in its own baroque period, its own age of restraint, its own era of ornamental excess or stripped minimalism. In that case, let the world's aesthetic moment inform the narrator's prose register the same way a real-world era would. The list above is a vocabulary, not a requirement.
+
 ---
 
 ## Cultural & Regional Literary Traditions
@@ -70,6 +72,8 @@ Fragmented attention, ironic sincerity, cultural reference-dense. Social media r
 **Scandinavian / Nordic** — Minimalism, nature as moral force, social conformity, the dark underneath calm surfaces
 **Middle Eastern** — Hospitality and honor, exile, the ancient and the modern in collision
 **Chinese** — History's weight, generational trauma, silence as survival, the family unit as pressure system
+
+> **Non-real-world stories:** The traditions above are anchored to real-world geography and history — they require a Caribbean, a Russia, a Japan. A secondary world has none of these. Do not import real-world cultural labels into a world where they have no referent. Instead, use this list as a menu of *structural tendencies* — the underlying dynamics (oral tradition vs. written; colonial wound vs. imperial confidence; communal silence vs. individual confession) — and build the world's own peoples and literary cultures from those dynamics. A culture shaped by centuries of occupation will produce a different prose tradition than one shaped by centuries of expansion, regardless of what planet it's on. Borrow the mechanism; invent the people.
 
 ---
 

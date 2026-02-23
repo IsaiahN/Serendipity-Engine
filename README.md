@@ -96,7 +96,10 @@ Creations/          ← Generated stories live here (created per session, not tr
 |---|---|
 | `MetaFiles/writing-prose-styles.md` | Author prose style reference |
 | `MetaFiles/language-content.md` | Content rating + profanity + banter patterns |
+| `MetaFiles/tonal-control.md` | Tonal arc design · tone types · drift check · tone failure modes |
 | `Characters/Development/values-code-selfcare.md` | Core values, personal code, and self-care rolls |
+| `Characters/Development/character-voice.md` | Per-character voice fingerprint · speech rhythm · vocabulary · tic · metaphor family · defensive pattern · subtext default |
+| `Characters/Development/cascading-attributes.md` | Attribute dependency graph · recommended roll order |
 
 **Story craft reference:**
 
@@ -117,3 +120,20 @@ Creations/          ← Generated stories live here (created per session, not tr
 Every list file specifies who rolls (Author / Character / Story), how many times, whether there are probability weights, and what foil or pairing logic applies. The randomization engine is file-agnostic — it only provides the mechanism. The files provide the meaning.
 
 When a roll produces something strange or uncomfortable: keep it. Regression to the mean is not random. The strangeness is the system working correctly.
+
+---
+
+## Why Writing Is Hard
+
+Most would-be authors sit down believing writing is one skill. It isn't. It is six simultaneous disciplines that have to cohere in real time, in every scene, all the way to the last page:
+
+| Discipline | What it requires |
+|---|---|
+| **Structural architecture** | Plot, arc, and subproblem threading — the load-bearing skeleton. Every scene must advance, complicate, or pay off something. A scene that does none of these is structurally absent regardless of how well it is written. |
+| **Psychological modeling** | Every character's inner life, its distortions, and the gap between what they believe and what is true. Characters who behave consistently with their wound — and inconsistently with their stated self-image — feel real. Characters who don't, don't. |
+| **Sociological modeling** | Society as a character. What the world costs the people who live inside it, and what it demands from them in exchange for belonging. Stories without this have characters in a vacuum — technically present, structurally floating. |
+| **Sensory and scenic craft** | Setting doing active work — exerting pressure, externalizing interior state, carrying history, creating contrast. A setting that does none of these things is a stage direction, not a scene. |
+| **Voice** | The prose itself. Sentence rhythm, register, the specific vocabulary a character or narrator reaches for under pressure. The per-character voice fingerprint — speech rhythm, vocabulary register, dialogue tic, metaphor family, defensive speech pattern, subtext default — is rolled the same way any other attribute is. |
+| **Tonal control across time** | Sustaining, escalating, or deliberately breaking the story's emotional register across a draft that may take months or years to write. Tone drifts. The writer's real season leaks into the fictional one. Managing that drift — using it when it serves, correcting it when it doesn't — is craft at the level of the whole work, not the scene. The tonal arc is designed in Phase 6 and checked at the start of every drafting session. |
+
+The Serendipity Engine addresses all six structurally. The quality of what the system produces from that structure is still on the writer — but the ground is load-bearing before the first sentence is written.

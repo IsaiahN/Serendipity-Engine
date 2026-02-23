@@ -2,7 +2,7 @@
 
 *A dependency graph for character attribute rolls. Some attributes sit upstream of others — they constrain or reframe what subsequent rolls mean. Roll upstream attributes first; let them inform everything downstream before you lock in results.*
 
-*Referenced by: `MetaFiles/Master-Story-Checklist.md` · `Characters/Development/physical-description.md`*
+*Referenced by: `MetaFiles/Master-Story-Checklist.md` · `Characters/Development/physical-description.md` · `Characters/Development/character-voice.md`*
 
 ---
 
@@ -95,7 +95,7 @@ MBTI + ENNEAGRAM ↔ (read as a pair — they modify each other)
  ├── → Emotional Register (type shadow = default affective state under stress)
  ├── → Self-Care Mechanism (type-consistent coping; note when self-care perpetuates the wound)
  ├── → Flaw (type shadow as flaw expression)
- ├── → Voice / Dialogue Register (how this type speaks under pressure vs. at ease)
+ ├── → Voice Fingerprint (Speech Rhythm · Vocabulary Register · Dialogue Tic · Defensive Speech Pattern — MBTI type + Enneagram shadow determine the pressure-mode voice; see `Characters/Development/character-voice.md`)
  └── → Moral Alignment (some combinations have strong alignment affinities — note, do not dictate)
 ```
 
@@ -110,6 +110,7 @@ WOUND
  ├── → Self-Care Mechanism (what they reach for; may perpetuate the wound)
  ├── → Life Philosophy (wound shapes what they believe is true about the world)
  ├── → Enneagram type shadow (same wound, different type = different scar tissue)
+ ├── → Voice Fingerprint (Dialogue Tic + Defensive Speech Pattern + Subtext Default — wound determines what the character routes around in speech, what they cannot say directly, and how they deflect under pressure; see `Characters/Development/character-voice.md`)
  └── ↔ Emotional Register (see bidirectional loops below)
 ```
 
@@ -163,7 +164,8 @@ The Master Story Checklist lists attributes in *file reference order*. Use this 
 10.  Physical Description               now informed by age, life history, world context
 11.  Remaining Identity attributes      sexuality, life philosophy, emotional register, zodiac
 12.  Character Type                     now you know enough to know what kind of role this person plays
-13.  Name                               last — informed by cultural context, gender, and world period
+13.  Voice Fingerprint                  all upstream attributes complete; wound + MBTI + Enneagram + background cohere into speech — see `Characters/Development/character-voice.md`
+14.  Name                               last — informed by cultural context, gender, and world period
 ```
 
 ---

@@ -57,7 +57,7 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 *Conflict types: (a) **Productive tension** — attributes that coexist in genuine friction without logical contradiction (Lawful Evil + Tragic Hero; INFJ + Enneagram 8w7 — uncomfortable but coherent). These are features — hold both without softening either. (b) **Illogical contradiction** — attributes that cannot simultaneously be true at the same point in time (Lawful Evil + Chaotic Good; devout fundamentalist + fervent atheist). When this occurs, treat them as **past state → current state**: the earlier roll describes who this person was shaped to become; the later roll describes who they actually are now. The gap between them is their wound, their arc, and their most interesting writing blind spot. Keep both rolls. Document the transition in the character file.*
 
 > **⚡ Cascading Attributes — Roll These First (Author)**
-> Before working through the Identity list below: establish **(1) Age Range** and **(2) Gender** first, regardless of where they appear in the list. The list is grouped by category for reference — it is not the roll sequence. Age cascades into religion, life status, wound, philosophy, and emotional register. Gender cascades into life status, religion, wound, and sexuality. Both cascade into the author's unconscious writing bias — what they attend to and what they cannot see. For the full dependency graph, bidirectional loops, and recommended 13-step roll sequence, see `Characters/Development/cascading-attributes.md`.
+> Before working through the Identity list below: establish **(1) Age Range** and **(2) Gender** first, regardless of where they appear in the list. The list is grouped by category for reference — it is not the roll sequence. Age cascades into religion, life status, wound, philosophy, and emotional register. Gender cascades into life status, religion, wound, and sexuality. Both cascade into the author’s unconscious writing bias — what they attend to and what they cannot see. For the full dependency graph, bidirectional loops, and recommended 14-step roll sequence, see `Characters/Development/cascading-attributes.md`.
 
 ### Identity
 - [ ] **Age Range** — roll: 20s / 30s / 40s / 50s / 60s+ *(root node — roll this first. See `Characters/Development/cascading-attributes.md` for what it unlocks downstream.)*
@@ -88,6 +88,7 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 - [ ] **Language & Content Register** — `MetaFiles/language-content.md` *(content rating, profanity comfort, tonal register)*
 - [ ] **Intended Audience** — roll or decide: Children / Teens / New Adult / Adults *(sets the hard ceiling on content, complexity, and emotional territory)*
 - [ ] **Preferred Genre(s) as a reader/writer** — `Story/genres.md` *(what this author gravitates toward; may or may not match the story's genre — the gap is worth noting)*
+- [ ] **Author Voice Fingerprint** — `Characters/Development/character-voice.md` *(roll: Speech Rhythm + Vocabulary Register + Dialogue Tic + Metaphor Family + Defensive Speech Pattern. This is the author's voice — the default instrument the narrator and prose are built from. Record in `author.md`.)*
 
 ### Name
 - [ ] **Author Name** — `Characters/Names/` *(feminine / masculine / neutral as appropriate)*
@@ -180,7 +181,7 @@ Before rolling any individual character, name the cast structure. This prevents 
 *Repeat this block for each named character:*
 
 > **⚡ Cascading Attributes — Roll These First (per character)**
-> Establish **(1) Age Range** and **(2) Gender** before any other attribute. Both are root nodes — Age cascades into physical condition, life status, wound, and emotional register; Gender cascades into life status, religion, philosophy, wound, and sexuality. For the full dependency graph, bidirectional loops, multi-output nodes, and recommended 13-step roll sequence, see `Characters/Development/cascading-attributes.md`.
+> Establish **(1) Age Range** and **(2) Gender** before any other attribute. Both are root nodes — Age cascades into physical condition, life status, wound, and emotional register; Gender cascades into life status, religion, philosophy, wound, and sexuality. For the full dependency graph, bidirectional loops, multi-output nodes, and recommended 14-step roll sequence, see `Characters/Development/cascading-attributes.md`.
 
 ### Per Character
 - [ ] **Age Range** — `Characters/Development/physical-description.md` *(roll this first — cascading attribute)*
@@ -198,6 +199,7 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Physical Description** — `Characters/Development/physical-description.md`
 - [ ] **Core Flaw / Virtue / Wound** — `Characters/Development/flaws-virtues-wounds.md`
 - [ ] **Core Values / Personal Code / Self-Care** — `Characters/Development/values-code-selfcare.md`
+- [ ] **Character Voice Fingerprint** — `Characters/Development/character-voice.md` *(roll after all other attributes are complete — voice is downstream of wound, MBTI, Enneagram, age, and background. Roll: Speech Rhythm + Vocabulary Register + Dialogue Tic + Metaphor Family + Defensive Speech Pattern + Subtext Default. Record in `characters/{name}.md`.)*
 - [ ] **Name** — `Characters/Names/` *(as appropriate)*
 - [ ] **Answer all Character questions** — `Characters/Questions.md`
 - [ ] **Assign network archetype** — Pioneer / Optimizer / Generalist / Exploiter (`MetaFiles/story-network-theory.md` Part III)
@@ -249,7 +251,7 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Abstract** — 1 paragraph: what is this story about at the principle level (not plot summary)
 - [ ] **Short Description** — 2–3 sentences: the hook, the world, the central question *(this is distinct from the Abstract — the Short Description is pitch-facing text, written as if answering "what's your book about?" in 30 seconds. Keep it short and aimed at a reader who knows nothing. The Abstract is the structural reference document, written for the author.)*
 - [ ] **Story Arc** — map the protagonist's arc using the chosen plot structure; note the subproblem stack state at each major beat (`Story/plot-structure.md` — Resolution Architecture)
-- [ ] **Tonal Arc** — map the story's emotional register across acts/chapters. This is distinct from the Author's default register. Using the emotional register list (`Characters/Identity/emotional-register.md`) as vocabulary, note the dominant tone for each act and where deliberate phase shifts occur (e.g., Act 1: Tense → Act 2 mid: Euphoric false peak → Act 2 end: Desolate → Act 3: Resolute). The tonal arc is the story's signal pattern — its interference design.
+- [ ] **Tonal Arc** — map the story's emotional register across acts/chapters. This is distinct from the Author's default register. Using the emotional register list (`Characters/Identity/emotional-register.md`) as vocabulary and the tone types in `MetaFiles/tonal-control.md` as the authorial stance layer, note the dominant tone for each act and where deliberate phase shifts occur (e.g., Act 1: Tense → Act 2 mid: Euphoric false peak → Act 2 end: Desolate → Act 3: Resolute). Record the opening tone, Act 2 mid tone, Act 2 end tone, closing tone, and all designed tonal departures in `story/arc.md`. The tonal arc is the story's signal pattern — its interference design. See `MetaFiles/tonal-control.md` for arc design principles and tone failure modes.
 - [ ] **Subplot Map** — list each subplot with: its opening event, its theme echo (how it asks the same question as the main plot differently), and its planned resolution or decay point
 - [ ] **Outline** — chapter by chapter: chapter number, working title, brief description of what happens, dominant tone for this chapter, which subproblem threads are active/critical/resolved at end of chapter, and per-chapter **scene metadata**: location (country/region → specific place), interior/exterior type, time of day, season and temporal context, and which setting function is active. See `Story/World Building/scenery.md` for the per-chapter scene metadata format. This is structural specification, not flavour.
 - [ ] Create `Creations/story-{datetime}/abstract.md` — three clearly separated sections: **Title**, **Short Description** (2–3 sentences, pitch-facing), **Abstract** (1 paragraph, principle-level)
@@ -329,6 +331,8 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] The Author's voice and prose style (`author.md` — Voice & Craft section) are the active filter. Does this chapter sound like this author? Does the sentence structure, vocabulary, and emotional distance match their rolled prose style?
 - [ ] The Narrator's POV, reliability, and distance are consistent with `narrator.md`. If the narrator is unreliable, is the gap between what they report and what is true still legible to the reader?
 - [ ] If a scene isn't working, consult `Story/narrative-techniques.md` — the problem is often a technique question: is the setting passive when it could carry symbolic weight? Is the foreshadowing planted? Is a red herring doing what it should? Is the ticking clock still audible?
+- [ ] **Tonal drift check** (after any gap of a day or more between drafting sessions) — run the 5-step drift check in `MetaFiles/tonal-control.md`. Re-read the last paragraph written; compare its tone against the arc spec in `story/arc.md`; identify whether any gap is earned or leaked. See tone failure modes for diagnosis.
+- [ ] **Voice differentiation spot-check** — take any two named characters who appear together in this chapter. Read three of their exchanges. Is it clear which speaker is which from voice alone, without dialogue tags? If not, see `Characters/Development/character-voice.md` — Voice Differentiation Check.
 
 ### After Drafting — Forward Continuity Check
 
