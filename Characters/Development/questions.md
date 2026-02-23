@@ -46,3 +46,25 @@
 - What does the protagonist learn from them — directly or indirectly?
 - Could they be cut, or are they load-bearing?
 - What would the story lose if they disappeared?
+
+---
+
+## Core Values & Personal Code
+- What does this character believe matters most — what they would defend out loud if asked?
+- What are the 2–3 rules they actually live by, consciously or not?
+- Where did those rules come from — were they chosen, or inherited from survival?
+- Is any part of their personal code still serving them, or are they following a rule that made sense once and no longer does?
+- What would it take to make them violate their own code — and have they done it before?
+- Does their stated value and their actual behavior match? Where is the gap?
+- What principle, if violated by someone else, makes them genuinely unable to forgive?
+
+---
+
+## Self-Care & Restoration
+- What does this character do when they are depleted, overwhelmed, or in grief?
+- Does their restoration mechanism actually reach the wound — or does it only quiet the surface?
+- Is there a substance, behavior, or pattern they return to that they know is not helping them?
+- What do they need from other people when they are struggling — and do they know how to ask for it?
+- What does "feeling okay again" look like for this character — what is the signal that they have recovered?
+- What do they believe they deserve when they are suffering?
+- Has anyone in their life ever restored them in a way they have not been able to replicate since?

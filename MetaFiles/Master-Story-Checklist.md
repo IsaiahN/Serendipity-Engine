@@ -42,6 +42,8 @@ Creations/
       questions-answered.md          ← Relationships/questions.md answers
 ```
 
+> **File creation rule:** If any output file listed above does not already exist at the point in the checklist where it is needed, create it immediately in the correct location within `Creations/story-{datetime}/`. Do not wait until the end of the phase. The file structure above is the target state — build toward it incrementally as each phase completes.
+
 ---
 
 ## Phase 1 — Create the Author
@@ -71,6 +73,8 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 - [ ] **Physical Description** — `Characters/Development/physical-description.md`
 - [ ] **Core Flaw / Virtue / Wound** — `Characters/Development/flaws-virtues-wounds.md`
   - *This wound becomes the author's unconscious bias — the thing they keep writing toward or away from without knowing it*
+- [ ] **Core Values / Personal Code / Self-Care** — `Characters/Development/values-code-selfcare.md`
+  - *Roll 1–2 values, 2–3 code items, 1–2 self-care mechanisms. Note where the self-care mechanism conflicts with or perpetuates the wound — that tension is the author's blind spot in action*
 
 ### Voice & Craft
 - [ ] **Prose Style / Literary Era** — `MetaFiles/writing-prose-styles.md`
@@ -84,6 +88,21 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 ### Answer the Author Questions
 - [ ] `MetaFiles/questions.md` — the full Author Questions file; answer all sections
 - [ ] `Characters/Questions.md` — answer all questions in the frame of the Author, not a character
+
+### Big Picture — Author Intent *(answered last, after everything above is complete)*
+
+*Only after all identity, personality, development, voice, and question answers exist — step back and answer this synthesis question:*
+
+- [ ] **What kind of story is this author trying to tell?**
+
+  This is not a plot question. It is a question of intent — the wound they're writing from, the audience they're writing toward, the emotional experience they want to leave the reader with, and the form they instinctively reach for. Answer it in 1–3 sentences.
+
+  Ask:
+  - What does this author need to say that they have never been able to say directly?
+  - What do they want the reader to feel when they close the book — not think, not learn, *feel*?
+  - Is this a story that confirms the world as it is, or one that breaks it open?
+
+  Write the answer as the final line of `author.md`, clearly labelled **Big Picture Statement**. This statement is the bridge to everything that follows. No world, no character, no title, no outline is created until this exists.
 
 ### Output
 - [ ] Create `Creations/story-{datetime}/author.md` — structured as:
@@ -112,6 +131,8 @@ Roll randomly from each of the following. Where attributes conflict with each ot
 - [ ] **Genre(s)** — `Story/genres.md` *(primary + secondary blend)*
 - [ ] **Themes & Tropes** — `Story/themes-and-tropes.md` *(name the theme as a question, not a statement; select 2–4 tropes to mutate)*
 - [ ] **Plot Structure** — `Story/plot-structure.md` *(select base structure; note conflict types and stakes level)*
+- [ ] **Narrative Techniques** — `Story/narrative-techniques.md` *(select 2–4 plot architecture techniques that define how this story is assembled: does it open in medias res? Is there a frame story? Where are the Chekhov's guns planted? What is the ticking clock? Record in `world/world-building.md`)*
+- [ ] **Plot Twist Architecture** — `Story/plot-twist-types.md` *(decide now whether this story has a twist and which structural category it belongs to — structural twists such as false protagonist, non-linear narrative, or reverse chronology cannot be retrofitted; commit before drafting begins. Reveal twists are handled in Phase 6.)*
 - [ ] **Answer all World Building questions** — `Story/World Building/questions.md` → output goes in `world/questions-answered.md`
 - [ ] **Answer all Story questions** — `Story/questions.md` → output goes in `story/questions-answered.md`
 - [ ] **Check for Antilife Seals** — `MetaFiles/seven-story-deaths.md` *(which seals are present in the world by design? which are accidental?)*
@@ -154,6 +175,7 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Character Type** — `Characters/Development/character-types.md`
 - [ ] **Physical Description** — `Characters/Development/physical-description.md`
 - [ ] **Core Flaw / Virtue / Wound** — `Characters/Development/flaws-virtues-wounds.md`
+- [ ] **Core Values / Personal Code / Self-Care** — `Characters/Development/values-code-selfcare.md`
 - [ ] **Name** — `Characters/Names/` *(as appropriate)*
 - [ ] **Answer all Character questions** — `Characters/Questions.md`
 - [ ] **Assign network archetype** — Pioneer / Optimizer / Generalist / Exploiter (`MetaFiles/story-network-theory.md` Part III)
@@ -189,7 +211,10 @@ Before rolling any individual character, name the cast structure. This prevents 
 
 ## Phase 6 — Story Foundation
 
+*Before anything in this phase begins: re-read the **Big Picture Statement** at the end of `author.md`. The title, abstract, and short description are the public face of what this author is trying to say. If any of them contradict or drift from the Big Picture Statement, the statement wins — revise the story element, not the intent.*
+
 - [ ] **Know the ending first** — before the outline exists, the story's final image and the protagonist's final state must be decided. Everything else is built backward from this. *("No such thing as happy coincidences" — the ending makes all planted details feel inevitable in retrospect)*
+  - If the story uses a reveal twist (identity, allegiance, reality, information — see `Story/plot-twist-types.md`): write the ending first, then go back and plant the evidence. A twist that cannot be foreshadowed is a cheat.
 - [ ] **Title** — working title; can be revised
 - [ ] **Abstract** — 1 paragraph: what is this story about at the principle level (not plot summary)
 - [ ] **Short Description** — 2–3 sentences: the hook, the world, the central question
@@ -222,6 +247,11 @@ Before rolling any individual character, name the cast structure. This prevents 
   - Run the Story Health Score: for each seal, is it accidental or deliberate?
   - Run the Fractal Check: do the same seals appear at individual / relationship / community / institutional / societal scale?
   - Are the antagonist's seals emerging from their character files, not assigned from outside?
+- [ ] **Story Elements check** — `Story/story-elements.md`
+  - Are all 7 elements (Theme, Characters, Setting, Plot, Conflict, POV, Style) present and doing active work — or is any one of them passive, thin, or serving only one other element?
+  - **Conflict specifically:** Is conflict operating at more than one level simultaneously? Run all five: macro/societal → intragroup → intimate → internal → self vs. world. A story with conflict at only one level is a pressure problem.
+  - **POV specifically:** Is the POV character's wound actively shaping what the reader sees and what the reader can see that the character cannot? Is the validation/need mechanism (Enneagram core motivation) visible in what the POV character attends to and misses?
+  - **Style specifically:** Is the author's rolled prose style in productive relationship with the story's theme — or are they pulling in opposite directions?
 - [ ] **Relativism check** — Does the story's world configuration assign moral valence coherently? Could a reader in a different real-world configuration read the antagonist as a protagonist — and is that intentional or a gap?
 - [ ] **Resonance final check** — Is the same theme question present in at least 4 of 6 domains?
 - [ ] If any gaps are found: update outline, character files, or world-building before proceeding
@@ -231,20 +261,52 @@ Before rolling any individual character, name the cast structure. This prevents 
 
 ## Phase 8 — Chapter-by-Chapter Execution
 
-*Now you have all the ingredients. Work through the outline one chapter at a time.*
+*Now you have all the ingredients. Work through the outline one chapter at a time. These are not vignettes — each chapter is a load-bearing piece of a continuous story. Every chapter must arrive from the previous one and leave the next one changed.*
 
-For each chapter, confirm before drafting:
+**The ground truth for every chapter is the story folder:** `Creations/story-{datetime}/`. Before drafting any chapter, the following files are open and consulted — not recalled from memory:
+- `author.md` — the author's lens, wound, prose style, and voice
+- `narrator.md` — POV, reliability, tense, distance
+- `characters/{name}.md` — for every character who appears: their identity, emotional register, MBTI/Enneagram, flaw/virtue/wound, speech patterns, what they want, what they're hiding
+- `relationships/relationship-graph.csv` — the current state of every pair; what has shifted since the last chapter
+- `story/arc.md` — where this chapter sits in the tonal arc and subproblem stack
+- `outline.md` — the chapter's intended goal, dominant tone, and active threads
 
-- [ ] The chapter goal is clear from `outline.md`
-- [ ] The active subproblem threads for this chapter are identified (dormant / active / critical / resolved)
-- [ ] The chapter's intended tonal register matches the tonal arc in `arc.md` — or the deviation is intentional and noted
-- [ ] The scene correlation test has been considered — will plot, character, theme, relationship, and world domains be correlated or siloed in this chapter?
-- [ ] Key scenes have been checked against the 7-step scene loop (Part V, `MetaFiles/story-consciousness-theory.md`): Does the POV character perceive → process → update their map → act, and do both feedback loops (fast correction and slow belief revision) have room to operate?
-- [ ] The Author's voice, wound, and prose style are the active filter — does this chapter sound like this Author?
-- [ ] The Narrator's POV, reliability, and distance are consistent with `narrator.md`
-- [ ] The chapter advances at least one relationship in the graph — update `relationship-graph.csv` if phase shifts occur
-- [ ] Any new character introductions are rolled properly and added to `characters/`
-- [ ] After drafting: does the chapter end with a clear subproblem state change (something moved from active → critical, critical → resolved, or opened a new active thread)?
+---
+
+### Before Drafting — Continuity Check
+
+- [ ] Read the final paragraph of the previous chapter. This chapter's opening must be causally or emotionally continuous with it — not a fresh start.
+- [ ] What changed at the end of the last chapter? Which subproblem thread moved? Which relationship shifted? Which character learned or refused to learn something? This chapter inherits all of it.
+- [ ] Check `story/arc.md`: where is the tonal arc right now? Does this chapter maintain, escalate, or deliberately break the pattern — and is the break intentional?
+- [ ] Check `outline.md`: what is this chapter's one goal? If it has more than one goal, which is primary?
+
+### Before Drafting — Character Consistency Check
+
+*For every named character appearing in this chapter — open their file in `characters/{name}.md` and verify:*
+
+- [ ] **Name and address:** Is the character referred to by the correct name, nickname, or title — consistent with how other characters in this chapter's relationship dynamic address them? (Check `relationship-graph.csv` for how each other character perceives them.)
+- [ ] **Voice:** Does their dialogue and internal voice match their MBTI, Enneagram, emotional register, and wound? A Turbulent Avoidant with a Stoic philosophy does not speak the same way under pressure as an Anxious ENFJ with a Humanist philosophy — even if they're saying the same thing.
+- [ ] **Want vs. need:** Is this character still pursuing their want — or have they started unconsciously moving toward their need? Is that shift deliberate at this point in the arc, or a drift?
+- [ ] **Flaw in action:** Is the character's flaw present — not announced, but visible in behavior, choice, or reaction? A flaw that doesn't cost anything in this chapter is invisible.
+- [ ] **Personal code:** Is the character acting in alignment with or in violation of their code (from `values-code-selfcare.md`)? A violation the narrative doesn't acknowledge is a continuity error. A violation it does acknowledge is a character moment — note it.
+- [ ] **Self-care under stress:** If this character has been depleted, threatened, or grieving in or before this chapter — are they reaching for their restoration mechanism? Is it the healthy version or the wound-adjacent one? A character who never shows how they cope is missing a layer of interiority.
+- [ ] **Continuity of knowledge:** Does this character remember what they know? Do they act on what they've learned in prior chapters, or have they reset? Characters do not forget unless the story has given them a reason to.
+
+### During Drafting — Scene-Level Checks
+
+- [ ] The scene correlation test: are plot, character, theme, relationship, and world domains all active in this chapter — or are some siloed? Siloed chapters feel like filler.
+- [ ] Key scenes: run the 7-step scene loop (`MetaFiles/story-consciousness-theory.md` Part V) — does the POV character perceive → process → update their map → act? Do both feedback loops (fast correction and slow belief revision) have room to operate?
+- [ ] The Author's voice and prose style (`author.md` — Voice & Craft section) are the active filter. Does this chapter sound like this author? Does the sentence structure, vocabulary, and emotional distance match their rolled prose style?
+- [ ] The Narrator's POV, reliability, and distance are consistent with `narrator.md`. If the narrator is unreliable, is the gap between what they report and what is true still legible to the reader?
+- [ ] If a scene isn't working, consult `Story/narrative-techniques.md` — the problem is often a technique question: is the setting passive when it could carry symbolic weight? Is the foreshadowing planted? Is a red herring doing what it should? Is the ticking clock still audible?
+
+### After Drafting — Forward Continuity Check
+
+- [ ] What has changed by the end of this chapter that the next chapter must inherit? Write it as one sentence in `story/chapter-checklist.md` — this is the handoff note.
+- [ ] Did at least one relationship phase-shift in this chapter? Update `relationship-graph.csv` to reflect the current state of any pair that moved.
+- [ ] Did a subproblem thread change state (dormant → active, active → critical, critical → resolved, or a new thread opened)? Update `story/arc.md`.
+- [ ] Any new character introduced? Roll them properly and add their file to `characters/` before the next chapter begins.
+- [ ] Does the chapter's final image or line set up a question, a pressure, or an incompleteness that pulls the reader into the next chapter? A chapter that resolves cleanly with no forward tension is a stopping point, not a continuation.
 
 ---
 
@@ -253,10 +315,10 @@ For each chapter, confirm before drafting:
 Before calling the story ready to write in full:
 
 - [ ] All files in `Creations/story-{datetime}/` are populated
-- [ ] All 9 `questions.md` files have answers in the story folder — confirm each:
+- [ ] All 9 `questions.md` files have answers in the story folder — `Characters/Questions.md` produces two separate outputs (author frame + cast level); confirm all 10 destinations:
   - `MetaFiles/questions.md` → `author.md`
-  - `Characters/Questions.md` (author frame) → `author.md`
-  - `Characters/Questions.md` (cast level) → `characters/questions-answered.md`
+  - `Characters/Questions.md` *(author frame)* → `author.md`
+  - `Characters/Questions.md` *(cast level — answered after all characters exist)* → `characters/questions-answered.md`
   - `Characters/Identity/questions.md` → each `characters/{name}.md`
   - `Characters/Personality/questions.md` → each `characters/{name}.md`
   - `Characters/Development/questions.md` → each `characters/{name}.md`

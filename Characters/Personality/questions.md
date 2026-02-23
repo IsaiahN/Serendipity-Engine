@@ -48,3 +48,15 @@
 - What are they most proud of?
 - What do they most want to change about themselves — and do they ever try?
 - What lie do they tell themselves that the story will eventually disprove?
+
+---
+
+## Social Self-Positioning
+- Where does this character locate themselves in the social hierarchy of the story's world — above, below, alongside, or outside?
+- Who do they compare themselves to — upward (those they want to be recognized by), lateral (rivals and peers), or downward (those they protect or lead)?
+- How do they get their sense of importance or significance — achievement, approval, belonging, power, usefulness, correctness, uniqueness?
+- How do they respond when they feel invisible, overlooked, or underestimated?
+- How do they respond when they feel seen, praised, or elevated — does it feel earned, threatening, or fraudulent?
+- Do they feel they belong in the social position they occupy, or are they performing a role they secretly don't believe is theirs?
+- What do they need from other people to feel fundamentally okay — and what happens to their behavior when they don't get it?
+- In a room full of people, who does this character notice first — and what does that tell us about how they map the world?
