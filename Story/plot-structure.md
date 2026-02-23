@@ -195,3 +195,58 @@ In medias res opening — hook immediately
 Cliffhanger — end chapter/scene at unresolved peak
 Quiet moment — necessary breath before escalation; reveals character
 Chapter length — short chapters accelerate pace; long chapters deepen immersion
+---
+
+## Resolution Architecture
+*Craft-level tools. For the theoretical framework behind these, see Part XII of `MetaFiles/story-network-theory.md`.*
+
+### The Subproblem Stack — What Is Actually Running
+
+At any point in a story, multiple threads are running in parallel. A satisfying climax or chapter close is not one thing resolving — it's the moment when the right threads converge simultaneously. Track these:
+
+| Thread | Question it is asking |
+|---|---|
+| Emotional thread | What does the protagonist feel, fear, or need right now? |
+| Thematic question | What is the story asking? |
+| Plot engine | What is the active external goal and obstacle? |
+| Character wound | What unresolved wound is being pressured by events? |
+| Relationship arc | What is unresolved between key characters in this unit? |
+| World's question | What is this world in the process of learning or refusing to learn? |
+
+For each thread, assign a state:
+- **Dormant** — introduced but not yet pressured
+- **Active** — in motion, escalating
+- **Critical** — one more beat will tip it toward resolution
+- **Resolved** — closed for this unit
+- **Deliberately open** — cliffhanger; carries force into the next unit
+
+**A satisfying ending** = maximum threads simultaneously at Critical → Resolved.
+**A cliffhanger** = some threads Resolved, at least one tipping from Active → Critical or Critical → new Active.
+**A hollow ending** = plot thread Resolved while emotional/thematic threads are still Dormant or Active.
+
+---
+
+### The Scene Correlation Test
+
+Before finishing a scene, check whether it delivers in multiple domains *at the same time*:
+
+- What happens in the world? (plot)
+- What changes in the character's internal state? (character)
+- What principle is *enacted* (not stated)? (theme)
+- What shifts between key characters? (relationship)
+- What rule about this world is demonstrated? (world)
+
+If these are not correlated — if the plot event has no relationship to the character's state, if the theme is unconnected to the world rule — the scene is siloed. It moves the story forward without producing resonance. Most scenes that feel like "nothing happened" are scenes where only one domain was delivered.
+
+---
+
+### The Override Question — Story-Space Interface
+
+Every major story decision has a governing logic: genre convention, emotional truth, character logic, world rules, thematic necessity, or tonal register. When a decision feels wrong without being obviously wrong, it usually means two logics are in conflict and one overrode the other by accident.
+
+At any major decision point, ask:
+- Which solution space is governing this choice right now?
+- Is there another active logic in conflict with it?
+- If so: which one should win here — and does the story make that choice visible or hide it?
+
+Conscious overrides are craft. Unconscious overrides are where readers say *"I didn't believe that"* and can't explain why.

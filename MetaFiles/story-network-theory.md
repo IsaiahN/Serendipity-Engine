@@ -164,6 +164,53 @@ These aren't forbidden — they're high-cost. Use them knowing the debt they car
 
 ---
 
+## Part IV-B: Signal, Noise, and Phase — Why Stories Aren't Random
+
+Entropy looks 100% random. But that doesn't mean it is.
+
+It may mean you lack the sensors — or the frame of reference — to decode the signal. Static on a television, noise between radio stations: these aren't silence. They're signals canceling each other out, or multiple transmissions arriving at different frequencies simultaneously. What sounds like chaos is multiple coherent patterns occupying the same space at different phases.
+
+**Take that and multiply it across infinite axes. That is a story world.**
+
+A character who seems chaotic is not random. The protagonist simply doesn't yet have the frame of reference to read them. A subplot that appears disconnected is transmitting on a different frequency. The "revelation moment" in a story is precisely when someone gains the sensor they were missing — and the static resolves into signal.
+
+### Interference Patterns in Character Design
+
+Two characters are never simply opposites. More precisely: **a foil is the same signal at a different phase.**
+
+Same wound. Same core frequency. Different response — different phase offset. That phase difference is what creates both the friction and the mutual illumination between them. They recognize each other without being able to say why. The reader tracks both and feels something unresolved in each that only the other can address.
+
+| Interference Type | What It Produces | Story Function |
+|---|---|---|
+| **Constructive** (same phase) | Amplification | Allies who magnify each other's strengths — and share each other's blind spot. Dangerous when unchecked. |
+| **Destructive** (opposite phase) | Cancellation | Two characters with the same wound who flatten each other — neither can move while the other is present. Paralysis, stalemate, escalating antagonism. |
+| **Phase-shifted** (partial offset) | Resonance | The most interesting character pairings. Same frequency, different position in the cycle. They can hear each other. They can also change each other. |
+
+**A character arc is a phase shift.** The wound is the same signal. The character's position in the cycle changes. Same person. Different output. This is what transformation actually means structurally — not a new signal, but a shift in when and how the existing one peaks.
+
+**Harmony without dissonance is not resonance — it's unison.** A cast where everyone agrees and vibrates in phase is flat. What produces depth is multiple coherent signals running simultaneously, overlapping, interfering, occasionally resolving into a chord.
+
+### Finite and Infinite Games
+
+There are two kinds of games (Carse):
+
+- **Finite games** are played to end. There is a winner, a resolution, a closed loop. The goal is to finish.
+- **Infinite games** are played to keep playing. The goal is continuation — to preserve the conditions that make the game possible.
+
+**Most stories are finite games nested inside an infinite game.**
+
+The protagonist plays a finite game: they want something, pursue it, succeed or fail, and the loop closes. That's the plot.
+
+The world plays an infinite game: it was here before any of these characters, and it will be here after. Its game is to keep going — to accumulate knowledge, to survive, to evolve. The world doesn't care about the protagonist's finite game except insofar as it changes the world's conditions.
+
+**This is why sequels are structurally different from single stories.** A sequel is the world insisting the game isn't over. A satisfying series finale is the moment the infinite game either closes (an ending so complete the world itself stops) or explicitly acknowledges it will continue — without the same characters, but carrying what they left behind.
+
+**Applied to resonance:** The theme question is a finite game that the story resolves. But the *domain* the theme lives in — identity, love, power, truth — is an infinite game. Great stories resolve the finite question *and* leave the infinite domain visibly ongoing. The reader closes the book knowing the question has been answered for these people, and knowing it will have to be answered again, differently, by whoever comes next.
+
+*(The relationship graph — `MetaFiles/Level 2 - Relationship Graphs Example.csv` — is a map of interference patterns across the cast at a fixed point in time. It changes as phases shift.)*
+
+---
+
 ## Part V: Resonance Detection — The Most Important Story Principle
 
 **When the same pattern appears independently in the main plot, a subplot, the backstory, and the world-building simultaneously — without coordination — the story achieves thematic resonance.**
@@ -417,3 +464,132 @@ Not a twist for its own sake. A twist that reveals: *yes, the trope was pointing
 - Genre tradition (Story/genres.md)
 
 When all six domains carry the same question, the story is ready to be written.
+
+---
+
+## Part XII: Resolution Architecture — How Stories Reach Equilibrium
+
+*Adapted from: structural self-similarity, simultaneous multi-domain learning, gradient descent as avalanche, and hierarchical composition of solution spaces.*
+
+A story in motion is a network under tension. Multiple subproblems are running in parallel — emotional threads, thematic questions, plot engines, character wounds, relationship arcs. **Resolution is not a single event. It is the moment the network reaches a new equilibrium.** Understanding how to design that moment — and all the smaller closures and openings leading to it — requires four tools.
+
+---
+
+### Scale-Invariant Resolution
+
+The same pattern that closes a two-line exchange also closes a 400-page novel. Story resolution is structurally self-similar across scales.
+
+**The repeating unit at every scale:**
+`[Open loop] → [Pressure that forces a decision or confrontation] → [Update: loop closes, mutates, or deepens]`
+
+This unit operates identically at:
+
+| Scale | What the loop is |
+|---|---|
+| Beat | A single line of dialogue or action; a micro-expectation |
+| Scene | A scene goal — met, failed, or complicated |
+| Chapter | A narrative question advanced or suspended |
+| Act | A major phase of the protagonist's arc |
+| Story | The central conflict: answered, transformed, or deliberately left open |
+| Series | The world's accumulated knowledge genuinely updated |
+
+**A cliffhanger and a satisfying ending are the same structure with one variable changed** — whether the update closes the loop or opens a new one. The author controls which loops close, in what order, at what scale.
+
+*A writer who understands how to end a scene already knows how to end a novel. The problem is almost always not knowing what the actual loop is — what was genuinely opened, and what would constitute real closure for it.*
+
+**Practical test at any scale:** Name the open loop. What was opened? What would close it? Is closing it the right move here — or is the more powerful choice to let it deepen?
+
+---
+
+### Scene as Correlation Event — Simultaneous Multi-Domain Delivery
+
+Readers don't process plot, character, and theme sequentially. They process them simultaneously, and the *correlation between domains* is what produces the emotional experience. The reader isn't receiving story elements — they're processing the **relationships between** elements. That's where the feeling lives.
+
+A scene that delivers plot only is thin. A scene where the plot event, the character's internal state, the thematic principle, and the world rule all illuminate each other simultaneously — that achieves resonance.
+
+**Domain correlation check for any scene:**
+- **Plot:** What happens in the world?
+- **Character:** What does this reveal or change in the POV character's internal state?
+- **Theme:** What principle is being *enacted* (not stated)?
+- **Relationship:** What shifts between key characters?
+- **World:** What rule about how this world operates is demonstrated?
+
+If these are not correlated — if the plot event has no relationship to the character state, if the thematic principle is unconnected to the world rule — the scene is siloed. It may be necessary. It is not resonant.
+
+**The real emotional hit is not the event. It's the moment when multiple domains arrive correlated and the reader processes them together.** The character's wound is illuminated by the plot event that also demonstrates the world's central cruelty. That triple-convergence is the moment the reader feels something they can't fully explain.
+
+*(See also: Seal 6 — Isolation in `seven-story-deaths.md`, Resonance Detection in Part V above)*
+
+---
+
+### The Convergent Climax — Resolution as Avalanche
+
+A satisfying climax is not one thing resolving. It is the moment when multiple subproblems — running in parallel across the entire story — arrive at their resolution geometry **simultaneously**, each confirming and amplifying the others.
+
+**The subproblem stack** (what runs in parallel at any story point):
+- **Emotional thread** — what does the protagonist feel, fear, or need?
+- **Thematic question** — what is the story asking?
+- **Plot engine** — what is the active external goal and obstacle?
+- **Character wound** — what needs to heal, be accepted, or confirm it never will?
+- **Relationship arc** — what is unresolved between key characters?
+- **World's question** — what does this world need to learn or refuse to learn?
+
+**When all collapse simultaneously:** The climax feels inevitable. Each resolution confirms the others. The reader's prediction model collapses too — they understand everything they've been given, all at once. This is narrative *grokking*: the sudden capability jump where many subproblem solutions align.
+
+**When they collapse out of sync:**
+
+| Mismatch | Reader experience |
+|---|---|
+| Plot resolves before emotion | Hollow ending — the problem is solved but nothing feels different |
+| Emotion without thematic closure | Cathartic but weightless — the reader cries but can't say why it matters |
+| Theme without plot | "About something" but nothing happened |
+| Relationship arc left open when everything else closes | Undefined dissatisfaction — the reader finishes and doesn't know what's missing |
+| World's question ignored | Personal story felt, but nothing at stake beyond these individuals |
+
+**Subproblem state map — use this at any story point:**
+
+| State | Meaning |
+|---|---|
+| Dormant | Introduced but not yet pressured |
+| Active | In motion, escalating |
+| Critical | One more pressure point will tip it to resolution |
+| Resolved | Closed; no longer exerting force |
+| Deliberately open | A cliffhanger; still exerting force into the next unit |
+
+**The climax is the moment of maximum simultaneous criticality.** Everything tippable tips at once.
+
+**Cliffhangers are partial avalanches.** Some subproblems collapse (enough resolution to feel movement); at least one tips into a new critical state (enough opening to pull the reader forward). The ratio controls the cliffhanger's emotional tone:
+- Mostly closing, one thing newly opened → earned rest with a hook
+- Mostly opening, one small closure → propulsive dread
+- Everything opened simultaneously → disorientation and urgency (use sparingly)
+
+*(See also: Pacing Tools in `Story/plot-structure.md`)*
+
+---
+
+### Story-Space Interface — Where Solution Systems Constrain and Compose
+
+Every story is a composition of multiple active solution spaces running simultaneously:
+- **Genre conventions** — what this type of story is structurally allowed to do
+- **Tonal register** — what emotional states are available and credible
+- **Narrative mode** — how truth is delivered (direct, ironic, ambiguous, unreliable)
+- **Thematic frame** — what question the story is organized around
+- **Character logic** — what this specific character would actually do
+- **World logic** — what is physically and socially possible in this world
+
+Each space has its own internal logic. **Expertise in storytelling is knowing where these spaces interface** — where they constrain each other, where they enrich each other, and where the interesting choices live.
+
+**Genre fusion** is finding where two solution spaces interface coherently. Gothic horror + romance works because both operate on the threshold between desire and transgression — one space's constraint enriches the other's. Legal thriller = legal reasoning AND thriller pacing: the expertise is knowing where legal constraint overrides plot convenience, and where thriller convention bounds how much legal complexity is bearable before the reader's attention collapses.
+
+**Where stories break (unconscious interface failures):**
+- Thriller pacing demands scene cuts that destroy the depth a character revelation needs
+- Romance logic requires emotional beats the plot has no structural room for
+- Genre convention demands a resolution the thematic frame says would be dishonest
+- World logic constrains what the character would believably do — but the plot requires they do it anyway
+- The tonal register is too dark for the genre's audience, or too light for the theme's weight
+
+These failures are almost always invisible to the author while writing. They show up as readers saying *"it felt off"* or *"I didn't believe that choice"* without being able to articulate why.
+
+**The author's job at every interface is to decide which logic overrides — consciously.** Unconscious overrides are where stories fail at the level of coherence. Conscious overrides, made for deliberate reasons, are where stories become distinctive.
+
+**Practical question at every major story decision:** Which active solution space is governing this choice? Is that the right governor for this moment? Are two spaces in conflict here — and have you decided which one wins, and why?
