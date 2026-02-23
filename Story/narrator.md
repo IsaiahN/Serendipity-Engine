@@ -2,6 +2,10 @@
 
 ---
 
+> **Story-level only (Phase 2):** Roll 1 reliability type + 1 perspective, after the Author is built. The narrator is a mask the author puts on — not the author themselves.
+> **The gap is the point:** The distance between the Author's rolled worldview/MBTI/wound and the Narrator's position is where irony, dramatic distance, and unreliable narration live. A Turbulent INFP author writing a detached third-person omniscient narrator is making a deliberate suppression choice. Name the gap explicitly in `narrator.md`.
+> **Characters:** Individual characters do not get narrator rolls. A character narrating in first person is a narrator *choice* — the author is still behind the mask.
+
 ## Reliability
 
 ### Reliable Narrator

@@ -2,6 +2,9 @@
 
 ---
 
+> **Author & each character (individually):** Roll 1 from each section to build a complete physical profile. The author is a character too — their physical reality (chronic illness, physical labor, age, body) shapes what they notice and how they describe sensation.
+> **Contrast:** For closely paired characters (rivals, mentor/student, parent/child), deliberate physical contrast makes their dynamic legible on the page before dialogue or action. The contrast doesn't need to be dramatic — sometimes the most charged pairing is two people who look almost the same.
+
 ## Age Range
 Child (0–12)
 Teenager (13–17)

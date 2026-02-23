@@ -2,6 +2,9 @@
 
 ---
 
+> **Author & each character (individually):** Roll 1 flaw + 1 virtue + 1 wound. Constraint: the three must be psychologically coherent — the wound should be a plausible origin for the flaw, and the virtue should exist in genuine tension with the flaw (not simply its opposite). If the combination lacks internal logic, re-roll one element. The incoherence is a signal, not a feature.
+> **Foil:** Two characters who share the same wound but developed different flaws in response are natural foils — same damage, different scar tissue. This works especially well for protagonist/antagonist pairs, or for a parent and the child shaped by the same family wound.
+
 ## Flaws
 
 ### Emotional / Psychological

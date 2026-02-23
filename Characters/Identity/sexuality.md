@@ -1,5 +1,8 @@
 # Sexuality & Romantic Orientation
 
+> **Author & each character (individually):** Roll 1. Weight: Heterosexual / Straight = ~50%; all other orientations share the remaining ~50%.
+> **Foil:** Two characters with the same orientation but different outness levels (openly out vs. closeted vs. still discovering) create natural tension without needing different rolls. For a deliberately paired foil, give them the same orientation at different stages of acceptance — same signal, different phase.
+
 Allosexual
 Androsexual
 Aromantic

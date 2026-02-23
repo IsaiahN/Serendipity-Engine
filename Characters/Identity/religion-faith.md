@@ -1,5 +1,8 @@
 # Religion & Faith
 
+> **Author & each character (individually):** Roll 1. If two characters in tension roll the same faith, add a secondary qualifier: *active practitioner / lapsed / converted away from / culturally observant but not personally devout.* Same faith, different relationship to it = productive friction without requiring a different roll.
+> **Foil:** Faiths from historically opposed traditions (strict theism vs. atheism, or two sects with doctrinal conflict) between paired characters — especially parent/child or protagonist/antagonist — generate built-in ideological pressure. The conflict doesn't need to be written in; it arrives with the roll.
+
 agnosticism
 Amish
 ancestor worship

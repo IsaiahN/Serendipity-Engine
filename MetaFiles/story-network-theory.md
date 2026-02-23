@@ -207,7 +207,7 @@ The world plays an infinite game: it was here before any of these characters, an
 
 **Applied to resonance:** The theme question is a finite game that the story resolves. But the *domain* the theme lives in — identity, love, power, truth — is an infinite game. Great stories resolve the finite question *and* leave the infinite domain visibly ongoing. The reader closes the book knowing the question has been answered for these people, and knowing it will have to be answered again, differently, by whoever comes next.
 
-*(The relationship graph — `MetaFiles/Level 2 - Relationship Graphs Example.csv` — is a map of interference patterns across the cast at a fixed point in time. It changes as phases shift.)*
+*(The relationship graph — `MetaFiles/relationship-graph-template.csv` — is a map of interference patterns across the cast at a fixed point in time. It changes as phases shift.)*
 
 ---
 

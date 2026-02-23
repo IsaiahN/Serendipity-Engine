@@ -4,6 +4,9 @@
 
 ---
 
+> **Author & each character (optional):** Roll 1 sign, derive a specific birth date from within that sign's date range, and pull the corresponding birthstone and elemental. Used for symbolic resonance, thematic texture, or astrological flavor — not a hard requirement.
+> **Pairing:** Same-element pairs (Fire+Fire, Earth+Earth) = natural understanding and a shared blind spot. Cross-element pairs (Fire+Water, Air+Earth) = natural friction and complementary perception. For protagonist/antagonist or romantic pairs, cross-element rolls generate tension without additional design work.
+
 ## Zodiac Signs & Date Ranges
 
 | Sign | Dates | Element | Modality |

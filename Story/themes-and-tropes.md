@@ -4,6 +4,10 @@
 
 ---
 
+> **Story-level only (Phase 3) — Theme:** Roll or select 1 theme cluster. Then restate the theme as a *question*, not a statement (not "courage matters" — "Can a person be brave when no one will see it?"). This question must be answerable by the story's ending.
+> **Story-level only (Phase 3) — Tropes:** Roll 2–4 tropes from any section. Designate: 1 to play straight (the reader's anchor), 1 to subvert (the reader's surprise), and 1–2 to mutate (specific to this world and cast). The mutation is the story's fingerprint.
+> **Characters:** Do not roll themes individually. Each major character should embody a different *facet* of the central theme question — a different answer, a different cost, a different refusal.
+
 ## Core Themes
 
 ### Self & Identity

@@ -1,5 +1,8 @@
 # Gender
 
+> **Author & each character (individually):** Roll 1. Suggested weight: cisgender identities (Cisgender, Cis male, Cis female, Cis man, Cis woman) = ~60% combined; all other identities share the remaining ~40%.
+> **Note:** Gender identity and gender expression are separate axes. Two characters with the same gender identity can present very differently — the contrast is available without requiring different rolls.
+
 Abinary
 Agender
 Agenderfluid

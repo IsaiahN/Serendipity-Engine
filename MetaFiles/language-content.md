@@ -4,6 +4,10 @@
 
 ---
 
+> **Author (Phase 1) sets the story ceiling:** Roll or decide 1 content rating level. This is the hard ceiling for the entire story — no character, scene, or subplot crosses above it regardless of their individual voice.
+> **Each character (individually):** Roll or assign a personal language register from the profanity and banter sections — anywhere at or below the story ceiling. A character's natural voice may push hard against the ceiling; the restraint itself becomes characterization. A foul-mouthed character in a PG-13 story speaks in coded near-profanity that the reader hears as the real thing.
+> **Banter patterns:** Roll 1–2 per character as their conversational default. Two characters with clashing banter styles (e.g., Deadpan + Hyperbolic) create natural comic and dramatic tension in dialogue without any additional design.
+
 ## Content Rating Levels
 
 **G / All Ages** — No profanity. No explicit content. Conflict exists but violence and sexuality are implied or off-page. Language is clean.

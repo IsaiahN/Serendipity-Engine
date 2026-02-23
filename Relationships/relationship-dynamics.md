@@ -2,6 +2,9 @@
 
 ---
 
+> **Per significant relationship pair (Phase 5):** Roll 1 attachment style *per person* in the pair (2 rolls), then roll 1 core dynamic + 1 power dynamic. The two attachment styles together determine the relationship's default conflict pattern — it doesn't need to be written in, it arrives automatically.
+> **Named pairings by attachment combo:** Secure + Anxious = caretaker trap (the secure person becomes responsible for the anxious person's stability; resentment builds). Anxious + Avoidant = push-pull (the classic; each person's behavior activates the other's worst pattern). Avoidant + Avoidant = mutual walls, escalating isolation, collapse without conflict. Two Secure = the rare stable relationship; only interesting when the world outside destabilizes it.
+
 ## Attachment Style
 *How a person emotionally bonds and responds to closeness, separation, and conflict — rooted in early childhood experience.*
 

@@ -4,6 +4,9 @@
 
 ---
 
+> **Author & each character (individually):** Roll 1 from any section. The author's philosophy becomes their unconscious editorial lens — the worldview their story rewards by default. Each character's philosophy is what they believe life is *for*, consciously or not.
+> **Foil:** Cross-section foils (Western vs. Eastern, Modern vs. Ancient) produce the widest contrast. Within-section foils are subtler and more unsettling — they share the same vocabulary but reach opposite conclusions: Stoicism ↔ Hedonism, Existentialism ↔ Absurdism, Utilitarianism ↔ Virtue Ethics, Nihilism ↔ Humanism, Rationalism ↔ Mysticism. For protagonist/antagonist pairs, within-section foils work best — they can *almost* understand each other, which is more dangerous than total incomprehension.
+
 ## Western Philosophy
 Stoicism — control what you can, accept what you can't; emotion is managed, not suppressed
 Epicureanism — pleasure (especially simple, lasting pleasure) is the highest good; avoid pain and anxiety

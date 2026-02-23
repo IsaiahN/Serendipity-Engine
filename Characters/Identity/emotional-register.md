@@ -4,6 +4,11 @@
 
 ---
 
+> **Author (Phase 1):** Roll 1 = the author's default lens. Every scene they write will be slightly tinted by this register, even when writing characters in a different state.
+> **Each character (individually):** Roll 1 = their baseline state at the story's opening. This is where they *start*, not where they end — the arc is the phase shift away from and back toward this register.
+> **Story tonal arc (Phase 6):** Roll or design a sequence of 3–5 registers as waypoints across the story's acts. This is the signal pattern — the planned interference design. (e.g., Act 1: Tense → Act 2 midpoint: Euphoric false peak → Act 2 end: Desolate → Act 3: Resolute). Each chapter's dominant tone should trace this arc.
+> **Foil:** Characters whose baseline registers sit at opposite ends of the spectrum are natural foils: Euphoric ↔ Desolate, Tender ↔ Numb, Joyful ↔ Bitter, Hopeful ↔ Resigned. Same scene will be filtered entirely differently through each of them.
+
 ## Primary Registers
 
 **Euphoric** — Overflowing joy, often fragile or manic underneath. Everything feels possible. Sentences run long. Beauty is everywhere. Can tip into delusion or precede a crash.

@@ -4,6 +4,10 @@ A personality framework built around nine core types, each defined by a central 
 
 ---
 
+> **Author & each character (individually):** Roll 1 type (1–9), then roll 1 wing from that type's two options.
+> **Foil — subtle mirror:** Same type, different wing = characters who share the same core fear and desire but express it differently. Readers feel the similarity before they understand it. Unsettling and intimate.
+> **Foil — tension pairs** (same core conflict, opposite coping strategy): 1 (Reformer) ↔ 7 (Enthusiast), 2 (Helper) ↔ 8 (Challenger), 3 (Achiever) ↔ 4 (Individualist), 5 (Investigator) ↔ 2 (Helper), 6 (Loyalist) ↔ 3 (Achiever). These pairs produce stories where each character is simultaneously the other's answer and the other's worst nightmare.
+
 ## Type 1 — The Reformer
 Principled, ethical, and self-disciplined. Ones need to be good and right above all else. They hold themselves and others to high moral standards, suppress personal desires in favor of duty, and are idealistic about improving the world. At their best: wise, discerning, humane. At their worst: rigid, critical, and self-righteous.
 

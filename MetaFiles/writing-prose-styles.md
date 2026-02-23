@@ -4,6 +4,10 @@
 
 ---
 
+> **Author only (Phase 1):** Roll 1 literary era + 1 regional/cultural tradition (from a different axis — era is chronological, region is geographic) + 1 prose voice tendency. These three together form the prose fingerprint. A 1970s Latin American magical realist with a sparse, declarative voice is a completely different instrument than a contemporary East Asian literary fiction writer with a lyrical, digressive voice — even if both are writing the same story.
+> **Note:** The author's rolled era and region do not have to match their rolled personal background. An author raised in one tradition writing in another is one of the most generative mismatches in literary history. The tension between who they are and what they're writing through is the fingerprint.
+> **Characters & story:** No separate roll. Prose style belongs to the author alone.
+
 ## Literary Eras & Their Tendencies
 
 **1900s–1910s — Edwardian & Late Victorian**

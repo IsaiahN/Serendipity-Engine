@@ -4,6 +4,18 @@
 
 ---
 
+## Before You Begin — Seed the Engine
+
+Open `MetaFiles/randomization-engine.md`. Generate your session seed from the current datetime:
+
+```
+YYYYMMDDHHM → e.g. February 22 2026, 2:47 PM = 202602221447
+```
+
+Write it as the first line of your `author.md` before any rolls are made. Every roll in every phase derives from this seed in sequence. Do not pick results manually — derive them. Do not re-roll because a result is strange — keep it.
+
+---
+
 ## Folder Structure
 
 Every story lives in its own timestamped folder. Create this before anything else:
@@ -167,8 +179,9 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Roll / assign relationship types** — `Relationships/relationship-types.md`
 - [ ] **Roll / assign relationship dynamics** — `Relationships/relationship-dynamics.md`
 - [ ] **Roll / assign relationship structures** — `Relationships/relationship-structures.md`
-- [ ] **Build the Relationship Graph** — a full character × character matrix; each cell is how A perceives B in A's own voice; asymmetric by design. See `MetaFiles/Level 2 - Relationship Graphs Example.csv` for format.
-  - *Each cell should note: current relationship state, emotional charge, any unresolved tension, and the phase relationship (same wound? constructive or destructive interference?)*
+- [ ] **Build the Relationship Graph** — copy `MetaFiles/relationship-graph-template.csv` into `Creations/story-{datetime}/relationships/relationship-graph.csv`, replace placeholder names with actual character names, fill each cell in that character's voice.
+  - *Each cell should capture: current relationship state | emotional charge | any unresolved tension | arc direction (growing / decaying / static / unknown to them)*
+  - *Blank cell = characters have not met or are irrelevant to each other — intentional blanks are data*
 - [ ] Create `Creations/story-{datetime}/relationships/questions-answered.md` *(answers to `Relationships/questions.md` for each significant pair)*
 - [ ] Create `Creations/story-{datetime}/relationships/relationship-graph.csv`
 

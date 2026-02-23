@@ -4,6 +4,11 @@ Myers-Briggs types are built from four axes: Introvert/Extrovert, Intuitive/Sens
 
 ---
 
+> **Author & each character (individually):** Roll 1 type, then roll Assertive or Turbulent. Suggested weight: protagonists = ~60% Turbulent (internal conflict drives arc); supporting characters = ~60% Assertive (stability creates contrast).
+> **Foil — maximum contrast:** All 4 axes opposite (e.g., INTJ ↔ ESFP). They process the world through entirely different instruments. Communication is difficult; they see things the other is blind to.
+> **Foil — productive tension:** 2-axis difference. Enough in common to understand each other; enough apart to conflict meaningfully. Most useful for protagonist/antagonist or mentor/student pairs.
+> **Foil — uncanny double:** Same type, one Assertive / one Turbulent. Two versions of the same person at different stress thresholds. The Turbulent version is what the Assertive version looks like when everything goes wrong — or vice versa.
+
 ## Analysts
 
 ### INTJ — The Architect

@@ -2,6 +2,9 @@
 
 ---
 
+> **Per significant relationship pair (Phase 5):** Roll 1 from any section. Roll for each pair separately — protagonist/antagonist, protagonist/love interest, protagonist/mentor, etc.
+> **Contrast rule:** If two pairs in the story share the same relationship type (e.g., two romantic relationships), they must be given different dynamics and different structures to make the contrast legible. Two romantic relationships that function identically collapse into one.
+
 ## Romantic & Intimate
 New relationship (honeymoon phase)
 Established long-term partnership

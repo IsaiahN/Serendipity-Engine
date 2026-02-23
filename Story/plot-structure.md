@@ -2,6 +2,10 @@
 
 ---
 
+> **Story-level only (Phase 3):** Roll or select 1 base structure as the primary spine. A second structure can be layered in (e.g., Hero's Journey beats mapped onto a three-act frame) but one must dominate — the story needs a single answer to "where are we in the arc?" at any given moment.
+> **Conflict types:** Roll or select 1 primary conflict type + 1 secondary. The primary conflict is the engine; the secondary complicates it. Protagonist vs. Society + Protagonist vs. Self is the most common productive pairing — the external and internal pressure share the same root.
+> **Stakes:** Escalate across acts. The stakes level at the opening should be at least one step below the stakes at the climax. Rolling the same stakes level for both flattens the arc.
+
 ## Conflict Types
 
 ### Classic Conflict Categories

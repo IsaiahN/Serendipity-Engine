@@ -1,5 +1,8 @@
 # Character Types
 
+> **Each character:** Roll within the role assigned during Cast Architecture. Protagonists roll from the Protagonists section; antagonists from the Antagonists section; supporting characters have full freedom across all sections.
+> **Deliberate blur:** A villain protagonist + a redeemable antagonist is a valid and interesting configuration — roll both from their respective sections, then note the inversion. The type is the starting position; the story is what happens when the character is pressured against it.
+
 ## Protagonists
 Hero / Heroine
 Antihero / Antiheroine

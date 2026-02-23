@@ -4,6 +4,9 @@
 
 ---
 
+> **Author & each character (individually):** Roll 1 from each section — 5 rolls total (relationship status, parental status, living situation, financial upbringing, current financial status). All five together form the life picture.
+> **Attribute conflicts between sections are features:** A single parent in unstable housing who is also newly in love creates a very different character than the same configuration without the relationship. The tension between sections is the character's daily reality. Do not smooth it over.
+
 ## Relationship Status
 
 Single — never seriously involved

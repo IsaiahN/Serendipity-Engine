@@ -4,6 +4,9 @@
 
 ---
 
+> **Author & each character (individually):** Roll 1. The author's alignment shapes which kinds of moral dilemmas their story takes seriously and which it dismisses.
+> **Foil:** Protagonist and antagonist should land on different rows (Good vs. Evil is most legible; Good vs. Neutral is subtler). The most dramatically charged pairing is **same column, opposite row** — Lawful Good vs. Lawful Evil share the same devotion to order and use the same methods; Chaotic Good vs. Chaotic Evil share the same rejection of authority. They can *almost* justify each other's choices, which is more disturbing than pure opposition. True Neutral is most useful as a supporting character who forces both sides to reckon with their certainty.
+
 ## Good
 
 **Lawful Good** — Believes in justice, order, and doing the right thing through proper channels. Follows the rules because the rules serve people. A knight, a principled judge, a by-the-book hero.
