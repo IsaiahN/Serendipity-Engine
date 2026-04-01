@@ -479,7 +479,7 @@ The system is designed to work with an LLM collaboratively. The app should suppo
 | **Draft** | "Write chapters" | Phase 8 against existing architecture |
 | **Edit** | "Review and improve my chapters" | Phase 9 Editor (separate LLM) against architecture files |
 | **Workshop** | "Interactive writing session" | LLM-guided interview + generation across any phase |
-| **Reverse Scaffold** | "I have a rough draft" | Upload chapters → reverse-decompose into architecture → review [INFERRED] → fill gaps → grade → Editor |
+| **Reverse Scaffold** | "I have a rough draft" | Upload chapters → reverse-decompose into architecture → review [INFERRED] → fill gaps → assess health → Editor |
 | **Analyze / Learn** | "Teach me about this story" | Decompose → Structural Tour (8-stop teaching walkthrough, read-only) |
 | **Chat** | "Talk about my story" | Open conversation with Story Assistant, Editor, or a Character |
 | **Sandbox** | "What if I changed...?" | Per-file what-if copy or full project fork for experimentation |
@@ -642,7 +642,31 @@ All user-configurable options consolidated into a single settings page (see `pwa
 
 ### F-33: Writing Habit System — Hooked Loop (Future State, Opt-In)
 
-Deferred to post-v1. Applies Nir Eyal's Hooked model to creative writing retention. Four phases: Trigger (gentle notifications with in-character protagonist voice), Action (one-click resume, daily micro-prompts, session goals), Variable Reward (character reactions, grade movement, Reader Experience snippets, milestone celebrations), Investment (architecture depth as stored value, writing profile growth, character relationship investment). Entirely opt-in, off by default, no streak guilt, no gamification, no dark patterns. Duolingo-inspired but adapted for long-form creative work.
+Deferred to post-v1. Applies Nir Eyal's Hooked model to creative writing retention. Four phases: Trigger (gentle notifications with in-character protagonist voice), Action (one-click resume, daily micro-prompts, session goals), Variable Reward (character reactions, health rating movement, Reader Experience snippets, milestone celebrations), Investment (architecture depth as stored value, writing profile growth, character relationship investment). Entirely opt-in, off by default, no streak guilt, no gamification, no dark patterns. Duolingo-inspired but adapted for long-form creative work.
+
+### F-34: Project Health System (Replacing Letter Grades)
+
+Professional assessment scale replacing school-style letter grades. Six-level rating system: Just Started → Needs Work → Developing → Good → Strong → Exceptional. Each rating paired with a colored fill bar (amber-to-green gradient, no red). Overall project health plus 10 scoring dimensions (Author Depth, Narrator Clarity, World Integrity, Character Depth, Relationship Architecture, Story Structure, Theoretical Alignment, Voice Consistency, Conflict Depth, Theme Resonance). Expandable drill-down on each dimension reveals sub-factors pulling the rating up or down with specific actionable suggestions and jump-to links. "Needs Your Attention" queue highlights 2-3 lowest areas. Ratings always presented in context: "Work so far: Good" not bare labels. Accessible from right sidebar, top bar badge, Project Hub cards, and `Ctrl/Cmd + G`. Replaces all former letter grade (A+ through F) references throughout the system.
+
+### F-35: The Drawing Board (Freeform Workspace)
+
+A spatial canvas for unstructured ideas that don't yet fit into the architecture — text notes, uploaded images, rough drafts, research snippets, mood board items, web clippings. Items can be grouped, rearranged, and viewed as Board (spatial), List (chronological), Gallery (images), or Unlinked (items not yet connected to architecture). The key feature is "Used In" connection tracking: every item shows where it ended up in the architecture (e.g., "Used in: → characters/marcus.md (wound, flaw)") or "Not yet used" as a gentle nudge. Items can be dragged directly into architecture files. The system suggests connections. Quick-add shortcut (`Ctrl/Cmd + Shift + N`) works from anywhere. Stored in a `drawing-board/` project subfolder, included in .zip exports but never in manuscript exports.
+
+### F-36: Submission Target (Planning-Stage Formatting)
+
+An optional question during the Onboarding Wizard (after medium selection) that captures where the story is going: Publisher/Agent (traditional manuscript formatting, Shunn standard), Self-Publishing (flexible formatting, ISBN/copyright/back matter prompts), Contest/Workshop (anonymization, word count constraints), Studio/Production (spec vs. shooting script), or Personal/No Target. Set once, changeable in Settings. The key benefit: by knowing the target before chapters are generated, the Author LLM calibrates prose to match industry expectations from the start — not just reformatting at export time.
+
+### F-37: Session Changelog
+
+Automatic capture of what changed during each working session. When the user returns, the Welcome Back card includes a structured summary: what they did (phases completed, characters created, decisions made), how the story changed (health rating delta with per-dimension breakdown), files modified (created/changed/deleted), and what still needs attention (unresolved flags, incomplete phases). Rolling history of last 30 sessions per project. Generated automatically at session end with no user action required.
+
+### F-38: External Feedback → Health Mapping
+
+Extension of the existing feedback file system to map external reader notes to Project Health dimensions. When external feedback is uploaded (beta readers, agents, writing groups), the system can optionally map flagged issues to health dimensions (e.g., "three readers flagged Marcus as flat" → Character Depth). External feedback doesn't change ratings automatically — it adds a "flagged by external reader" indicator alongside the system's own assessment. Date-based file naming supported (`external-2026-04-01.md`) alongside sequential versioning.
+
+### F-39: Platform Ladder — VS Code Extension → PWA → Mobile
+
+Three-stage delivery strategy. **Stage 1: VS Code Extension** — ships first, leveraging VS Code's native file tree, search, Git version history, diff viewer, settings infrastructure, themes, and Live Share collaboration. Custom webview panels built in React + TypeScript handle the Serendipity-specific UI (Guided Flow wizard, Cast Roster, Relationship Graph, Story Timeline, Emotion Wheel, Editor review, Story Assistant chat). A shared TypeScript engine library encapsulates all story generation logic, phase pipeline orchestration, and data transformations — importable by both the extension and the future PWA. **Stage 2: PWA** — adds Simple Mode onboarding, full Reader Mode with paginated layout and ambient audio, mobile-responsive design, offline-first via IndexedDB, and the Writing Habit System. Wrappable with Tauri for native desktop distribution. **Stage 3: Mobile Apps** — Capacitor wrapping of the PWA, focused on reading/reviewing, light editing, Talk to a Character, and push notifications for the Hooked Loop triggers.
 
 ---
 
@@ -651,10 +675,10 @@ Deferred to post-v1. Applies Nir Eyal's Hooked model to creative writing retenti
 | Category | Count |
 |---|---|
 | Use cases | 20 |
-| Feature categories | 33 |
+| Feature categories | 39 |
 | Workflow modes | 20 |
-| Reference file categories | 30+ |
-| Rollable attribute types | 25+ per character |
+| Reference file categories | 34 (16 character + 13 story + 3 theory + 2 emotional/somatic lexicons) |
+| Rollable attribute types | 28 categories per character (40+ with sub-attributes like physical description) |
 | Question files | 9 (producing 10 output destinations) |
 | Theory documents | 3 |
 | Diagnostic checks | 8+ |

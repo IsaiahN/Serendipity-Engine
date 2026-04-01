@@ -55,7 +55,7 @@ Added "Print and Export Formatting" section to UI doc. Six export formats: .docx
 Added "Returning User Onboarding" section to UI doc. "What's New" modal after significant updates (2-3 bullet points, "Show me" links, dismissible). Feature discovery hints: "New" badges on new UI elements, one-time tooltips on hover. Full changelog accessible from settings menu.
 
 **HOLE 13: Accessibility for Scoring Visualizations** — ✅ RESOLVED
-Added "Accessibility for Scoring Visualizations" section to UI doc. Screen reader support: text-only table alternative for radar chart, ARIA live regions for score changes, descriptive alt text for grade badges. Color-blind safe: dual-encoding (color + pattern/icon), tested against protanopia/deuteranopia/tritanopia. Every visualization has a plain-text equivalent.
+Added "Accessibility for Scoring Visualizations" section to UI doc. Screen reader support: text-only table alternative for radar chart, ARIA live regions for score changes, descriptive alt text for health badges. Color-blind safe: dual-encoding (color + pattern/icon), tested against protanopia/deuteranopia/tritanopia. Every visualization has a plain-text equivalent.
 
 ---
 
@@ -76,13 +76,21 @@ Added "Screen 0: First-Time Setup — LLM Connection" to UI doc. Two connection 
 
 **Unified Settings Page** — Designed in `pwa-settings-wireframe.md`. Consolidates all scattered settings references into one page with 8 categories.
 
+**The Drawing Board** — Freeform workspace (Center Stage Mode 8) for unstructured ideas: notes, photos, rough drafts, research. Items track "Used In" connections to architecture files. Available throughout all three user paths as a place to dump ideas before they're ready for the guided flow.
+
+**Session Changelog** — Automatic capture of what changed per session. Shown in the Welcome Back card when the user returns: what they did, health rating delta, files modified, what still needs attention. Especially useful for Path 1 and Path 2 users who may take breaks between sessions.
+
+**Submission Target** — Optional wizard question during Step 1 (after medium selection): Publisher/Agent, Self-Publishing, Contest/Workshop, Studio/Production, or Personal. Calibrates the Author LLM and export formatting from the start. Relevant to all three paths.
+
+**External Feedback → Health Mapping** — When external feedback is uploaded (beta readers, agents, writing groups), the system can map notes to Project Health dimensions and surface them alongside the system's own assessment.
+
 ### Holes Found During Codebase Audit — ALL RESOLVED
 
 **Bridge Screen (Phase 7→8 Transition)** — ✅ RESOLVED
-Added "The Bridge" section to UI doc. Full-screen, visually distinct pause between architecture and prose. Five threshold questions presented one at a time, no sidebar/grade/checklist. Calmer color palette signals different kind of work.
+Added "The Bridge" section to UI doc. Full-screen, visually distinct pause between architecture and prose. Five threshold questions presented one at a time, no sidebar/health rating/checklist. Calmer color palette signals different kind of work.
 
 **Reverse Scaffolding (Upload Rough Draft)** — ✅ RESOLVED
-Added "Reverse Scaffolding" section to UI doc. 5-step flow: Upload chapters → LLM reverse-decomposes into architecture files (all tagged [INFERRED]) → User reviews and corrects → System identifies gaps → Grade + choose path (fill gaps, go to Editor, or both).
+Added "Reverse Scaffolding" section to UI doc. 5-step flow: Upload chapters → LLM reverse-decomposes into architecture files (all tagged [INFERRED]) → User reviews and corrects → System identifies gaps → Health assessment + choose path (fill gaps, go to Editor, or both).
 
 **Comparison Workflow** — ✅ RESOLVED
 Added "Comparison Workflow" section to UI doc. Split-panel view comparing two decomposed stories across all engine phases (Author, Narrator, World, Cast, Relationships, Arc, Seven Deaths, Score). Delta column shows same/different. Generates insight summaries.
@@ -174,13 +182,13 @@ Since they chose "I am the author," the guided flow launches the author-profile-
 - The LLM pushes back on vague answers: "You said your life philosophy is 'pragmatic.' Can you be more specific? When you're faced with a situation where doing the right thing costs you personally, what do you actually do?"
 - **Big Picture Statement** comes last: "What does this author need to say that they have never been able to say directly?"
 
-Output: `author.md` complete. Grade updates: Author Depth moves from F to B+.
+Output: `author.md` complete. Health updates: Author Depth moves from Just Started to Strong.
 
 **3. Narrator Setup**
 
 "Based on your chapters, your narrator appears to be third-person limited, anchored to Elena, reliable, past tense. Does that match your intent?"
 
-User confirms or adjusts. Output: `narrator.md`. Grade updates.
+User confirms or adjusts. Output: `narrator.md`. Health updates.
 
 **4. Gap-Filling: Characters**
 
@@ -193,19 +201,21 @@ The system presents each character it found — both from the notes and from the
 
 For the 3 characters mentioned in chapters but not in notes, the system asks: "I found Thomas, Lucia, and 'the Sergeant' in your chapters. Are they major characters who need full profiles, minor characters, or extras?"
 
-Output: Character files for all named characters. Cast collision check runs automatically. Grade updates.
+Output: Character files for all named characters. Cast collision check runs automatically. Health updates. The **Cast Roster** (Left Nav) now shows all characters with gradient avatars derived from their psychological axes. The user uploads a reference photo for Elena — it replaces the gradient fill, with the teal-and-rose gradient becoming a border ring around the image.
+
+For each character, the system also generates an **Emotional Palette** (Home/Stretch/Blocked tiers) and a **Somatic Signature** (emotion-to-body mappings) inferred from the uploaded prose. The user reviews and adjusts these.
 
 **5. Gap-Filling: World, Relationships, Arc**
 
 Same pattern for each missing phase:
 
-- **World:** "Your story seems to be set in [contemporary Eastern European city]. Let me ask you some questions about how this world works..." → walks through world-building questions, society-as-character, hallmarks
-- **Relationships:** "Based on your chapters, here's what I see between Elena and Viktor..." → presents inferred relationship dynamics, asks user to confirm or adjust, builds the graph
+- **World:** "Your story seems to be set in [contemporary Eastern European city]. Let me ask you some questions about how this world works..." → walks through world-building questions, society-as-character, hallmarks. The user pins mood board images to key hallmarks (a photo of a fog-covered bridge for "The Crossing," a sketch of the council building).
+- **Relationships:** "Based on your chapters, here's what I see between Elena and Viktor..." → presents inferred relationship dynamics (including **Relationship Emotional Dynamics** — dominant emotions when together, physical tells, conflict triggers), asks user to confirm or adjust, builds the graph
 - **Arc:** "Your outline has 12 chapters. Let me help you map the tonal arc and subplot threads..." → walks through arc design, ending-first, subproblem stack
 
 **6. Phase 7 Review**
 
-Once all architecture files exist, the system runs the full diagnostic. The grade jumps from wherever it was to its true structural score. The user sees exactly what's strong and what needs work.
+Once all architecture files exist, the system runs the full diagnostic. The health rating jumps from wherever it was to its true structural score. The user sees exactly what's strong and what needs attention.
 
 **7. Bridge**
 
@@ -213,14 +223,19 @@ The five threshold questions, presented on a calm, spacious screen. "What is the
 
 **8. Drafting the Remaining Chapters**
 
-The system now has everything it needs. For each of the 8 remaining chapters:
+The system now has everything it needs. The **Story Timeline** (Center Stage Mode 7) shows the full story at a glance — story beats, character arc lanes for Elena and Viktor, their relationship dynamic lane, tonal arc, and subproblem threads. Chapters 1-4 show "reality" data (from uploaded prose); chapters 5-12 show "plan" data (from the outline). The user can see where the story is going.
 
+For each of the 8 remaining chapters:
+
+- **Scene Dynamics Forecast** runs first — analyzing Elena and Viktor's current emotional states, relationship tension, and active subproblem threads to predict probable collisions and arc opportunities for this chapter
 - Pre-flight loads the architecture files
 - User chooses: "Write it myself" or "Generate a draft for me to review"
-- If generated: Author LLM writes with full context (author.md, narrator.md, all character files, relationship graph, arc, outline, audience)
+- If generated: Author LLM writes with full context (author.md, narrator.md, all character files, relationship graph, arc, outline, audience, emotional palettes, somatic signatures)
+- **Active Deconstruction** runs in the background — flagging grammar, voice consistency, structure, thematic incongruence, and character behavioral issues as non-blocking annotations
+- **Reader Experience Report** generates after the chapter is complete — pacing shape, read time, emotional trajectory, dialogue ratio
 - User reviews, provides feedback, approves
-- Editor LLM runs QA
-- Post-flight updates all tracking files
+- Editor LLM runs QA (now informed by the character's Emotional Palette constraints and Somatic Signature consistency)
+- Post-flight updates all tracking files; **Story Timeline** updates the chapter's column from "plan" to "reality"
 
 **9. Editor Review of Existing Chapters**
 
@@ -228,7 +243,7 @@ The 4 uploaded chapters also go through the Editor — but now the Editor has th
 
 **10. Final Assembly**
 
-All 12 chapters approved. Full manuscript grade displayed. Export to .docx, .pdf, or .epub.
+All 12 chapters approved. Full manuscript health assessment displayed. Export to .docx, .pdf, or .epub.
 
 ### Where This Path Has Holes (Now Fixed Above)
 
@@ -290,7 +305,7 @@ After all rolls, the system synthesizes the author's psychology into a coherent 
 
 > "This author is a 40-something bisexual existentialist with a wound of public humiliation. She writes to prove that the thing that destroyed her was the thing that set her free. Her blind spot: she'll protect characters who share her wound and punish characters who remind her of the people who humiliated her."
 
-User approves. Output: `author.md`. Grade: Author Depth → A-.
+User approves. Output: `author.md`. Health: Author Depth → Strong.
 
 **3. Phase 2 — Narrator (Automatic)**
 
@@ -326,7 +341,7 @@ Seven Story Deaths audit runs automatically. The system reports:
 
 > "Deliberate seals: Monolith (the corporation controls all bonding), Hierarchy (compatibility scores create a caste system). Accidental seal detected: Isolation — your world's domains (emotional, political, economic) are siloed. Consider connecting them."
 
-User reviews, adjusts if needed. Output: `world/world-building.md`, `world/hallmarks.md`. Grade updates.
+User reviews, adjusts if needed. Output: `world/world-building.md`, `world/hallmarks.md`. Health updates.
 
 **5. Phase 4 — Characters (Automatic)**
 
@@ -351,11 +366,11 @@ Cast collision check runs. If duplicates found:
 
 > "Warning: Your protagonist (Kai) and your mentor (Dr. Vasquez) share the same wound (identity erasure) and the same flaw (emotional withdrawal). This will make them react identically under pressure. Want me to re-roll Dr. Vasquez's wound?"
 
-User decides. Output: Character files for all named characters. Grade updates.
+User decides. Output: Character files for all named characters. Health updates. The **Cast Roster** populates with gradient avatars. Each character also gets an auto-generated **Emotional Palette** (Home/Stretch/Blocked) and **Somatic Signature** derived from their wound, MBTI, and emotional register. The user can use the **Emotion Wheel Picker** to adjust specific emotions — drilling down from "Fear" → "Dread" → "existential dread" if they want that level of specificity, or leaving it at the engine's defaults.
 
 **6. Phase 5 — Relationships (Automatic)**
 
-The system rolls dynamics, attachment styles, and structures for every significant pair. Builds the relationship graph. Presents it as an interactive matrix:
+The system rolls dynamics, attachment styles, and structures for every significant pair. Builds the relationship graph with **Relationship Emotional Dynamics** (dominant emotions, physical tells, conflict triggers per pair). Presents it as an interactive matrix:
 
 > "Kai → Dr. Vasquez: Mentorship (eroding) | Anxious-Avoidant dynamic | She knows something about his origin that she hasn't told him."
 >
@@ -377,17 +392,17 @@ User reviews the full outline. Can adjust any chapter's goal, tone, or content. 
 
 **8. Phase 7 — Full Review (Automatic)**
 
-All three theory checks run. Story Elements check. Resonance check. Relativism check. Results presented as a diagnostic report. Grade displayed.
+All three theory checks run. Story Elements check. Resonance check. Relativism check. Results presented as a diagnostic report. Health rating displayed.
 
-If the grade is below B+:
+If the rating is below Strong:
 
-> "Your story grades at B. Here's what's holding it back:
-> - Theme Resonance: B- (the theme echoes in wound and relationship, but not in the world's institutional structure — the corporation's rules don't directly test the theme question)
-> - Conflict Depth: C+ (conflict is operating at macro and intimate levels, but there's no intragroup conflict — no one in Kai's peer group disagrees with his choices)"
+> "Your story is rated Good. Here's what's holding it back:
+> - Theme Resonance: Developing (the theme echoes in wound and relationship, but not in the world's institutional structure — the corporation's rules don't directly test the theme question)
+> - Conflict Depth: Developing (conflict is operating at macro and intimate levels, but there's no intragroup conflict — no one in Kai's peer group disagrees with his choices)"
 >
 > "Want me to address these before we proceed to drafting?"
 
-System fixes the gaps and re-grades. Repeats until B+ or user overrides.
+System fixes the gaps and re-assesses. Repeats until Strong or user overrides.
 
 **9. Bridge**
 
@@ -399,25 +414,33 @@ This is the one moment where the user is asked to be present, even if they've le
 
 **10. Phase 8 — Chapter Generation**
 
+The **Story Timeline** now shows the full plan — all story beats, character arc starting positions, relationship dynamics, tonal arc, and subproblem threads laid out across the chapter structure. As chapters are generated, the Timeline fills in with "reality" data alongside the plan.
+
 For each chapter (or scene, for a screenplay):
 
-- Pre-flight runs automatically (architecture files loaded)
+- **Scene Dynamics Forecast** predicts the probable emotional collisions based on character states, relationship tensions, and active threads — "Kai and Lena are both in their Stretch emotions right now, and the compatibility score revelation will push Kai into Blocked territory"
+- Pre-flight runs automatically (architecture files loaded, including emotional palettes and somatic signatures)
 - Author LLM generates the full chapter/scene
-- Presented in Reader mode with TTS available
+- **Active Deconstruction** annotates the draft (grammar, voice, structure, theme, character behavioral layers)
+- Presented in Reader mode with TTS available (using **Voice Casting** briefs if the user wants character-specific voices)
+- **Reader Experience Report** generates: "This scene reads as a sprint — high dialogue ratio, low info density, emotional trajectory peaks at the compatibility reveal"
 - User reads or listens, then: approve / request changes / edit / regenerate
-- If approved → Editor LLM runs QA (consistency, structure, quality)
-- Editor report presented → user accepts/rejects/discusses findings
+- If approved → Editor LLM runs QA (consistency, structure, quality, emotional palette adherence, somatic consistency)
+- Editor report presented → user accepts/rejects/discusses findings via **Editor chat** (dark/orange UI)
 - Multi-pass if configured (Author revises → Editor reviews → repeat)
-- Post-flight updates all tracking files
+- Post-flight updates all tracking files; Story Timeline updates
+- User can open **Talk to a Character** to interview Kai about what just happened — anchored to this scene, he only knows what's happened up to this point
 
 This repeats for every chapter. For a screenplay, the output is formatted as a proper screenplay (scene headings, action lines, dialogue with character names, parentheticals).
 
 **11. Final Assembly**
 
-All chapters/scenes approved. Final grade displayed. Export options:
-- Screenplay: .pdf in standard screenplay format (Final Draft compatible)
+All chapters/scenes approved. Final health assessment displayed. The Story Timeline shows the complete picture — plan vs. reality for every dimension. Export options:
+
+- Screenplay: .fountain + .pdf in standard screenplay format (Final Draft compatible) — **Format-Aware Export** auto-selects the screenplay template with scene numbers and revision color options
 - Novel: .docx or .epub
-- Full project archive (all architecture files + prose)
+- Full project archive (all architecture files + prose + media images)
+- **Voice Casting sheet** (.md or .pdf) with narrator and per-character voice briefs for audiobook/podcast production
 
 ### Where This Path Has Holes (Now Fixed Above)
 
@@ -497,15 +520,15 @@ Once decomposition is complete, the user doesn't see a folder of markdown files.
 
 **Tour Screen 4: The Characters**
 
-> Individual cards for each major character with their full attribute set, Stream A/B conflict, and arc type. Visual indicators showing foil pairings (Gatsby ↔ Tom: same want, opposite method).
+> Individual cards for each major character with their full attribute set, Stream A/B conflict, arc type, and **gradient avatar** (psychological axes rendered as color). Spider charts show the 8-axis profile. The system has inferred each character's **Emotional Palette** (Home/Stretch/Blocked tiers) and **Somatic Signature** from the prose. Visual indicators showing foil pairings (Gatsby ↔ Tom: same want, opposite method). The **Cast Roster** panel shows the full cast at a glance.
 
 **Tour Screen 5: The Relationships**
 
-> Interactive relationship graph. Click any cell to see the analysis. The pattern of connections and blanks tells its own story.
+> Interactive relationship graph with **Relationship Emotional Dynamics** — not just "Gatsby loves Daisy" but the dominant emotions when they're together, their physical tells, their conflict triggers. Click any cell to see the analysis. The pattern of connections and blanks tells its own story.
 
 **Tour Screen 6: The Story**
 
-> Arc diagram. Tonal arc visualization. Chapter-by-chapter outline with the structural function of each chapter visible.
+> Arc diagram. Tonal arc visualization. The **Story Timeline** shows the full decomposed work — story beats, character arcs, relationship dynamics, emotional weather, and subproblem threads all synchronized across chapters. Chapter-by-chapter outline with the structural function of each chapter visible.
 
 ### The Conversation (This Is Where Path 3 Lives)
 
@@ -551,12 +574,13 @@ The AI responds with full structural awareness — not generic literary analysis
 
 ### The Conversation as a Teaching Tool
 
-For students and learners, the conversation doubles as a writing class:
+For students and learners, the conversation doubles as a writing class. If the **Conversational Teacher Persona** is enabled (Settings), the Story Assistant shifts from giving answers to asking open questions — drawing out the user's understanding through dialogue rather than lecture.
 
 - **"Teach me about story structure using this book"** → The AI walks through the plot structure, pointing out each beat in the text
-- **"What makes this character feel real?"** → The AI explains wound → flaw → virtue coherence using the character's actual attributes
-- **"Why does this scene work?"** → The AI runs the scene through the 7-step scene loop from Story Consciousness Theory
-- **"I'm writing my own story — how do I build characters as good as these?"** → The AI transitions from analysis to guidance, using the decomposed story as a teaching example, and can pivot into a new project if the user wants
+- **"What makes this character feel real?"** → The AI explains wound → flaw → virtue coherence using the character's actual attributes, referencing their Emotional Palette and Somatic Signature
+- **"Why does this scene work?"** → The AI runs the scene through the 7-step scene loop from Story Consciousness Theory. If the user has their own writing loaded, **Active Deconstruction** can compare their craft choices to Fitzgerald's
+- **"I'm writing my own story — how do I build characters as good as these?"** → The AI transitions from analysis to guidance, using the decomposed story as a teaching example, and can pivot into a new project if the user wants. Characters from the decomposition can be **imported** into a new project via the Roll/Choose/Import Pattern
+- **"Talk to Gatsby"** → The user opens a **Talk to a Character** conversation with the decomposed Gatsby. He speaks in his inferred voice, from his wound, with his somatic signature. "Old sport, you want to know about Daisy? Let me tell you something — the green light wasn't about her. It was never about her."
 
 ### Re-Entry for Path 3
 

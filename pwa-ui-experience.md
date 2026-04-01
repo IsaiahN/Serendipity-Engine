@@ -17,7 +17,7 @@
 The app is three things at once:
 
 1. **A guided story builder** — holds your hand through every phase, asks you the right questions at the right time, and won't let you skip structural work that matters
-2. **A teaching tool** — explains *why* each step exists, surfaces the theory behind each decision, and grades your story's structural health so you learn what makes fiction work
+2. **A teaching tool** — explains *why* each step exists, surfaces the theory behind each decision, and assesses your story's structural health so you learn what makes fiction work
 3. **A professional workspace** — lets experienced users skip the hand-holding, directly edit any file, and work at their own pace
 
 The interface should feel like working with a patient, brilliant writing partner who knows when to lead and when to get out of the way.
@@ -170,7 +170,7 @@ Users can connect **multiple LLM providers simultaneously** and assign different
 │  (Story Assistant, Editor chat, Talk to a Character)     │
 │                                                          │
 │  Analysis            [Qwen 3 ▾]                          │
-│  (Decomposition, Silent Writing Assessment, grading)     │
+│  (Decomposition, Silent Writing Assessment, health)      │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -191,7 +191,7 @@ Users can connect **multiple LLM providers simultaneously** and assign different
 │  Consistency check      [Gemini 2.5 Pro ▾]               │
 │  Craft & prose review   [Claude Opus 4 ▾]                │
 │  Seven Deaths audit     [Gemini 2.5 Pro ▾]               │
-│  Story grading          [Gemini 2.5 Pro ▾]               │
+│  Health assessment      [Gemini 2.5 Pro ▾]               │
 │                                                          │
 │  CHAT                                                    │
 │  Story Assistant        [Qwen 3 (local) ▾]               │
@@ -225,16 +225,51 @@ Users can connect **multiple LLM providers simultaneously** and assign different
 
 ### No Key = No AI Features
 
-If no LLM is connected, the app still functions as a file editor and project organizer — users can read, write, and edit architecture files manually. But all AI features (generation, grading, editor review, chat, decomposition, TTS-powered summarization) are disabled with a clear message: "Connect an AI model in Settings to enable this feature."
+If no LLM is connected, the app still functions as a file editor and project organizer — users can read, write, and edit architecture files manually. But all AI features (generation, health assessment, editor review, chat, decomposition, TTS-powered summarization) are disabled with a clear message: "Connect an AI model in Settings to enable this feature."
 
 ---
 
 ## Screen 1: Home / Project Hub
 
-The first thing users see. Two paths:
+The first screen the user sees after LLM setup. It serves three purposes: launch new projects, resume existing ones, and access standalone tools. The layout is a **two-column split** — project list on the left, selected project detail (or welcome content) on the right.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Serendipity Engine                          ⚙ Settings  [?]    │
+├─────────────────────┬────────────────────────────────────────────┤
+│                     │                                            │
+│  [+ New Story]      │  Welcome Back, Isaiah.                     │
+│                     │                                            │
+│  MY PROJECTS        │  ┌──────────────────────────────────────┐  │
+│  ──────────────     │  │  📖 The Shunning Season              │  │
+│                     │  │  Literary Fiction + Thriller          │  │
+│  📖 The Shunning    │  │  Phase 8 — Chapter 6 of 12           │  │
+│     Season          │  │  Strong ████░ │ 58% complete         │  │
+│     Strong│Ch 6/12  │  │                                      │  │
+│     3 hours ago     │  │  Last session: 3 hours ago            │  │
+│                     │  │  You were editing Chapter 5.           │  │
+│  📖 Orbital         │  │                                      │  │
+│     Decay           │  │  [Pick Up Where I Left Off]           │  │
+│     Good │ Phase 4  │  │  [Show Full Picture]                  │  │
+│     2 days ago      │  │  [Open Story Timeline]                │  │
+│                     │  └──────────────────────────────────────┘  │
+│  📖 Gatsby          │                                            │
+│     Decomposition   │  QUICK ACTIONS                             │
+│     Complete        │  ─────────────                             │
+│     1 week ago      │  Import a story to decompose               │
+│                     │  Build a character (standalone)             │
+│  ──────────────     │  Build a world (standalone)                │
+│  QUICK START        │  Compare two stories                       │
+│  Decompose a story  │  Open from folder                          │
+│  Build a character  │                                            │
+│  Build a world      │                                            │
+└─────────────────────┴────────────────────────────────────────────┘
+```
+
+**First-time users** see a welcome panel on the right with a brief introduction and the mode selector (Simple vs. Advanced) before launching into the wizard. **Returning users** see their most recent project's Welcome Back card on the right, with the project list pre-sorted by last modified.
 
 ### New Project Button
-Large, prominent. Launches the Onboarding Wizard (Screen 2).
+Large, prominent, top of the left column. Launches the Onboarding Wizard (Screen 2).
 
 ### Recent Projects (Thread List)
 A scrollable list of previous projects on the **left side**, styled like conversation threads in Claude Desktop or ChatGPT. This list is **persistent** — it doesn't disappear when you enter a project. Users can always see their full project list and switch between projects without navigating back to a home screen.
@@ -245,7 +280,7 @@ Each thread entry shows:
 - Story type badge (Book, Screenplay, TV Show, etc.)
 - Genre tags (e.g., "Literary Fiction + Horror")
 - Current phase indicator (e.g., "Phase 4 — Characters" or "Chapter 3 of 12")
-- Story Grade (letter grade: A through F — see Scoring System below)
+- Project Health rating with fill bar (Just Started through Exceptional — see Project Health System below)
 - Completion percentage (progress bar)
 - Last modified date
 - Thumbnail/cover if one exists
@@ -257,12 +292,64 @@ Users can click into any project to resume where they left off. The active proje
 When a user returns to an in-progress project, the system doesn't just dump them at the file tree. It greets them with a **"Welcome Back" card** in the Center Stage that shows:
 
 - Where they left off (last active phase + step)
-- What's changed since they were away (if using cloud sync or multi-device)
-- A summary of the project's current state (overall grade, chapters completed, open editor issues)
+- The **Session Changelog** — what happened during the last session (see below)
+- A summary of the project's current state (overall health rating, chapters completed, open editor issues)
 - A "Pick up where I left off" button that jumps directly to the next incomplete step
 - A "Show me the full picture" button that opens the progress tracker overview
 
 This card is dismissible and can be turned off in settings for power users.
+
+### Session Changelog — What Happened Last Time
+
+Every time the user closes the app or switches away from a project, the system captures a **session summary** — a compact record of what changed during that working session. When the user returns, the changelog is the first thing they see inside the Welcome Back card, answering the question: "Where was I, and what did I accomplish?"
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  LAST SESSION — March 31, 2026 (2h 14m)                     │
+│                                                              │
+│  WHAT YOU DID                                                │
+│  ● Completed Phase 4 — Characters                           │
+│    Created 4 characters: Elena, Marcus, Priya, Thomas        │
+│    Resolved 2 cast collision warnings                        │
+│    Uploaded reference photo for Elena                         │
+│  ● Started Phase 5 — Relationships                           │
+│    Defined Elena ↔ Marcus dynamic (Anxious-Avoidant)         │
+│    3 of 8 relationship pairs remaining                       │
+│                                                              │
+│  HOW YOUR STORY CHANGED                                      │
+│  Health: Developing → Good  ██░░░ → ███░░                    │
+│    ↑ Character Depth: Needs Work → Good                      │
+│    ↑ Relationship Arch: Just Started → Developing            │
+│    — World Integrity: unchanged (Good)                       │
+│                                                              │
+│  FILES MODIFIED                                              │
+│  + characters/elena.md (created)                             │
+│  + characters/marcus.md (created)                            │
+│  + characters/priya.md (created)                             │
+│  + characters/thomas.md (created)                            │
+│  ~ relationship-graph.csv (5 pairs added)                    │
+│  ~ author.md (writing profile updated)                       │
+│                                                              │
+│  STILL NEEDS ATTENTION                                       │
+│  → 3 relationship pairs undefined                            │
+│  → Marcus missing Stream B conflict (flagged in collision)   │
+│                                                              │
+│  [Pick Up Where I Left Off]  [View Full Changelog History]   │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**What the changelog captures:**
+
+| Section | What It Shows | Why It Matters |
+|---|---|---|
+| **What You Did** | Phases completed, characters created, chapters drafted, diagnostics run, major decisions made | Reminds the user of their accomplishments — especially useful after a break of days or weeks |
+| **How Your Story Changed** | Health rating delta (before → after), which dimensions moved and in which direction | Shows the *impact* of the work, not just the activity. "I spent 2 hours and my story went from Developing to Good" is motivating. |
+| **Files Modified** | Created (+), modified (~), or deleted (-) files with one-line descriptions | Quick reference for what was touched — useful for writers who work across multiple tools |
+| **Still Needs Attention** | Unresolved flags, incomplete phases, items from the "Needs Your Attention" queue | Picks up exactly where the previous session's momentum left off |
+
+**Session history:** The system stores a rolling history of session changelogs (last 30 sessions per project). Users can browse past sessions via "View Full Changelog History" to see how their project evolved over time. Each entry is timestamped with session duration and a compact summary.
+
+**Automatic capture:** The changelog is generated automatically at session end — no user action required. The system tracks all state changes (phase completions, file modifications, health rating movements, collision resolutions) in the background and compiles them into the summary.
 
 ### Quick Actions (Secondary)
 - "Import a story to decompose"
@@ -342,11 +429,29 @@ Every format selection saves structured metadata to the project file. This data 
   formatType:      "prose",        // prose | script | visual | audio | interactive | hybrid
   outputTemplate:  "manuscript",   // manuscript | screenplay | stageplay | audio_script | visual_script | game_script | post_series
   branchingFormat: false,
-  episodic:        false
+  episodic:        false,
+  submissionTarget: null           // See Submission Target below
 }
 ```
 
 This metadata is referenced by the progress tracker, the word count bar, the export formatter, and the Editor LLM (which adjusts its expectations based on the medium).
+
+#### Submission Target (Optional — Set During Planning)
+
+After selecting a medium, an optional follow-up question appears for prose and script formats:
+
+**"Where is this story going?"**
+
+| Option | What It Sets | Effect on Generation & Export |
+|---|---|---|
+| **Publisher / Agent** | `submissionTarget: "traditional"` | Manuscript formatting conventions enforced from the start — the Author LLM generates prose calibrated to industry length expectations, chapter structure, and submission norms. Export defaults to Shunn standard manuscript format (Courier 12pt, double-spaced, 1" margins, title page with contact info, page headers with author surname / title / page number). |
+| **Self-Publishing** | `submissionTarget: "self"` | More flexible formatting — the Author LLM doesn't enforce industry word count constraints as strictly. Export defaults to reading-optimized format (TNR/Georgia, appropriate margins for print or ebook). Includes ISBN field, copyright page template, and back matter prompts (author bio, also-by). |
+| **Contest / Workshop** | `submissionTarget: "contest"` | Anonymization support — export can strip author name, generate blind submission formatting. Word count targets adjusted if the user specifies a contest limit. |
+| **Studio / Production** | `submissionTarget: "studio"` | For script formats — spec script formatting (no scene numbers, no revision marks) vs. shooting script (scene numbers, locked pages). Export adjusts automatically. |
+| **Personal / No Target** | `submissionTarget: null` | No formatting constraints beyond the medium defaults. The user is writing for themselves. |
+| **Not Sure Yet** | `submissionTarget: null` | Same as Personal — can be changed later in Settings → Workspace. |
+
+This is set once during planning and can be changed at any time in Settings. The key benefit: by knowing the submission target before any chapters are generated, the system calibrates the Author LLM's output to match industry expectations from the start, rather than requiring reformatting at export time. An agent expects a novel manuscript in a specific format — the system should produce prose that *fits* that format naturally, not just wrap different formatting around the same output.
 
 ---
 
@@ -681,7 +786,7 @@ The system maps uploaded content to the appropriate phase and marks those sectio
 - **Early planning** — I have some characters and a basic plot → System identifies gaps and starts from the earliest incomplete phase
 - **Outlined but not written** — the structure exists but no prose yet → Starts at Phase 7 review, then Phase 8 drafting
 - **Rough draft exists** — I have chapters written but they need work → Decomposition of own draft + diagnostic + revision guidance
-- **Nearly complete** — I need editing, grading, and polish → Phase 7 diagnostic + chapter-by-chapter review
+- **Nearly complete** — I need editing, health assessment, and polish → Phase 7 diagnostic + chapter-by-chapter review
 
 ---
 
@@ -724,7 +829,7 @@ The primary working environment. Four-panel layout — the thread list persists 
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│  Top Bar: Project Title | Story Type Badge | Genre Tags | Grade             │
+│  Top Bar: Project Title | Story Type Badge | Genre Tags | Health            │
 ├────────────┬──────────────┬──────────────────────────────┬───────────────────┤
 │            │              │                              │                   │
 │  Thread    │   Left Nav   │        Center Stage          │   Right Sidebar   │
@@ -732,7 +837,7 @@ The primary working environment. Four-panel layout — the thread list persists 
 │            │  File Tree   │   Active content area        │   Progress        │
 │  Recent    │  + Phase     │   (guided flow, editor,      │   Tracker         │
 │  Projects  │    Navigator │    reader, or chat)           │                   │
-│            │  + Cast      │                              │   Story Grade     │
+│            │  + Cast      │                              │   Project Health  │
 │            │    Roster    │                              │                   │
 │  + New     │              │                              │                   │
 │  Project   │              │                              │   Teaching Tips   │
@@ -783,6 +888,9 @@ feedback/
   editor-v1.md
   external-v1.md
   author-notes-v1.md
+drawing-board/
+  notes.md
+  [uploaded files, images, snippets]
 media/
   characters/
   hallmarks/
@@ -850,9 +958,13 @@ Freeform conversation with one of three personas: Story Assistant (default colla
 
 A unified horizontal timeline compiling story beats, character arcs, relationship dynamics, emotional weather, subproblem threads, tonal arc, Reader Experience Reports, and Scene Dynamics Forecasts into one synchronized view. Each data lane is independently toggleable. Shows both the *plan* (from architecture) and the *reality* (from drafted chapters) with divergence highlighting. See the full Story Timeline section below.
 
+#### Mode 8: The Drawing Board
+
+A freeform workspace for unstructured ideas — rough drafts, reference photos, mood boards, research snippets, half-formed thoughts, and anything that doesn't yet fit into the architecture. This is the whiteboard before the blueprint. See the full Drawing Board section below.
+
 ---
 
-### Right Sidebar: Progress, Grade, and Teaching
+### Right Sidebar: Progress, Health, and Teaching
 
 Always visible. Three collapsible sections:
 
@@ -899,17 +1011,17 @@ Clicking any item jumps the Center Stage to that step.
 
 **Completion milestones:** At 25%, 50%, 75%, and 100% overall completion, a brief celebration card appears (non-blocking, dismissible) acknowledging progress and previewing what's ahead.
 
-#### Section 2: Story Grade
+#### Section 2: Project Health
 
-A live-updating letter grade (A+ through F) with a breakdown across the scoring dimensions (see Scoring System below). The grade updates whenever the user completes a phase, edits a file, or runs a diagnostic.
+A live-updating health assessment (Just Started through Exceptional) with a fill bar and breakdown across the scoring dimensions (see Project Health System below). The rating updates whenever the user completes a phase, edits a file, or runs a diagnostic.
 
 Each dimension shows:
 - Dimension name (e.g., "Character Depth")
-- Current score (letter grade)
+- Current rating with fill bar (e.g., "Developing ██░░░")
 - One-line diagnosis (e.g., "Two characters share the same wound — consider differentiating")
-- Click to expand: full diagnostic detail and suggestions
+- Click to expand: sub-factor drill-down with specific suggestions and jump-to links
 
-The grade is prominently displayed in the top bar as well.
+Below the dimensions, a "Needs Your Attention" section highlights the 2-3 lowest-rated areas with the most impactful next steps. The overall rating is prominently displayed in the top bar as well.
 
 #### Section 3: Teaching Tips (Contextual)
 
@@ -1032,9 +1144,24 @@ This exports as .md or .pdf from the Print and Export system.
 
 ---
 
-## Scoring System: Story Grade
+## Project Health System
 
-The story receives a continuously updating letter grade based on structural health. This is not subjective quality — it measures whether the architecture is complete and coherent.
+The story receives a continuously updating health assessment based on structural completeness and coherence. This is not subjective quality — it measures whether the architecture is complete and whether its parts work together. The language is professional, descriptive, and encouraging — never evaluative in a way that feels like school.
+
+### Assessment Scale
+
+| Rating | Label | Fill Bar | Meaning |
+|---|---|---|---|
+| 5 | **Exceptional** | ████████████████████ 100% | Architecture is complete, coherent, and resonant. All diagnostics pass. Ready to draft or publish. |
+| 4 | **Strong** | ████████████████░░░░  80% | Architecture is solid with minor refinement opportunities. One or two diagnostics have suggestions but no structural gaps. |
+| 3 | **Good** | ████████████░░░░░░░░  60% | Solid foundation in place. Some areas could use more depth — characters, theme resonance, or relationship dynamics may need attention. |
+| 2 | **Developing** | ████████░░░░░░░░░░░░  40% | Taking shape. Core structure exists but multiple areas are incomplete or diagnostics are flagging issues that need work. |
+| 1 | **Needs Work** | ████░░░░░░░░░░░░░░░░  20% | Early stages. Most architecture is missing or skeletal. The story has material but not yet a structural foundation. |
+| 0 | **Just Started** | ░░░░░░░░░░░░░░░░░░░░   0% | Only a seed or concept exists. Everything ahead is opportunity. |
+
+**Color coding:** Fill bars use a warm gradient from amber (Needs Work) through gold (Developing/Good) to green (Strong/Exceptional). No red — the lowest state is amber, not failure. The system is tracking *progress*, not penalizing incompleteness.
+
+**Phrasing convention:** The rating is always presented in context: "Work so far: **Good**" or "Characters: **Developing**" — never a bare label. This frames every rating as a snapshot of progress, not a final judgment.
 
 ### Scoring Dimensions
 
@@ -1051,38 +1178,97 @@ The story receives a continuously updating letter grade based on structural heal
 | **Conflict Depth** | Is conflict operating at multiple levels (macro, intragroup, intimate, internal, self-vs-world)? | Story Elements check |
 | **Theme Resonance** | Does the theme question echo across at least 4 of 6 domains (wound, philosophy, relationship, world, genre, trope)? | Resonance check |
 
-### Grading Scale
+### Project Health Dashboard
 
-| Grade | Meaning |
-|---|---|
-| **A+ / A** | Architecture is complete, coherent, and resonant. All diagnostics pass. Ready to draft or publish. |
-| **A- / B+** | Architecture is strong with minor gaps. One or two diagnostics have suggestions but no structural failures. |
-| **B / B-** | Solid foundation but notable gaps. Some characters may lack depth, or theme resonance is partial. |
-| **C+ / C** | Functional but thin. Multiple phases incomplete or diagnostics flagging structural issues. |
-| **C- / D+** | Significant structural problems. Missing phases, duplicate characters, absent theme, or unaudited story deaths. |
-| **D / D-** | Skeletal. Most phases incomplete. The story has material but not yet architecture. |
-| **F** | Just started. Only a seed or a concept exists. |
+The dashboard is the primary "returning user" view — a snapshot of where the project stands and what needs attention. Accessible from the right sidebar (Section 2), the top bar health badge, or the Project Hub detail panel.
 
-### How the Grade Updates
+**Overall rating** is displayed prominently with a fill bar:
+
+```
+┌────────────────────────────────────────────────────┐
+│  PROJECT HEALTH                                    │
+│                                                    │
+│  Work so far: Strong                               │
+│  ████████████████░░░░  4/5                         │
+│                                                    │
+│  DIMENSIONS                          ▼ Expand All  │
+│  ─────────────────────────────────────────────────  │
+│                                                    │
+│  Author Depth           Exceptional  █████  5/5    │
+│  Narrator Clarity       Strong       ████░  4/5    │
+│  World Integrity        Good         ███░░  3/5    │
+│    ⚠ Seven Deaths audit has 2 unresolved items     │
+│  Character Depth        Developing   ██░░░  2/5    │
+│    ⚠ Two characters share the same wound           │
+│    ⚠ Marcus missing Stream B conflict              │
+│  Relationship Arch.     Good         ███░░  3/5    │
+│  Story Structure        Strong       ████░  4/5    │
+│  Theoretical Alignment  Good         ███░░  3/5    │
+│  Voice Consistency      Strong       ████░  4/5    │
+│  Conflict Depth         Good         ███░░  3/5    │
+│  Theme Resonance        Exceptional  █████  5/5    │
+│                                                    │
+│  NEEDS YOUR ATTENTION                              │
+│  ─────────────────────────────────────────────────  │
+│  → Character Depth: Developing (2 issues)          │
+│  → World Integrity: Seven Deaths audit incomplete  │
+│                                                    │
+│  [View Full Breakdown]    [Jump to Lowest Area]    │
+└────────────────────────────────────────────────────┘
+```
+
+**Expandable drill-down:** Each dimension row is clickable. Expanding it reveals the sub-factors pulling the rating up or down, with specific actionable suggestions:
+
+```
+┌────────────────────────────────────────────────────┐
+│  ▼ Character Depth                   Developing    │
+│     ██░░░  2/5                                     │
+│                                                    │
+│     Stream A/B Conflict     Good         ███░░     │
+│       All major characters have dual conflicts     │
+│                                                    │
+│     Wound Coherence         Needs Work   █░░░░     │
+│       Two characters share the same wound —        │
+│       consider differentiating Elara and Marcus     │
+│       [Jump to Elara] [Jump to Marcus]             │
+│                                                    │
+│     Cast Uniqueness         Good         ███░░     │
+│       No duplicate profiles detected               │
+│                                                    │
+│     Network Distribution    Developing   ██░░░     │
+│       Missing Connector archetype — consider       │
+│       whether a supporting character fills this     │
+│       [View Cast Roster]                           │
+│                                                    │
+│     Voice Differentiation   Developing   ██░░░     │
+│       Marcus and James sound similar in dialogue   │
+│       [Compare Voice Prints]                       │
+└────────────────────────────────────────────────────┘
+```
+
+**"Needs Your Attention" queue:** Below the dimension list, the dashboard surfaces the 2-3 areas with the lowest ratings and the most actionable improvements. Each item links directly to the relevant tool or file. This is what the returning user sees first — not "here's your score" but "here's what would make the biggest difference right now."
+
+### How Ratings Update
 
 - Completing a phase step raises relevant dimension scores
 - Running a diagnostic and passing raises theoretical alignment
 - Editing a character file and resolving a flagged issue raises character depth
-- The grade is always visible in the top bar and the right sidebar
-- Clicking the grade opens the full breakdown with actionable suggestions
+- The overall rating is always visible in the top bar and the right sidebar
+- Clicking the rating opens the full Project Health Dashboard with drill-downs and suggestions
+- Rating transitions are animated (fill bar grows/shrinks) so users feel the impact of their work
 
-### Arc Scoring (Separate)
+### Arc Health (Separate)
 
-Character arcs and the overall story arc receive their own sub-grades within the Character Depth and Story Structure dimensions:
+Character arcs and the overall story arc receive their own sub-ratings within the Character Depth and Story Structure dimensions:
 
-**Per-character arc score** — based on:
+**Per-character arc health** — based on:
 - Is the Stream A/B conflict clear and specific?
 - Is the wound producing visible behavioral distortion?
 - Is the want/need distinction active?
 - Is the arc direction defined (transformation, recognition, flat, corruption)?
 - Does the character's voice shift across the arc?
 
-**Overall story arc score** — based on:
+**Overall story arc health** — based on:
 - Does the ending exist and is it earned?
 - Is the subproblem stack managed (threads converging, not dangling)?
 - Is the tonal arc designed (not flat)?
@@ -1288,7 +1474,7 @@ The global profile also enables a quiet, long-term feature: **growth tracking.**
 
 ## Chapter-by-Chapter Review Workflow
 
-Once the architecture is complete (Grade B+ or higher recommended), the system enters **Drafting Mode**.
+Once the architecture is complete (rated **Strong** or higher recommended), the system enters **Drafting Mode**.
 
 ### Step 1: Pre-Flight
 
@@ -1312,7 +1498,7 @@ After each chapter is written or generated:
 
 - **Read it** — Reader mode with TTS available
 - **Summary** — For long chapters or slow readers, the LLM provides a 2-3 paragraph summary of what happens in the chapter
-- **Grade it** — The system runs During Drafting checks:
+- **Assess it** — The system runs During Drafting checks:
   - Scene correlation test (are all domains active?)
   - Voice consistency (does it sound like this author?)
   - Narrator reliability (is the gap maintained?)
@@ -1339,7 +1525,7 @@ After the Author approves a chapter (before or after Editor review, depending on
 - Updates the relationship graph if any relationships shifted
 - Updates the subproblem thread tracker
 - Writes the handoff note for the next chapter
-- Updates the overall story grade
+- Updates the overall project health rating
 - Advances the progress checklist
 
 ---
@@ -1518,7 +1704,7 @@ The user can configure:
 - Maximum number of passes (default: 3, max: 6)
 - What each pass focuses on (consistency only → structural → quality → deepening)
 - Whether to auto-advance or pause for approval between passes
-- A quality threshold (Story Grade of B+ or higher) that auto-stops the loop
+- A quality threshold (rated **Strong** or higher) that auto-stops the loop
 
 ### Editor Personas — Reading Through Your Audience's Eyes
 
@@ -1762,6 +1948,14 @@ Before every review pass, the Editor reads all existing feedback files in the pr
 
 The Editor's own output is saved to the same folder in the same format, creating a continuous loop: Editor reviews → user revises → external readers respond → Editor reviews again with all prior context.
 
+**How external feedback maps to Project Health:**
+
+When external feedback is uploaded and reformatted, the system can optionally map notes to health dimensions. Three beta readers flagging Marcus as flat → that maps to Character Depth (Voice Differentiation sub-factor). An agent saying the middle sags → that maps to Story Structure and gets surfaced in the "Needs Your Attention" queue. The user can accept, reject, or adjust these mappings. External feedback doesn't automatically change the health rating — it adds a "flagged by external reader" indicator next to the relevant dimension, so the user sees both the system's assessment and the human response side by side.
+
+**Dated external feedback files:**
+
+External feedback files can follow a date-based naming convention for clarity: `external-2026-04-01.md`, `external-2026-04-15.md`. The system supports both sequential versioning (`external-v1.md`) and date-based naming — the user chooses their preference. Date-based naming is especially useful when feedback comes from multiple sources at different times, since the timeline view benefits from knowing *when* each round arrived.
+
 **How the Author LLM uses feedback files:**
 
 When generating or revising chapters, the Author LLM can optionally read feedback files (user toggles this in settings). This lets it preemptively address known issues — if feedback-v1 flagged "Marcus sounds too formal in casual scenes," the Author adjusts Marcus's voice in subsequent chapters without the user needing to manually specify it.
@@ -1944,16 +2138,16 @@ After a chapter is drafted (and optionally after each revision), the system gene
 
 The user can switch between these modes at any time. A project can even use both — draft the first act, send it to the Editor for a batch review, then switch to chapter-by-chapter for the climax where precision matters most.
 
-### Editor and the Story Grade
+### Editor and Project Health
 
-The Editor's work directly affects the Story Grade. Specifically:
+The Editor's work directly affects the Project Health rating. Specifically:
 
 - **Voice Consistency** dimension improves when the Editor catches and fixes voice drift
 - **Character Depth** dimension improves when the Editor flags and the Author deepens motivation
 - **Conflict Depth** improves when the Editor identifies scenes where characters are too comfortable
 - **Theme Resonance** improves when the Editor catches siloed chapters and the Author adds cross-domain echoes
 
-The grade reflects the story's current state — after Editor revisions are applied, the grade re-calculates. Users can see the grade trajectory: what it was after drafting, what it is after editing, and what improved.
+The rating reflects the story's current state — after Editor revisions are applied, it re-calculates. Users can see the health trajectory: what it was after drafting, what it is after editing, and which dimensions improved.
 
 ---
 
@@ -1978,8 +2172,8 @@ The app doubles as a writing education tool. Teaching content is woven into ever
 - "If two characters share the same MBTI + wound + flaw, one of them is redundant."
 - "A tone that never shifts is flat. Design the departures."
 
-**Grading as teaching** — The Story Grade isn't just a number — every score includes an explanation of what's missing and why it matters. Low scores come with specific, actionable guidance:
-> "Your Character Depth score is C+ because two characters (Marcus and Reva) share the same wound (abandonment) and the same flaw (emotional withdrawal). This means they'll react identically under pressure, which flattens your cast. Consider: could one of them carry a different wound that produces a similar surface behavior but a different interior? A character abandoned by a parent and a character betrayed by a partner both withdraw — but they withdraw *differently*, and the difference is where the scene lives."
+**Assessment as teaching** — The Project Health rating isn't just a label — every rating includes an explanation of what's missing and why it matters. Lower ratings come with specific, actionable guidance:
+> "Character Depth is rated **Developing** because two characters (Marcus and Reva) share the same wound (abandonment) and the same flaw (emotional withdrawal). This means they'll react identically under pressure, which flattens your cast. Consider: could one of them carry a different wound that produces a similar surface behavior but a different interior? A character abandoned by a parent and a character betrayed by a partner both withdraw — but they withdraw *differently*, and the difference is where the scene lives."
 
 **Reference examples** — The Wizard of Oz decomposition and The Shunning Season creation serve as built-in case studies. At any point, the user can see how a concept plays out in a real story:
 - "See how Dorothy's Stream A/B conflict works →"
@@ -2036,13 +2230,13 @@ The teacher never gives answers — it draws them out. Every question is an invi
 Full three-panel layout as described above.
 
 ### Tablet
-Left nav collapses to an icon bar. Right sidebar becomes a slide-out panel (swipe from right edge or tap the grade badge).
+Left nav collapses to an icon bar. Right sidebar becomes a slide-out panel (swipe from right edge or tap the health badge).
 
 ### Mobile (Deferred — Rough Direction Only)
 
 Detailed responsive design is deferred until the UI implementation phase when we can see actual layouts. The rough direction:
 
-Single-panel layout. Bottom tab bar for navigation: Home (project hub), Build (guided flow / editor), Files (file tree), Grade (scoring dashboard), Read (reader mode with TTS). The guided flow (Typeform-style cards) works naturally on mobile — it's the primary interaction pattern. Complex visualizations (Story Timeline, spider charts, relationship graph) will need simplified mobile representations — likely card-based summaries that link to full desktop views.
+Single-panel layout. Bottom tab bar for navigation: Home (project hub), Build (guided flow / editor), Files (file tree), Health (Project Health dashboard), Read (reader mode with TTS). The guided flow (Typeform-style cards) works naturally on mobile — it's the primary interaction pattern. Complex visualizations (Story Timeline, spider charts, relationship graph) will need simplified mobile representations — likely card-based summaries that link to full desktop views.
 
 ---
 
@@ -2053,7 +2247,7 @@ Single-panel layout. Bottom tab bar for navigation: Home (project hub), Build (g
 - High contrast mode
 - Font size adjustment (the app deals in text — readability is paramount)
 - TTS as a first-class feature (not an afterthought)
-- Color-blind safe palette for relationship graph and grade indicators
+- Color-blind safe palette for relationship graph and health indicators
 
 ---
 
@@ -2073,7 +2267,7 @@ The app needs a genuine conversation mode — not just guided flows and form-fil
 
 ### Where It Lives
 
-Chat is a **sixth mode in the Center Stage** (alongside Guided Flow, Editor, Reader, Comparison, Relationship Graph, and Story Timeline). It can be launched from:
+Chat is a **Center Stage mode** (alongside Guided Flow, Editor, Reader, Comparison, Relationship Graph, Story Timeline, and The Drawing Board). It can be launched from:
 
 - A persistent **chat icon** in the bottom bar (available from any screen)
 - The right-click context menu on any file ("Discuss this file")
@@ -2428,7 +2622,7 @@ For small experiments on individual files:
 - The system creates a copy with a `[WHAT-IF]` tag in the filename
 - The user edits the what-if version freely
 - A split view shows the original alongside the what-if version
-- The Story Grade recalculates based on the what-if version, showing the impact of the change
+- The Project Health rating recalculates based on the what-if version, showing the impact of the change
 - The user can: **Promote** (replace the original with the what-if), **Discard**, or **Keep Both** (for comparison)
 
 **Level 2: Full Project Fork**
@@ -2451,6 +2645,63 @@ When working in a what-if version or a fork, a prominent banner appears at the t
 ```
 
 This prevents confusion about which version the user is editing.
+
+### What-If Impact Preview
+
+When a user creates a what-if version of a key architecture file (like changing a protagonist's wound), the system shows the downstream impact before they commit:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  WHAT-IF IMPACT PREVIEW                                 │
+│                                                         │
+│  Changing Elara's wound from "abandonment" to           │
+│  "public humiliation"                                   │
+│                                                         │
+│  Files that would need updating:                        │
+│  ──────────────────────────────────────────────────     │
+│  ⚠ characters/elara-voss.md — flaw, virtue, Stream     │
+│    A/B, voice fingerprint, emotional palette            │
+│  ⚠ relationships/relationship-graph.csv — 4 cells      │
+│    reference Elara's abandonment fear                   │
+│  ⚠ story/arc.md — wound-thread anchored to             │
+│    abandonment                                          │
+│  ⚠ outline.md — Ch3, Ch7, Ch10 have wound-trigger      │
+│    scenes designed for abandonment                      │
+│  ✅ narrator.md — no impact                             │
+│  ✅ world/world-building.md — no impact                 │
+│                                                         │
+│  Health impact: Strong → estimated Good (wound-arc       │
+│  coherence drops until dependent files are updated)     │
+│                                                         │
+│  [Create What-If Anyway] [Cancel]                       │
+└─────────────────────────────────────────────────────────┘
+```
+
+This is the same Cost of Change logic from the Bridge, but applied to sandbox experiments. The user sees the cost before they pay it.
+
+### Fork Comparison View
+
+When comparing a fork to its parent, the system presents a file-by-file diff organized by category:
+
+```
+FORK COMPARISON — "Different Ending" vs. Original
+
+Architecture Files:
+  author.md          ✅ Identical
+  narrator.md        ✅ Identical
+  elara-voss.md      ⚠ 3 changes (wound resolution, arc endpoint, voice shift)
+  arc.md             ⚠ 7 changes (chapters 9-12 restructured)
+  outline.md         ⚠ 4 chapters rewritten
+
+Chapters:
+  chapter-1 through 8   ✅ Identical
+  chapter-9              ⚠ Diverges (click to see diff)
+  chapter-10-12          🔴 Completely different
+
+[Merge Selected Changes] [Keep as Separate Project]
+```
+
+Clicking any changed file opens a split view showing parent on the left, fork on the right, with inline diffs highlighted.
 
 ---
 
@@ -2479,7 +2730,7 @@ When an LLM call fails (timeout, rate limit, server error, context too long):
 When the user loses network connectivity:
 - A persistent banner appears: "You're offline. You can still read and edit files. AI features will resume when you reconnect."
 - All file editing continues to work (local storage)
-- AI-dependent features (generation, grading, editor review) show a "queued" state
+- AI-dependent features (generation, health assessment, editor review) show a "queued" state
 - When connectivity returns, queued operations execute in order and the user is notified of results
 
 ### Validation Errors
@@ -2491,9 +2742,33 @@ When user input doesn't make sense (e.g., uploading a spreadsheet as a story, se
 
 ### Auto-Save and Recovery
 
-- All work is auto-saved locally every 30 seconds
+- All work is auto-saved locally every 30 seconds (configurable in Settings)
 - If the app crashes or the tab closes, the next session offers: "We recovered unsaved changes from your last session. [Restore] [Discard]"
 - The user never loses more than 30 seconds of work
+
+### Token / Cost Awareness
+
+When users are paying per-token for LLM calls, the system should help them understand costs:
+
+- **Context size indicator:** Before any generation or review call, show a brief estimate: "This chapter generation will send ~15,000 tokens of context." Not a dollar amount (rates change), but enough data for the user to understand relative cost.
+- **Large operation warnings:** Multi-Pass Deep Edit (6 rounds × full context) is expensive. Before launching, show: "Multi-pass editing for this chapter will make approximately 6 LLM calls. Continue?"
+- **Context trimming option:** If the user hits token limits frequently, suggest: "You can reduce context by summarizing older chapters instead of sending full text. This trades some consistency for lower token usage."
+
+### Mid-Generation Cancellation
+
+If the user clicks "Cancel" during an LLM generation:
+
+- The system stops listening for the response (it can't actually stop the API call, but it discards the result)
+- Any partial output received is offered: "The generation was cancelled. We received a partial response. [View Partial] [Discard]"
+- No state is changed — the project remains as it was before the generation started
+
+### Multi-Model Failure Handling
+
+When using multiple LLMs simultaneously (Multi-LLM Plug and Play), different providers may have different failure modes:
+
+- If the Content Generation model fails but the Editing model is available, the system suggests: "Generation failed with Claude. Would you like to try with Gemini instead?"
+- Provider-specific error messages: "OpenAI rate limit reached" vs. "Ollama: local model not responding"
+- Automatic fallback is never enabled by default — the user always chooses which model to retry with
 
 ---
 
@@ -2506,11 +2781,36 @@ When user input doesn't make sense (e.g., uploading a spreadsheet as a story, se
 - **Browser storage:** IndexedDB for project data, file contents, and settings. The File System Access API (where supported) for direct read/write to the user's local filesystem.
 - **Project format:** Every project is a folder of plain markdown files and CSVs — the same format the engine already uses. No proprietary database, no binary blobs. If the user opens their project folder in a text editor, everything is readable.
 
+### Storage Capacity and Limits
+
+A typical project's storage footprint:
+
+| Component | Approximate Size |
+|---|---|
+| Architecture files (author, narrator, world, characters, relationships, arc, outline) | 50-200 KB |
+| Chapter prose (12 chapters) | 200-500 KB |
+| Feedback files (3-5 versions) | 50-150 KB |
+| Media images (5-10 reference photos) | 2-10 MB |
+| Settings and metadata | ~10 KB |
+| **Total per project** | **3-11 MB** |
+
+IndexedDB typically allows 50-100+ MB per origin (varies by browser). This means the app can comfortably store 5-15 projects with images before approaching any limits. The settings page shows current storage usage and warns at 80% capacity: "You're using most of your browser's storage. Consider downloading older projects as .zip to free space."
+
+### Multi-Device Workflow
+
+There is no cloud sync. Users working across multiple devices use the download/upload pattern:
+
+- **End of session:** Download the project .zip (the backup reminder nudges this)
+- **New device:** Upload the .zip to load the project
+- **Conflict scenario:** If the user forgets to download and works on two devices from different states, the upload process detects the conflict: "This project already exists locally with a different last-modified date. [Replace local with uploaded] [Keep local] [Keep both as separate projects]"
+
+This is intentionally simple. Cloud sync introduces authentication, server costs, conflict resolution complexity, and data custody — none of which align with the v1 philosophy.
+
 ### Portability
 
 Users need to be able to move their projects between devices and back them up. Since there's no cloud sync:
 
-- **Download as .zip** — One-click export of the entire project folder. Available at any time from the left panel or project menu.
+- **Download as .zip** — One-click export of the entire project folder (including `media/` images). Available at any time from the left panel or project menu.
 - **Upload a project** — Drag and drop a .zip or select a folder to load a previously exported project. The system validates the folder structure and loads it.
 - **Google Docs integration (future)** — Users could store their project folder in Google Drive and open it directly from there. The app reads and writes to Drive instead of local storage. This is a future enhancement, not a launch requirement.
 - **GitHub integration (if self-hosted)** — For users who self-host the app and have Git available, the project folder can be a Git repository with automatic commits at phase completion milestones. This gives full version history for free. Not available in the hosted web version.
@@ -2519,7 +2819,7 @@ Users need to be able to move their projects between devices and back them up. S
 
 **For v1:** Version history is limited to undo/redo within the current session and the what-if/fork system (Sandbox Mode). There is no persistent version history across sessions — if the user wants to preserve a state, they download the project. Full version history (Git-based or otherwise) is a **deferred future feature** — the infrastructure needed to make it work for non-technical users without getting into the data management business isn't worth the v1 complexity. Pinned for later.
 
-**Practical guidance:** The app encourages users to download their project regularly with a gentle reminder: "It's been 3 days since you last downloaded a backup. [Download Now]"
+**Practical guidance:** The app encourages users to download their project regularly with a gentle reminder (configurable frequency in Settings): "It's been 3 days since you last downloaded a backup. [Download Now]"
 
 ---
 
@@ -2547,7 +2847,7 @@ Power users need accelerators. The app supports a full set of keyboard shortcuts
 | `Ctrl/Cmd + 1-9` | Jump to Phase 1-9 |
 | `Ctrl/Cmd + E` | Toggle Editor mode |
 | `Ctrl/Cmd + R` | Toggle Reader mode |
-| `Ctrl/Cmd + G` | Show Story Grade breakdown |
+| `Ctrl/Cmd + G` | Show Project Health dashboard |
 | `Ctrl/Cmd + T` | Toggle Teaching Tips panel |
 | `Ctrl/Cmd + B` | Toggle file tree / left nav |
 | `Ctrl/Cmd + .` | Toggle right sidebar |
@@ -2882,13 +3182,13 @@ A "What's New" link in the settings menu opens a full changelog — a reverse-ch
 
 ## Accessibility for Scoring Visualizations
 
-The Story Grade radar chart and scoring breakdowns must be accessible to all users, including those using screen readers or who have color vision deficiencies.
+The Project Health dashboard and scoring breakdowns must be accessible to all users, including those using screen readers or who have color vision deficiencies.
 
 ### Screen Reader Support
 
 - The radar chart includes a text-only alternative: a structured list of all 10 dimensions with their scores, rendered as an ARIA-described table
 - Score changes are announced via ARIA live regions: "Character Depth score improved from C+ to B after resolving duplicate wound issue"
-- All grade badges have descriptive alt text: "Story Grade: B-plus. 7 of 10 dimensions passing."
+- All health badges have descriptive alt text: "Project Health: Strong. 7 of 10 dimensions rated Good or higher."
 
 ### Color-Blind Safe Design
 
@@ -2906,7 +3206,7 @@ Every visualization has a plain-text equivalent:
 
 - Radar chart → sortable table of dimensions and scores
 - Progress bars → "Phase 3: 72% complete (5 of 7 steps done)"
-- Grade trajectory → "Grade history: F (project start) → D+ (after Phase 2) → C (after Phase 4) → B- (current)"
+- Health trajectory → "Health history: Just Started (project start) → Needs Work (after Phase 2) → Developing (after Phase 4) → Good (current)"
 
 ---
 
@@ -3405,6 +3705,8 @@ This connects the emotion/sensation system to the scene structure — every scen
 
 ### Arc Emotion Tracking
 
+*This lives in the Progress Tracker (Right Sidebar). The Story Timeline includes a Character Arc lane that draws from this same data, but the Emotional Arc view here is the detailed, per-character editing and analysis interface.*
+
 The Progress Tracker gains an **Emotional Arc** view — a timeline showing how each character's accessible emotions expand, contract, or shift across the story:
 
 ```
@@ -3447,7 +3749,7 @@ The Bridge screen is **visually distinct** from the rest of the app. When the us
 - The left nav, right sidebar, and bottom bar **fade out**
 - The Center Stage expands to fill the entire screen
 - The background shifts to a calmer color palette (muted, warm, spacious)
-- No progress bar. No grade badge. No checklist. Just the writer and the questions.
+- No progress bar. No health badge. No checklist. Just the writer and the questions.
 
 This signals: the structural work is done. You're about to write. Take a breath.
 
@@ -3574,8 +3876,8 @@ After the review, the system runs a diagnostic and identifies what's missing:
 
 These gaps are presented as a checklist in the progress tracker, and the guided flow picks up from the earliest gap.
 
-**Step 5: Grade and Proceed**
-The story receives its first Story Grade based on the combination of existing prose + inferred architecture + identified gaps. The user then chooses:
+**Step 5: Assess and Proceed**
+The story receives its first Project Health assessment based on the combination of existing prose + inferred architecture + identified gaps. The user then chooses:
 
 - **Fill the gaps** — Enter the guided flow to complete the missing architecture
 - **Go straight to Editor** — Send the existing chapters to Phase 9 for review against whatever architecture exists
@@ -3628,7 +3930,7 @@ The comparison walks through every phase of the engine:
 5. **Relationships vs. Relationships** — Graph structure, power dynamics, attachment style distribution
 6. **Arc vs. Arc** — Protagonist arc shape, tonal arc shape, subplot count and density
 7. **Seven Deaths** — Which seals are operating in each story? Overlapping? Opposing?
-8. **Score vs. Score** — Grade comparison across all 10 dimensions
+8. **Health vs. Health** — Rating comparison across all 10 dimensions
 
 Each category highlights what's the same (=) and what's different (≠), and names which engine lever accounts for the difference.
 
@@ -3688,7 +3990,7 @@ Each stop includes:
 
 ### Teaching Mode vs. Workshop Mode
 
-Teaching mode is **read-only**. The user isn't building anything — they're learning. There's no progress tracker, no grade, no checklist. The tone is more like a well-designed course than a productivity tool.
+Teaching mode is **read-only**. The user isn't building anything — they're learning. There's no progress tracker, no health rating, no checklist. The tone is more like a well-designed course than a productivity tool.
 
 But at any point, the user can switch to Workshop Mode: "Use this as foundation for my own project." The decomposition becomes the starting architecture for a new project (sequel, adaptation, spinoff, or inspired-by).
 
@@ -3969,6 +4271,8 @@ Some rolls use the d10-based weighted system from the randomization engine. When
 
 ## Tonal Arc Designer
 
+*This is the standalone editing interface for the tonal arc. The Story Timeline displays a read-only Tonal Arc lane. Design here; view in context on the Timeline.*
+
 The tonal arc is a 5-point emotional shape across the story. The UI provides a visual editor for designing it.
 
 ### The Visual Editor
@@ -4001,6 +4305,8 @@ A horizontal timeline with draggable tone markers at five positions:
 ---
 
 ## Subproblem Stack Tracker
+
+*This is the standalone editing interface for thread states. The Story Timeline (Center Stage Mode 7) displays a read-only version of this data alongside other lanes. Edit here; view in context on the Timeline.*
 
 The engine tracks 6 parallel narrative threads through the story. The UI makes this visible as a living dashboard.
 
@@ -4132,6 +4438,8 @@ This is not an AI image generation system. The engine does not generate images f
 
 ## Story Timeline — The Unified View
 
+*This is the read-only compilation view. It pulls data from multiple standalone tools (Subproblem Stack Tracker, Tonal Arc Designer, Arc Emotion Tracking, Scene Emotion Layer, Scene Dynamics Forecast, Reader Experience Report) and displays them as synchronized swim lanes. The standalone tools are where users edit and create; the Timeline is where they see everything in context. The relationship is like a dashboard to its data sources.*
+
 Everything in the Serendipity Engine generates data across the story's chapters — character arcs, emotional palettes, relationship dynamics, subproblem threads, tonal shifts, story beats. These all exist in separate systems. The Story Timeline compiles them into one synchronized horizontal view so the user can see **what happens when, to whom, and how everything connects**.
 
 This is not a new data source. It is a **read-only visualization layer** that pulls from existing architecture files: `arc.md`, `outline.md`, character files, `relationship-graph.csv`, the subproblem stack, the tonal arc, Scene Emotion Layer metadata, Scene Dynamics Forecasts, and Reader Experience Reports.
@@ -4248,6 +4556,94 @@ This is enormously useful for the user and the Editor. A character whose planned
 
 ---
 
+## The Drawing Board — Freeform Workspace for Unstructured Ideas
+
+Every story has material that doesn't fit into the architecture yet — or might never need to. Half-formed ideas, research snippets, reference images, rough drafts, character sketches that aren't ready for the guided flow, worldbuilding notes that don't belong in any specific phase. The Drawing Board is where all of this lives. It's the whiteboard before the blueprint.
+
+### What It Holds
+
+The Drawing Board accepts anything the user wants to throw at it:
+
+- **Text notes** — freeform writing, brainstorms, "what if" ideas, research fragments, dialogue experiments, scene sketches
+- **Uploaded images** — reference photos, concept art, mood board images, screenshots of inspiration, hand-drawn sketches
+- **Rough drafts** — partial scenes, prose experiments, dialogue runs that aren't ready for the chapter pipeline
+- **Web clippings** — pasted URLs with notes, saved quotes, research excerpts
+- **Voice memos** (future state) — spoken notes transcribed via the TTS system in reverse
+
+### How It Works
+
+The Drawing Board is a spatial canvas — items can be placed, grouped, and rearranged freely. Think of a cork board or a Figma/Miro freeform canvas, but simpler and purpose-built for story development.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  THE DRAWING BOARD                       [+ Add] [View: Board]│
+│                                                                │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐   │
+│  │ 📝 Note      │  │ 🖼 Photo     │  │ 📝 Note            │   │
+│  │              │  │              │  │                    │   │
+│  │ "What if the │  │ [fog bridge  │  │ Marcus backstory   │   │
+│  │  detective   │  │  photo]      │  │ - grew up in       │   │
+│  │  is lying    │  │              │  │   foster care      │   │
+│  │  too?"       │  │ Used in:     │  │ - first arrest     │   │
+│  │              │  │ → hallmarks  │  │   at 16            │   │
+│  │ Not yet used │  │   /bridge    │  │                    │   │
+│  └──────────────┘  └──────────────┘  │ Used in:           │   │
+│                                      │ → characters/      │   │
+│  ┌──────────────┐  ┌──────────────┐  │   marcus.md        │   │
+│  │ 📄 Draft     │  │ 📝 Research  │  │   (wound, flaw)    │   │
+│  │              │  │              │  └────────────────────┘   │
+│  │ Ch.3 opening │  │ "Mennonite   │                           │
+│  │ alternate    │  │  funeral     │  ┌────────────────────┐   │
+│  │ version      │  │  customs -   │  │ 🖼 Mood Board      │   │
+│  │              │  │  check wiki" │  │                    │   │
+│  │ Not yet used │  │              │  │ [council hall      │   │
+│  └──────────────┘  │ Used in:     │  │  interior ref]     │   │
+│                    │ → world/     │  │                    │   │
+│                    │   hallmarks  │  │ Used in:           │   │
+│                    └──────────────┘  │ → hallmarks/       │   │
+│                                      │   council-hall     │   │
+│  GROUPS                              └────────────────────┘   │
+│  ──────                                                        │
+│  [Characters] [World Research] [Alternate Ideas] [Unsorted]   │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### The "Used In" Connection
+
+This is the key feature that separates the Drawing Board from a generic notes app. Every item on the board can be **linked to architecture** — and when it is, the system shows where that material ended up:
+
+- A photo pinned to the board that was later added to a hallmark entry shows "Used in: → hallmarks/bridge"
+- A text note about a character's backstory that informed their wound shows "Used in: → characters/marcus.md (wound, flaw)"
+- A rough draft that became the basis for Chapter 3 shows "Used in: → story/chapter-3.md"
+- Items that haven't been connected to anything yet show "Not yet used" — a gentle nudge, not a warning
+
+Users can drag items from the Drawing Board directly into architecture files, or link them manually. The system can also suggest connections: "This note about Marcus's foster care background seems related to his wound of abandonment. Link it?"
+
+### Views
+
+- **Board view** (default) — spatial canvas, items placed freely, groupable
+- **List view** — chronological list of all items, sortable by date added, type, or connection status
+- **Gallery view** — grid of images and mood board items, with text notes shown as cards between them
+- **Unlinked view** — shows only items not yet connected to any architecture file, helping users process their backlog
+
+### Groups
+
+Users can create named groups to organize their board — "Characters," "World Research," "Alternate Ideas," "Act III Problems." Groups are freeform tags, not folders. An item can belong to multiple groups. Groups appear as filter chips below the board header.
+
+### Where It Lives
+
+- **Center Stage Mode 8** — full-width board view
+- **Left Nav** — a "Drawing Board" entry below the Cast Roster, clicking it opens Mode 8
+- **Quick-add** — `Ctrl/Cmd + Shift + N` opens a quick-add card overlay from anywhere in the app, without leaving the current view. The user types or pastes something, optionally tags a group, and it goes to the board.
+- **File tree** — the `drawing-board/` folder is visible, but the board view is the primary interface (the raw files are there for portability)
+
+### What Gets Exported
+
+When exporting a project as .zip, the `drawing-board/` folder is included with all notes and uploaded files. The connection metadata (which items link to which architecture files) is preserved. Items on the Drawing Board are never included in manuscript exports — they're working material, not output.
+
+---
+
 ## Coverage Audit — MetaFiles vs. UI Design
 
 After a full audit of the codebase, the following elements are **implicitly covered** by the guided flow (which walks through every question in every phase's `questions.md` file):
@@ -4297,7 +4693,7 @@ The problem this solves: writing a novel takes months. Most people who start nev
 
 External triggers bring the user back. Internal triggers keep them coming back.
 
-- **External triggers (early):** Gentle opt-in notifications. "Elara is waiting in Chapter 6." "You left Marcus at rock bottom — want to pick him up?" "Your story grade went from B to B+ after last session." Character Guide voice in notifications: the protagonist asking the user to come back (in-character, tied to where the story left off).
+- **External triggers (early):** Gentle opt-in notifications. "Elara is waiting in Chapter 6." "You left Marcus at rock bottom — want to pick him up?" "Your project health improved from Good to Strong after last session." Character Guide voice in notifications: the protagonist asking the user to come back (in-character, tied to where the story left off).
 - **Internal triggers (develop over time):** Curiosity about what happens next (the system leaves cliffhangers in chapter summaries). Ownership of the characters (the more the user invests in building character profiles, the more they want to see those characters live). Creative momentum (each completed chapter makes the next feel more urgent, not less).
 - **Trigger timing:** Never more than one per day. Never in the first hour after the user closes the app. Respect Do Not Disturb. User sets their preferred reminder window (morning, evening, weekend only, etc.).
 
@@ -4314,7 +4710,7 @@ The user's next action must be the easiest possible thing:
 The reward must be surprising enough to generate dopamine, not mechanical enough to become boring:
 
 - **Character reactions:** After the user completes a scene, the Character Guide (if enabled) reacts in-character. Sometimes delighted, sometimes worried, sometimes surprised. The reaction is generated by the LLM based on what just happened — so it's different every time. "You actually let me say that? I didn't think you had it in me."
-- **Story Grade movement:** The grade updates after meaningful progress. Seeing it tick from B+ to A- is a real hit. The system can highlight which specific dimension improved and why.
+- **Health rating movement:** The rating updates after meaningful progress. Seeing a dimension move from Good to Strong — or the overall rating tick up — is a real hit. The system highlights which specific dimension improved and why.
 - **Reader Experience Report snippets:** After completing a chapter, a one-line Reader Experience preview: "This chapter reads like a sprint — your reader won't be able to put it down." or "The Elara-Marcus scene in this chapter is the most emotionally complex thing you've written."
 - **Milestone celebrations:** 25% / 50% / 75% / 100% (already in the Progress Tracker). Future: custom milestones ("first chapter with all 6 subproblem threads active," "first time a character used a Blocked emotion").
 
@@ -4348,20 +4744,186 @@ Each session makes the next session more valuable:
 
 ---
 
+## Platform Ladder — VS Code Extension → PWA → Mobile Apps
+
+The Serendipity Engine is designed as a **platform-agnostic architecture** — markdown files, CSV relationship graphs, and local-first storage. This means the engine can live inside multiple delivery vehicles without redesigning the core. The recommended platform strategy is a **stepping-stone ladder**:
+
+### Step 1: VS Code Extension (First Release Target)
+
+VS Code is the fastest path to a working product because it gives the engine enormous infrastructure for free.
+
+**What VS Code provides natively (zero engineering cost):**
+
+| Capability | VS Code Feature | Replaces |
+|---|---|---|
+| File tree with project structure | Explorer panel | Left Panel file tree |
+| Markdown editing with preview | Built-in editor + Markdown Preview | Center Stage Editor mode |
+| Project-wide content search | `Ctrl+Shift+F` across all files | Story Assistant search (partial) |
+| Settings UI | Extension settings + `settings.json` | Settings page (most of it) |
+| Keyboard shortcuts + command palette | Native `Ctrl+Shift+P` | Keyboard shortcuts + command palette |
+| Split views and panels | Native editor groups + panels | Comparison view, split editor |
+| Git version history | Built-in Git + GitLens extension | Version history (the deferred feature — now FREE) |
+| Multi-file tabs | Native tab system | Center Stage mode switching |
+| Terminal | Built-in terminal | CLI-based LLM calls if needed |
+| Extension marketplace distribution | VS Code Marketplace | App store distribution |
+| Theme support (light/dark) | Native themes | Appearance settings |
+| Auto-save | Native setting | Auto-save system |
+| IntelliSense / autocomplete | Extensible | Could power attribute autocomplete in .md files |
+
+**What needs to be built as custom VS Code webview panels:**
+
+| Feature | Implementation | Complexity |
+|---|---|---|
+| Guided Flow (Typeform cards) | Webview panel (React) | Medium |
+| Project Health display | Status bar item + webview panel | Low |
+| Progress Tracker | Sidebar webview | Medium |
+| Spider charts / character visualization | Webview panel (D3 or Chart.js) | Medium |
+| Story Timeline | Webview panel (custom) | High |
+| Cast Roster | Sidebar webview | Medium |
+| Relationship Graph (visual) | Webview panel | Medium |
+| Emotion Wheel Picker | Webview popup | Medium |
+| Tonal Arc Designer | Webview panel | Medium |
+| Onboarding Wizard | Webview walkthrough | Low-Medium |
+| Chat / Story Assistant | Webview panel (like GitHub Copilot Chat) | Medium |
+| Editor review diff view | Native diff editor (VS Code has this!) | Low |
+
+**What maps perfectly and is actually BETTER in VS Code:**
+
+- **Version history** — Git is native. Every VS Code user either has Git or can install it. This means the deferred version history feature becomes a launch feature. Auto-commit at phase milestones, full diff history, branch-based sandbox/fork (Git branches ARE forks), and rollback — all free.
+- **Multi-file search** — `Ctrl+Shift+F` across the entire project. "Where did I mention the red door?" becomes a grep, not an LLM call. The Story Assistant still handles semantic questions, but literal text search is instant and free.
+- **Collaboration** — VS Code Live Share gives real-time multi-user editing for free. The deferred collaboration feature becomes possible immediately.
+- **Editor diff view** — VS Code's built-in diff editor is better than anything we'd build. The Editor LLM's proposed changes can be shown as a native VS Code diff — accept/reject per line, exactly like a code review.
+- **Extension ecosystem** — Users can combine the Serendipity Engine extension with other writing extensions (word count tools, Grammarly, Markdown linters, etc.)
+
+**What's harder in VS Code:**
+
+- **Simple Mode** — VS Code is inherently an Advanced Mode environment. The Typeform-style guided flow can be implemented as a webview, but the overall VS Code chrome (panels, tabs, terminal) is visible and can be intimidating for non-technical writers. This is acceptable because the VS Code version targets a more technical audience.
+- **Reader Mode** — VS Code's Markdown Preview serves as a basic reader, but it doesn't have TTS integration, clean reading layout, or inline feedback mode. These would need custom webview work.
+- **Mobile** — VS Code doesn't run on phones. (VS Code for Web exists but isn't optimized for mobile.)
+- **Character Guide Mode** — The floating speech bubble overlay would need to be a notification or a dedicated panel, losing some of the ambient quality.
+
+**VS Code Extension Architecture:**
+
+```
+serendipity-engine/
+├── extension.ts              ← Extension entry point
+├── providers/
+│   ├── llm-provider.ts       ← Multi-LLM connection (API keys in VS Code secrets)
+│   ├── health-provider.ts    ← Project health computation
+│   └── assessment-provider.ts← Silent writing assessment
+├── panels/
+│   ├── guided-flow/          ← Webview: Typeform-style wizard
+│   ├── story-timeline/       ← Webview: unified timeline
+│   ├── cast-roster/          ← Sidebar webview: character list
+│   ├── spider-chart/         ← Webview: character visualization
+│   ├── emotion-picker/       ← Webview: emotion wheel
+│   ├── relationship-graph/   ← Webview: visual graph
+│   └── chat/                 ← Webview: Story Assistant / Editor / Character
+├── commands/
+│   ├── new-project.ts        ← Scaffolds project folder
+│   ├── run-diagnostic.ts     ← Phase 7 checks
+│   ├── generate-chapter.ts   ← Author LLM chapter generation
+│   ├── editor-review.ts      ← Editor LLM review (opens diff view)
+│   ├── decompose.ts          ← Decomposition workflow
+│   └── roll-attribute.ts     ← Randomization engine
+├── language/
+│   ├── completions.ts        ← Autocomplete for engine vocabulary
+│   ├── diagnostics.ts        ← Active Deconstruction underlines
+│   └── hovers.ts             ← Hover info on engine terms
+├── templates/                ← File templates for all architecture files
+└── reference/                ← Bundled reference data (emotions, genres, etc.)
+```
+
+**Key insight:** The VS Code extension shares the same underlying engine logic (LLM prompts, health assessment algorithms, reference data, randomization) with the future PWA. The engine core should be built as a **standalone TypeScript/JavaScript library** that both the VS Code extension and the PWA import. This means:
+
+- Engine logic is written once
+- VS Code extension = engine library + VS Code-specific UI panels
+- PWA = engine library + React-based full UI
+- Mobile apps = engine library + Capacitor/Tauri wrapper around the PWA
+
+### Step 2: PWA (Desktop-First Web App)
+
+After the VS Code extension proves the engine works and validates the design decisions with real users, the PWA is the next step. It provides the full UI/UX experience described in this document — the guided flow, the three-panel workspace, Simple Mode, the visual identity (gradient avatars, dark editor chat) — all in a standalone browser app.
+
+The PWA targets a **broader audience** than the VS Code extension: writers who don't use code editors, students, book clubs, casual creators. Everything that was "native in VS Code" needs to be rebuilt (file tree, search, settings), but the engine library is shared.
+
+**What the PWA adds over VS Code:**
+
+- Simple Mode (3-step wizard with inference) for non-technical users
+- Full visual identity (gradient avatars everywhere, distinct Editor dark mode, character guide speech bubbles)
+- TTS / Reader Mode as a first-class feature
+- Self-contained experience (no VS Code chrome, no terminal, no "what are all these panels?")
+- Writing Habit System (Hooked Loop) — only makes sense in a standalone app
+- Installable via browser (PWA install prompt → desktop icon)
+
+**What the PWA loses vs. VS Code:**
+
+- Git version history (back to undo/redo + sandbox/fork unless the user connects a backend)
+- Built-in text search (back to Story Assistant for search)
+- Extension ecosystem (no Grammarly integration, etc.)
+- Live Share collaboration (back to feedback files)
+
+### Step 3: Mobile Apps (Future State)
+
+The PWA wrapped with Capacitor (for iOS/Android) or distributed as a native-like experience through the installed PWA. This is the furthest future state.
+
+**Mobile focus areas:**
+
+- Reading and reviewing chapters (Reader Mode + TTS)
+- Chatting with Story Assistant and characters
+- Reviewing Editor feedback
+- Light editing of architecture files
+- Story Timeline and health assessment
+
+**Not on mobile (always desktop):**
+
+- Full chapter generation (context-heavy LLM calls + long editing sessions)
+- Guided Flow wizard (doable but better on desktop)
+- Complex visualizations at full resolution (spider charts, relationship graph)
+- Tonal Arc Designer and other interactive editors
+
+### Platform Ladder Summary
+
+```
+  VS Code Extension          PWA (Desktop Web)         Mobile Apps
+  ─────────────────          ─────────────────         ───────────
+  Target: Technical          Target: Everyone          Target: On-the-go
+  writers, early             after VS Code             review & chat
+  adopters                   validates the engine
+
+  Free: Git, search,         Custom: Full UI,          Wrapped PWA or
+  diff, collaboration,       Simple Mode, TTS,         Capacitor native
+  settings, themes           visual identity
+
+  Built: Webview panels      Built: React app          Built: Responsive
+  for custom UI              sharing engine library     subset of PWA
+
+  Shared: Engine core library (TypeScript)
+  ─────────────────────────────────────────
+  LLM integration, health assessment, randomization,
+  reference data, architecture file specs,
+  prompt templates, diagnostic checks
+```
+
+---
+
 ## Deferred Features — Future Roadmap
 
-The following features have been identified as valuable but are explicitly **not included in v1**. They are documented here to prevent re-discovery and to inform future planning.
+The following features have been identified as valuable but are explicitly **not included in the first release** (VS Code extension). They are documented here to prevent re-discovery and to inform future planning.
 
 | Feature | Status | Why Deferred | When to Revisit |
 |---|---|---|---|
-| **Multi-User Collaboration** | Deferred | Requires server infrastructure, auth, real-time sync | If the project scales to a hosted product |
-| **Version History (Git-based)** | Deferred | Non-technical users can't set up private repos. Undo/redo + sandbox/fork covers the v1 use case | If the project gets a hosted backend |
-| **Push Notifications** | Deferred | Requires service worker complexity. The Writing Habit System defines what notifications would say, but PWA push is a separate technical effort | With the Writing Habit System |
-| **Mobile / Tablet Responsive Design** | Deferred | The entire UI doc is desktop-first. Mobile adaptation requires deliberate responsive design decisions — which modes are available, what gets simplified, how touch interactions work | During UI implementation when we can see the actual layouts |
+| **Multi-User Collaboration** | Deferred (partially solved in VS Code via Live Share) | Full collaboration requires server infrastructure for the PWA | PWA phase — or use VS Code Live Share in the meantime |
+| **Version History (Git-based)** | Available in VS Code extension (native Git) | Not available in PWA without a backend | PWA phase — consider lightweight Git-in-browser or server-side Git |
+| **Push Notifications** | Deferred | Requires service worker complexity. The Writing Habit System defines what notifications would say, but PWA push is a separate technical effort | PWA phase, with the Writing Habit System |
+| **Mobile / Tablet Responsive Design** | Deferred | Desktop-first for both VS Code and PWA | Step 3 of the platform ladder |
 | **AI Image Generation** | Deferred | The Visual Reference System supports image upload but not generation. Adding DALL-E/Midjourney/Stable Diffusion integration is a separate feature | If demand exists after launch |
 | **Prose-Level Rhythm Analysis** | Deferred | Active Deconstruction covers grammar, voice, structure, theme, and character. Sentence-level cadence/musicality analysis is a deeper layer | After v1 Active Deconstruction proves its value |
-| **Writing Habit System (Hooked Loop)** | Deferred | Fully designed above but opt-in and not part of v1 core | After the core app is stable and retention data exists |
+| **Writing Habit System (Hooked Loop)** | Deferred | Fully designed above but opt-in and not part of the first release. More natural in the PWA than VS Code. | PWA phase, after retention data exists |
 | **Localization / i18n** | Deferred | Reference lists are multicultural but UI is English-only for v1 | Based on user demand |
+| **Simple Mode** | VS Code: N/A. PWA: Core feature | VS Code users are inherently "Advanced Mode" | PWA phase |
+| **PWA (Full Standalone Web App)** | Step 2 of platform ladder | VS Code extension validates the engine first | After VS Code extension is stable and has real user feedback |
+| **Mobile Apps** | Step 3 of platform ladder | Requires PWA to exist first | After PWA is stable |
 
 ---
 
@@ -4386,8 +4948,8 @@ The following features have been identified as valuable but are explicitly **not
 | Long-term writing growth tracking | Writing Journey (global profile, cross-project timeline in settings) |
 | Word count guidance by medium | Word Count section + Bottom Bar tracker |
 | Character arc scoring and critique | Arc Scoring subsystem + LLM critique |
-| Story arc overall scoring | Story Grade system |
-| Ranking and critical improvement | Grade breakdown with actionable suggestions |
+| Story arc overall scoring | Project Health system |
+| Ranking and critical improvement | Health dashboard with actionable suggestions |
 | Explaining importance of structural work | Teaching Mode — contextual explanations |
 | Chapter-by-chapter review with feedback | Chapter Review Workflow (8 steps with dynamics forecast + reader experience report) |
 | Pre-chapter collision/collaboration prediction | Scene Dynamics Forecast (character state → probable paths, wound triggers, arc opportunities) |
@@ -4396,7 +4958,7 @@ The following features have been identified as valuable but are explicitly **not
 | Chapter summaries for slow readers | Summary option in Review step |
 | Text-to-speech with speed options | TTS system (Web Speech API) |
 | Progress checklist on right side | Right Sidebar — Section 1 |
-| Story grade visible | Right Sidebar — Section 2 + Top Bar |
+| Project Health visible | Right Sidebar — Section 2 + Top Bar |
 | Teaching tool functionality | Teaching Mode woven throughout |
 | Grammarly-like active deconstruction of user writing | Active Deconstruction (grammar → voice → structure → theme → character behavioral layers) |
 | Conversational teacher persona | Teacher as a Character (toggle in settings, open questions, data-gathering through conversation) |
@@ -4476,3 +5038,9 @@ The following features have been identified as valuable but are explicitly **not
 | Unified settings page | Settings Page wireframe (`pwa-settings-wireframe.md`) — 8 categories, all toggles consolidated |
 | Writing habit / retention system (future) | Writing Habit System — Hooked Loop (deferred, opt-in, Nir Eyal model adapted for creative writing) |
 | Mobile / tablet responsive design (future) | Mobile section — deferred until UI implementation phase |
+| Professional health assessment (replacing letter grades) | Project Health System — 6-level scale (Just Started → Exceptional), fill bars, expandable drill-down dashboard, "Needs Your Attention" queue |
+| Freeform workspace for unstructured ideas | The Drawing Board — spatial canvas for notes, photos, drafts, research. "Used In" connection tracking to architecture files. Board/List/Gallery/Unlinked views. |
+| Submission target formatting from planning stage | Submission Target — optional wizard question: Publisher/Agent, Self-Publishing, Contest, Studio, Personal. Calibrates Author LLM and export from the start. |
+| Session changelog for returning users | Session Changelog — automatic capture of what changed per session. Shown in Welcome Back card: what you did, health delta, files modified, what still needs attention. |
+| External feedback mapped to health dimensions | External Feedback → Health Mapping — beta reader/agent notes mapped to health dimensions. "Flagged by external reader" indicators. Date-based file naming. |
+| VS Code extension as first delivery platform | Platform Ladder — VS Code Extension → PWA → Mobile Apps. Shared TypeScript engine library. |

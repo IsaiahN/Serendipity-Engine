@@ -192,7 +192,7 @@ Settings for the Editor LLM review process.
 |---|---|---|---|
 | **Default Approval Mode** | Auto-Approve / Per Chapter / Per Arc / Multi-Pass | Per Chapter | How Editor feedback is presented. Per-project override available. |
 | **Max Editor Passes** | 1–6 | 3 | For Multi-Pass mode — how many Author↔Editor rounds |
-| **Quality Threshold** | Grade (A+ through C) / Off | B+ | Auto-stops Multi-Pass loop when this grade is reached |
+| **Quality Threshold** | Exceptional / Strong / Good / Developing / Off | Strong | Auto-stops Multi-Pass loop when this health rating is reached |
 | **Editor Persona Count** | 0–5 | 3 | How many audience-based editor personas to generate |
 | **Editor Severity Display** | All / Warnings+ / Critical Only | All | Filter which severity levels appear in review reports |
 
