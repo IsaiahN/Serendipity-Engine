@@ -1,0 +1,64 @@
+/* Serendipity Engine — Global Styles */
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d27;
+  --bg-tertiary: #242836;
+  --bg-card: #1e2230;
+  --bg-hover: #2a2f3f;
+  --bg-active: #323850;
+
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0b0;
+  --text-muted: #6b7280;
+  --text-accent: #f0a050;
+
+  --accent: #f0a050;
+  --accent-hover: #e08840;
+  --accent-glow: rgba(240, 160, 80, 0.15);
+  --accent-subtle: rgba(240, 160, 80, 0.08);
+
+  --health-exceptional: #4ade80;
+  --health-strong: #86efac;
+  --health-good: #fbbf24;
+  --health-developing: #f59e0b;
+  --health-needs-work: #f97316;
+  --health-just-started: #94a3b8;
+
+  --border: #2a2f3f;
+  --border-active: #f0a050;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --transition: 0.2s ease;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 100px; }
+::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}

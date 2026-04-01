@@ -664,7 +664,11 @@ Automatic capture of what changed during each working session. When the user ret
 
 Extension of the existing feedback file system to map external reader notes to Project Health dimensions. When external feedback is uploaded (beta readers, agents, writing groups), the system can optionally map flagged issues to health dimensions (e.g., "three readers flagged Marcus as flat" → Character Depth). External feedback doesn't change ratings automatically — it adds a "flagged by external reader" indicator alongside the system's own assessment. Date-based file naming supported (`external-2026-04-01.md`) alongside sequential versioning.
 
-### F-39: Platform Ladder — VS Code Extension → PWA → Mobile
+### F-39: Word Count Guardian
+
+Live word count displayed in the workspace status bar, calibrated against the word limit derived from the Submission Target (e.g., 70,000 for a standard novel). When the manuscript is under the limit, the counter displays normally. When the count exceeds the limit, the counter turns red with a warning icon and shows the overage (e.g., "72,450 / 70,000 words (+2,450 over)"). Clicking the red counter opens the Story Assistant with a pre-loaded prompt to help the author identify passages to trim — analyzing scene-by-scene word distribution, flagging overwritten passages, suggesting condensable dialogue, and highlighting sections that could be cut without structural damage. The word count is always accurate against the actual manuscript files, not estimated.
+
+### F-40: Platform Ladder — VS Code Extension → PWA → Mobile
 
 Three-stage delivery strategy. **Stage 1: VS Code Extension** — ships first, leveraging VS Code's native file tree, search, Git version history, diff viewer, settings infrastructure, themes, and Live Share collaboration. Custom webview panels built in React + TypeScript handle the Serendipity-specific UI (Guided Flow wizard, Cast Roster, Relationship Graph, Story Timeline, Emotion Wheel, Editor review, Story Assistant chat). A shared TypeScript engine library encapsulates all story generation logic, phase pipeline orchestration, and data transformations — importable by both the extension and the future PWA. **Stage 2: PWA** — adds Simple Mode onboarding, full Reader Mode with paginated layout and ambient audio, mobile-responsive design, offline-first via IndexedDB, and the Writing Habit System. Wrappable with Tauri for native desktop distribution. **Stage 3: Mobile Apps** — Capacitor wrapping of the PWA, focused on reading/reviewing, light editing, Talk to a Character, and push notifications for the Hooked Loop triggers.
 
@@ -675,7 +679,7 @@ Three-stage delivery strategy. **Stage 1: VS Code Extension** — ships first, l
 | Category | Count |
 |---|---|
 | Use cases | 20 |
-| Feature categories | 39 |
+| Feature categories | 40 |
 | Workflow modes | 20 |
 | Reference file categories | 34 (16 character + 13 story + 3 theory + 2 emotional/somatic lexicons) |
 | Rollable attribute types | 28 categories per character (40+ with sub-attributes like physical description) |
