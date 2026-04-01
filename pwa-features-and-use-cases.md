@@ -672,6 +672,87 @@ Live word count displayed in the workspace status bar, calibrated against the wo
 
 Three-stage delivery strategy. **Stage 1: VS Code Extension** — ships first, leveraging VS Code's native file tree, search, Git version history, diff viewer, settings infrastructure, themes, and Live Share collaboration. Custom webview panels built in React + TypeScript handle the Serendipity-specific UI (Guided Flow wizard, Cast Roster, Relationship Graph, Story Timeline, Emotion Wheel, Editor review, Story Assistant chat). A shared TypeScript engine library encapsulates all story generation logic, phase pipeline orchestration, and data transformations — importable by both the extension and the future PWA. **Stage 2: PWA** — adds Simple Mode onboarding, full Reader Mode with paginated layout and ambient audio, mobile-responsive design, offline-first via IndexedDB, and the Writing Habit System. Wrappable with Tauri for native desktop distribution. **Stage 3: Mobile Apps** — Capacitor wrapping of the PWA, focused on reading/reviewing, light editing, Talk to a Character, and push notifications for the Hooked Loop triggers.
 
+### F-41: Story Universe — Series, Sagas, and Connected Works
+
+A hierarchical container system that lets stories exist within larger narrative structures. Three levels of organization:
+
+**Level 1: Universe** — The highest container. A shared reality that all connected works inhabit. Has its own world-building bible, master timeline, universal rules, and a canonical character registry. Example: "Middle-earth", "The Westeros Universe", "The Shunning Season Universe." A Universe owns a `universe.md` manifest defining the shared reality, a `universe-timeline.md` spanning all works, and a `universe-cast/` directory where every character has one canonical identity file that tracks them across all appearances.
+
+**Level 2: Series** — An ordered collection of works within a Universe. Has its own arc, theme question, and scope. Example: "A Song of Ice and Fire" is a Series within the Westeros Universe. A Series owns a `series.md` manifest (series arc, overarching theme question, planned installment count, reading order), `series-timeline.md` (how the Series contributes to the Universe timeline), and a `series-cast.md` that maps which Universe characters appear in which installments and how they change between them.
+
+**Level 3: Work** — A single story (the current project unit). Belongs to zero or one Series, and zero or one Universe. The existing project structure (`author.md`, `narrator.md`, `characters/`, `story/`, etc.) remains unchanged. A new `work-manifest.md` file links it to its Series and Universe, declares its position (Book 3 of 5), and tracks character state deltas (who changed between the previous work and this one, who is new, who is absent).
+
+**Key capabilities:**
+
+*Character continuity across works:* A character like "Tyrion Lannister" has one canonical identity in `universe-cast/tyrion.md`. Each Work that features him gets a `character-state.md` snapshot: his wounds, relationships, arc position, and growth at the start and end of that Work. The system tracks how a character's relationship map, emotional state, and unresolved wounds carry forward or diverge between installments. A character as a child in a prequel has a fundamentally different relationship graph, wound set, and voice fingerprint than the same character as an adult — both are valid states of the same canonical identity.
+
+*Timeline that spans works:* The Story Timeline view gains a "Universe Timeline" mode that shows all Works on a single axis, with character arcs threaded across installment boundaries. You can zoom from "all of Westeros history" down to "Chapter 3 of Book 4." Act structures nest: each Work has its own three-act structure, but the Series also has one, and so does the Universe.
+
+*Relationship evolution tracking:* The Relationship Graph gains a time slider. Slide to "Book 1" and see the relationship web as it existed then. Slide to "Book 4" and see how alliances shifted, who died, who betrayed whom. Relationship lines gain history: "Allies (Books 1-3) → Rivals (Book 4) → Reconciled (Book 5)."
+
+*Importing existing works into a Universe:* Upload/decompose a published book (UC-2), then "Add to Universe" — the system creates the canonical character entries, maps the timeline, and identifies connection points. Upload all five Game of Thrones books, and the system builds the Universe container, infers the Series structure, and creates canonical character files for every named character with cross-references to which books they appear in and how they change.
+
+*Series-aware creation:* When starting a new Work in a Series, the wizard pre-populates from the Series context — the world is inherited, the cast carries forward (with state deltas from the previous installment), unresolved plot threads are surfaced as starting conditions. The system asks: "What has changed since the last installment?"
+
+*Prequel/Sequel/Spinoff awareness:* When creating a prequel, the system knows the "future" and can flag consistency issues ("In Book 3, Miriam says she never left Lancaster County — but in this prequel, she's in Philadelphia"). When creating a spinoff, the system identifies which Universe elements are shared vs. new, and which canonical characters appear in altered roles.
+
+**Upload flow for book series:** The user creates a Universe, then uses UC-2 (Decompose) to import each book in order. Each decomposition automatically: creates canonical character entries in `universe-cast/`, maps events to the `universe-timeline.md`, builds the Series container if one doesn't exist, and links the Work to its position. The user can decompose books in any order — the system reconciles timeline and character state afterward. Bulk import mode accepts multiple files and processes them sequentially, asking the user to confirm reading order.
+
+**Folder structure:**
+
+```
+Universes/
+  westeros/
+    universe.md              # Shared reality bible
+    universe-timeline.md     # Master timeline
+    universe-cast/           # Canonical character files
+      tyrion.md
+      daenerys.md
+      ...
+    series/
+      a-song-of-ice-and-fire/
+        series.md            # Series arc, installment plan
+        series-cast.md       # Character appearances across books
+    works/
+      game-of-thrones/       # Standard project structure
+        work-manifest.md     # Links to Series + Universe
+        character-states/    # Snapshots per character at start/end
+        ...
+      clash-of-kings/
+        ...
+```
+
+### F-42: Deep Comparison Lab
+
+A dedicated workspace for structural side-by-side analysis of any two works, series, or universes — whether they're your own projects or uploaded external books. Evolves the existing Comparison mode (which currently compares draft versions of a single file) into a full analytical tool.
+
+**Comparison types:**
+
+*Your Projects:* Select any two Works from your library. The system auto-generates a structural comparison across every engine dimension: author psychology, narrator type, world rules, character archetypes, relationship architectures, tonal arcs, plot structures, theme questions, hallmarks, audience assumptions.
+
+*Uploaded vs. Uploaded:* Decompose two external books (e.g., Wizard of Oz vs. the Wicked screenplay) and compare them. The system identifies: shared characters in different roles, shared world with different rules, different narrators revealing different truths, different audience assumptions shaping different content, tonal register shifts, and which "engine levers" account for the transformation between works.
+
+*Your Work vs. External:* Compare your story against a published work you admire. See where your structural choices align and diverge. "Your narrator uses third limited like Ishiguro, but your tonal arc follows a romance structure while his follows literary compression." Not plagiarism detection — structural DNA analysis.
+
+*Series Progression:* Compare Book 1 against Book 3 of the same series. Track how the author's psychology shifted, how the world expanded, how character archetypes evolved, how the narrative ambition changed. "The author's wound shifted from abandonment in Book 1 to control in Book 3 — the series is actually about the author's own growth."
+
+**Comparison dimensions (each a toggleable panel):**
+
+- Author Psychology: wound, Enneagram, biases, prose tendencies
+- Narrator: type, reliability, distance, knowledge constraints
+- World: genre, rules, hallmarks, society-as-character, technology/magic systems
+- Characters: archetype distribution, wound patterns, growth trajectories, foil mappings
+- Relationships: network structure, attachment styles, power dynamics, alliance patterns
+- Story Structure: plot type, act proportions, pacing, subplot density, ending type
+- Tone: emotional register, humor, darkness, content rating, prose style
+- Theme: central question, supporting arguments, ambiguity level, didacticism
+- Audience: assumed reader, reading level, genre expectations exploited/subverted
+- Inferences about the Author: what the structural choices reveal about the person who made them
+
+**Visualization:** Split-screen with a shared axis. Each dimension gets a card showing Work A on the left and Work B on the right, with a "divergence score" and natural-language summary of the key difference. A radar chart overlay shows the structural fingerprint of each work. A "What Changed" summary at the top highlights the 3-5 most significant structural differences.
+
+**Output:** Exportable comparison document (.md or .pdf) suitable for academic analysis, writing workshops, or personal study.
+
 ---
 
 ## Summary Statistics
@@ -679,7 +760,7 @@ Three-stage delivery strategy. **Stage 1: VS Code Extension** — ships first, l
 | Category | Count |
 |---|---|
 | Use cases | 20 |
-| Feature categories | 40 |
+| Feature categories | 42 |
 | Workflow modes | 20 |
 | Reference file categories | 34 (16 character + 13 story + 3 theory + 2 emotional/somatic lexicons) |
 | Rollable attribute types | 28 categories per character (40+ with sub-attributes like physical description) |

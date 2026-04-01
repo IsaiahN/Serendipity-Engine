@@ -5,7 +5,7 @@ import Card from '../components/Card';
 import Button from '../components/Button';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
-  ChevronRight, Sun, Moon, Monitor,
+  ChevronRight, Sun, Moon, Monitor, ExternalLink, Trash2, Download, Heart,
 } from 'lucide-react';
 
 const categories = [
@@ -172,6 +172,170 @@ function EditorSettings() {
   );
 }
 
+function WritingSettings() {
+  const [readabilityScore, setReadabilityScore] = useState(true);
+  return (
+    <>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Writing</h2>
+      <SettingRow label="Default POV" desc="Perspective for new writing">
+        <Select options={['First Person', 'Second Person', 'Third Limited', 'Third Omniscient', 'Multiple']} defaultValue="Third Limited" />
+      </SettingRow>
+      <SettingRow label="Default Tense" desc="Time frame for narrative">
+        <Select options={['Past', 'Present']} defaultValue="Past" />
+      </SettingRow>
+      <SettingRow label="Chapter Naming" desc="How chapters are identified">
+        <Select options={['Numbered', 'Named', 'Both']} defaultValue="Numbered" />
+      </SettingRow>
+      <SettingRow label="Scene Break Style" desc="Visual separator between scenes">
+        <Select options={['* * *', '---', 'Blank line', '#']} defaultValue="* * *" />
+      </SettingRow>
+      <SettingRow label="Show Readability Score" desc="Display reading ease metrics">
+        <Toggle checked={readabilityScore} onChange={setReadabilityScore} />
+      </SettingRow>
+      <SettingRow label="Target Reading Level" desc="Audience comprehension baseline">
+        <Select options={['General', 'Literary', 'Academic', 'Young Adult', 'Middle Grade']} defaultValue="General" />
+      </SettingRow>
+      <SettingRow label="Dialogue Style" desc="Quotation marks and emphasis">
+        <Select options={['American "double quotes"', "British 'single quotes'", 'Em-dash style']} defaultValue='American "double quotes"' />
+      </SettingRow>
+    </>
+  );
+}
+
+function PrivacySettings() {
+  const [storeLocally, setStoreLocally] = useState(true);
+  const [shareUsage, setShareUsage] = useState(false);
+  const [aiOptOut, setAiOptOut] = useState(true);
+  return (
+    <>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Privacy & Data</h2>
+      <SettingRow label="Store Projects Locally" desc="Keep project files on this device">
+        <Toggle checked={storeLocally} onChange={setStoreLocally} />
+      </SettingRow>
+      <SettingRow label="Share Anonymous Usage Data" desc="Help improve the app with usage analytics">
+        <Toggle checked={shareUsage} onChange={setShareUsage} />
+      </SettingRow>
+      <SettingRow label="AI Training Opt-Out" desc="Prevent your writing from being used to train AI models">
+        <Toggle checked={aiOptOut} onChange={setAiOptOut} />
+      </SettingRow>
+      <SettingRow label="Auto-Delete Sessions" desc="Automatically remove old session data">
+        <Select options={['Never', 'After 30 days', 'After 90 days', 'After 1 year']} defaultValue="Never" />
+      </SettingRow>
+      <SettingRow label="Export All Data" desc="Download all your projects and settings">
+        <Button size="sm" variant="secondary" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <Download size={14} />
+          Export →
+        </Button>
+      </SettingRow>
+      <SettingRow label="Delete All Data" desc="Permanently remove everything">
+        <Button size="sm" style={{ background: '#dc2626', color: '#fff', border: 'none' }}>
+          <Trash2 size={14} style={{ marginRight: 4 }} />
+          Delete Everything
+        </Button>
+      </SettingRow>
+    </>
+  );
+}
+
+function WritingProfileSettings() {
+  const [penName, setPenName] = useState('');
+  const [bio, setBio] = useState('');
+  return (
+    <>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Writing Profile</h2>
+      <SettingRow label="Pen Name" desc="Your author identity">
+        <input
+          type="text"
+          value={penName}
+          onChange={(e) => setPenName(e.target.value)}
+          placeholder="Enter pen name"
+          style={{
+            padding: '4px 8px', fontSize: '0.8rem', minWidth: 140,
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+          }}
+        />
+      </SettingRow>
+      <SettingRow label="Bio" desc="Short author biography">
+        <textarea
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="Tell us about yourself..."
+          rows="3"
+          style={{
+            padding: '6px 8px', fontSize: '0.8rem', minWidth: 280,
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+            fontFamily: 'inherit', resize: 'none',
+          }}
+        />
+      </SettingRow>
+      <SettingRow label="Writing Experience" desc="Your skill level">
+        <Select options={['Beginner', 'Intermediate', 'Advanced', 'Professional']} defaultValue="Intermediate" />
+      </SettingRow>
+      <SettingRow label="Favorite Genres" desc="Your preferred categories">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            Literary Fiction, Thriller
+          </span>
+          <Button size="sm" variant="secondary" style={{ fontSize: '0.75rem' }}>Edit</Button>
+        </div>
+      </SettingRow>
+      <SettingRow label="Writing Goals" desc="What you're working towards">
+        <Select options={['Finish first draft', 'Get published', 'Improve craft', 'Fun/hobby']} defaultValue="Finish first draft" />
+      </SettingRow>
+      <SettingRow label="Daily Word Target" desc="Your writing goal">
+        <Select options={['250', '500', '1000', '1500', '2000', 'Custom']} defaultValue="1000" />
+      </SettingRow>
+    </>
+  );
+}
+
+function AboutSettings() {
+  return (
+    <>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>
+        <span>✦ About Serendipity Engine</span>
+      </h2>
+      <SettingRow label="Version" desc="">
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>v0.1.0-alpha</span>
+      </SettingRow>
+      <SettingRow label="Build Info" desc="">
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Development Build</span>
+      </SettingRow>
+      <div style={{ marginTop: 24 }}>
+        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 12, fontWeight: 600 }}>
+          Resources
+        </div>
+        {[
+          { label: 'Documentation', href: '#' },
+          { label: 'GitHub', href: '#' },
+          { label: 'Report a Bug', href: '#' },
+          { label: 'Feature Request', href: '#' },
+        ].map((link) => (
+          <div key={link.label} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 0', borderBottom: '1px solid var(--border)',
+            cursor: 'pointer',
+          }}>
+            <span style={{ fontSize: '0.85rem' }}>{link.label}</span>
+            <ExternalLink size={14} color="var(--text-muted)" />
+          </div>
+        ))}
+      </div>
+      <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+          <Heart size={12} style={{ display: 'inline-block', marginRight: 4, verticalAlign: 'middle' }} />
+          Built by Isaiah
+        </p>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          MIT License
+        </p>
+      </div>
+    </>
+  );
+}
+
 export default function SettingsScreen() {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('general');
@@ -182,14 +346,11 @@ export default function SettingsScreen() {
       case 'ai': return <AISettings />;
       case 'workspace': return <WorkspaceSettings />;
       case 'editor': return <EditorSettings />;
-      default: return (
-        <>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>
-            {categories.find(c => c.key === activeCategory)?.label}
-          </h2>
-          <p style={{ color: 'var(--text-muted)' }}>Settings for this category will be built out.</p>
-        </>
-      );
+      case 'writing': return <WritingSettings />;
+      case 'privacy': return <PrivacySettings />;
+      case 'profile': return <WritingProfileSettings />;
+      case 'about': return <AboutSettings />;
+      default: return <GeneralSettings />;
     }
   };
 

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import Card from '../components/Card';
-import { BookOpen, Film, Tv, Mic, Gamepad2, Theater, Pen, Globe, Image, Music, Headphones, Layers, ChevronRight } from 'lucide-react';
+import { BookOpen, Film, Tv, Mic, Gamepad2, Theater, Pen, Globe, Image, Music, Headphones, Layers, ChevronRight, Upload, Users, Sparkles, Target, BookMarked } from 'lucide-react';
 
 const categories = [
   { icon: BookOpen, name: 'Novel / Long-Form Prose', subs: ['Novel (Adult)', 'Novel (YA)', 'Novel (Middle Grade)', 'Novella', 'Novelette', 'Serial / Episodic'] },
@@ -37,6 +37,30 @@ export default function WizardScreen() {
   const [selectedSub, setSelectedSub] = useState(null);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [submissionTarget, setSubmissionTarget] = useState(null);
+
+  // Step 3 - Story scope
+  const [wordCountRange, setWordCountRange] = useState(null);
+  const [povCharacters, setPovCharacters] = useState(null);
+  const [narrativeStructure, setNarrativeStructure] = useState(null);
+
+  // Step 4 - Connected stories
+  const [seriesType, setSeriesType] = useState(null);
+  const [seriesName, setSeriesName] = useState('');
+  const [seriesPosition, setSeriesPosition] = useState('');
+
+  // Step 5 - Existing material
+  const [existingMaterial, setExistingMaterial] = useState([]);
+
+  // Step 6 - Where are you
+  const [writingPhase, setWritingPhase] = useState(null);
+
+  // Step 7 - How to work
+  const [collaborationStyle, setCollaborationStyle] = useState(null);
+
+  // Step 8 - Author identity
+  const [authorName, setAuthorName] = useState('');
+  const [authorBio, setAuthorBio] = useState('');
+  const [experienceLevel, setExperienceLevel] = useState(null);
 
   const genres = ['Literary Fiction', 'Thriller', 'Mystery', 'Romance', 'Science Fiction', 'Fantasy', 'Horror', 'Historical', 'Magical Realism', 'Dystopian', 'Gothic', 'Noir', 'Comedy', 'Satire', 'Drama', 'Coming of Age'];
 
@@ -235,18 +259,399 @@ export default function WizardScreen() {
             </>
           )}
 
-          {/* Steps 3-8: Placeholder */}
-          {currentStep >= 3 && (
+          {/* Step 3: Story scope */}
+          {currentStep === 3 && (
             <>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>{steps[currentStep - 1].label}</h1>
-              <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: '0.9rem' }}>
-                This step will contain the full {steps[currentStep - 1].label.toLowerCase()} configuration.
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>What's the scope of your story?</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+                Help us understand the size, complexity, and structure.
               </p>
-              <Card style={{ padding: 40, textAlign: 'center' }}>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  Step {currentStep} content — to be built out
-                </p>
-              </Card>
+
+              {/* Word count range */}
+              <div style={{ marginBottom: 32 }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+                  Estimated word count?
+                </h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['Flash (<1K)', 'Short Story (1K-7.5K)', 'Novelette (7.5K-17.5K)', 'Novella (17.5K-40K)', 'Short Novel (40K-70K)', 'Novel (70K-100K)', 'Epic (100K+)'].map((range) => (
+                    <div
+                      key={range}
+                      onClick={() => setWordCountRange(range)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 100,
+                        border: `1px solid ${wordCountRange === range ? 'var(--accent)' : 'var(--border)'}`,
+                        background: wordCountRange === range ? 'var(--accent-glow)' : 'var(--bg-card)',
+                        color: wordCountRange === range ? 'var(--accent)' : 'var(--text-secondary)',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        fontWeight: wordCountRange === range ? 600 : 400,
+                        transition: 'var(--transition)',
+                      }}
+                    >
+                      {range}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* POV characters */}
+              <div style={{ marginBottom: 32 }}>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+                  Number of POV characters?
+                </h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['1', '2-3', '4+', 'Not sure yet'].map((pov) => (
+                    <div
+                      key={pov}
+                      onClick={() => setPovCharacters(pov)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 100,
+                        border: `1px solid ${povCharacters === pov ? 'var(--accent)' : 'var(--border)'}`,
+                        background: povCharacters === pov ? 'var(--accent-glow)' : 'var(--bg-card)',
+                        color: povCharacters === pov ? 'var(--accent)' : 'var(--text-secondary)',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        fontWeight: povCharacters === pov ? 600 : 400,
+                        transition: 'var(--transition)',
+                      }}
+                    >
+                      {pov}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Narrative structure */}
+              <div>
+                <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+                  Narrative structure?
+                </h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {['Linear', 'Non-linear', 'Parallel', 'Epistolary', 'Frame Story', 'Not sure yet'].map((structure) => (
+                    <div
+                      key={structure}
+                      onClick={() => setNarrativeStructure(structure)}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 100,
+                        border: `1px solid ${narrativeStructure === structure ? 'var(--accent)' : 'var(--border)'}`,
+                        background: narrativeStructure === structure ? 'var(--accent-glow)' : 'var(--bg-card)',
+                        color: narrativeStructure === structure ? 'var(--accent)' : 'var(--text-secondary)',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        fontWeight: narrativeStructure === structure ? 600 : 400,
+                        transition: 'var(--transition)',
+                      }}
+                    >
+                      {structure}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Step 4: Connected stories */}
+          {currentStep === 4 && (
+            <>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>Is this part of a series?</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+                Let us know if this story stands alone or connects to others.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {['Standalone', 'Duology', 'Trilogy', 'Series (4+)', 'Serial/Episodic', 'Not sure yet'].map((type) => (
+                  <Card
+                    key={type}
+                    active={seriesType === type}
+                    onClick={() => setSeriesType(type)}
+                    style={{ cursor: 'pointer', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <span style={{ fontSize: '0.9rem' }}>{type}</span>
+                    {seriesType === type && <span style={{ color: 'var(--accent)' }}>✓</span>}
+                  </Card>
+                ))}
+              </div>
+
+              {/* Series details if series is selected */}
+              {seriesType && seriesType !== 'Standalone' && seriesType !== 'Not sure yet' && (
+                <div style={{ marginTop: 24, animation: 'fadeIn 0.3s ease forwards' }}>
+                  <h3 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+                    Series details
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                        Series name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., The Chronicles of..."
+                        value={seriesName}
+                        onChange={(e) => setSeriesName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-card)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.9rem',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                        Position in series
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g., Book 1, Book 2, etc."
+                        value={seriesPosition}
+                        onChange={(e) => setSeriesPosition(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '8px 12px',
+                          borderRadius: 6,
+                          border: '1px solid var(--border)',
+                          background: 'var(--bg-card)',
+                          color: 'var(--text-primary)',
+                          fontSize: '0.9rem',
+                          fontFamily: 'inherit',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Step 5: Existing material */}
+          {currentStep === 5 && (
+            <>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>What material do you have?</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+                Share what you've already created. You can upload files if you have them.
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 32 }}>
+                {['Outline', 'Draft chapters', 'Character profiles', 'World-building notes', 'Research', 'Plot diagrams', 'Previous drafts', 'Nothing yet'].map((material) => (
+                  <div
+                    key={material}
+                    onClick={() => {
+                      if (existingMaterial.includes(material)) {
+                        setExistingMaterial(existingMaterial.filter(m => m !== material));
+                      } else {
+                        setExistingMaterial([...existingMaterial, material]);
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: 100,
+                      border: `1px solid ${existingMaterial.includes(material) ? 'var(--accent)' : 'var(--border)'}`,
+                      background: existingMaterial.includes(material) ? 'var(--accent-glow)' : 'var(--bg-card)',
+                      color: existingMaterial.includes(material) ? 'var(--accent)' : 'var(--text-secondary)',
+                      fontSize: '0.85rem',
+                      cursor: 'pointer',
+                      fontWeight: existingMaterial.includes(material) ? 600 : 400,
+                      transition: 'var(--transition)',
+                    }}
+                  >
+                    {material}
+                  </div>
+                ))}
+              </div>
+
+              {/* File upload area */}
+              <div style={{
+                border: '2px dashed var(--border)',
+                borderRadius: 8,
+                padding: 32,
+                textAlign: 'center',
+                background: 'var(--bg-card)',
+                cursor: 'pointer',
+                transition: 'var(--transition)',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              >
+                <Upload size={24} color="var(--text-muted)" style={{ marginBottom: 8, opacity: 0.6 }} />
+                <p style={{ fontSize: '0.9rem', fontWeight: 500, marginBottom: 4 }}>Drop files here or click to import</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>PDF, Word, images, or text files</p>
+              </div>
+            </>
+          )}
+
+          {/* Step 6: Where are you */}
+          {currentStep === 6 && (
+            <>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>Where are you in the process?</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+                This helps us tailor guidance and pacing.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {[
+                  { phase: 'Brainstorming', desc: 'Exploring ideas, not yet committed' },
+                  { phase: 'Outlining', desc: 'Planning structure and scenes' },
+                  { phase: 'First Draft', desc: 'Writing the initial version' },
+                  { phase: 'Revision', desc: 'Major rewrites and restructuring' },
+                  { phase: 'Editing', desc: 'Line edits and polishing prose' },
+                  { phase: 'Polishing', desc: 'Final tweaks before submission' },
+                  { phase: 'Querying/Submitting', desc: 'Sending to agents or publishers' },
+                ].map((item) => (
+                  <Card
+                    key={item.phase}
+                    active={writingPhase === item.phase}
+                    onClick={() => setWritingPhase(item.phase)}
+                    style={{ cursor: 'pointer', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                  >
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 500 }}>{item.phase}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.desc}</div>
+                    </div>
+                    {writingPhase === item.phase && <span style={{ color: 'var(--accent)' }}>✓</span>}
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Step 7: How to work */}
+          {currentStep === 7 && (
+            <>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>How would you like to work with AI?</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+                Choose your preferred collaboration style.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+                {[
+                  { style: 'Guide me step by step', desc: 'Structured workflow, phase by phase', emoji: '🎯' },
+                  { style: 'Be my writing partner', desc: 'Collaborative, suggest and discuss', emoji: '🤝' },
+                  { style: 'Just assist when asked', desc: 'Minimal intervention, on-demand help', emoji: '⚙️' },
+                  { style: 'Challenge me', desc: 'Push back, ask hard questions, raise the bar', emoji: '⚡' },
+                ].map((item) => (
+                  <Card
+                    key={item.style}
+                    active={collaborationStyle === item.style}
+                    onClick={() => setCollaborationStyle(item.style)}
+                    style={{ cursor: 'pointer', padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}
+                  >
+                    <div style={{ fontSize: '1.5rem' }}>{item.emoji}</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{item.style}</div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.desc}</div>
+                    {collaborationStyle === item.style && (
+                      <div style={{ marginTop: 8, color: 'var(--accent)', fontSize: '0.8rem', fontWeight: 600 }}>✓ Selected</div>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Step 8: Author identity */}
+          {currentStep === 8 && (
+            <>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 8 }}>Tell us about yourself</h1>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
+                This helps personalize the experience. You can skip this for now.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Author name */}
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Pen name (or real name)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Your writing identity..."
+                    value={authorName}
+                    onChange={(e) => setAuthorName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+
+                {/* Author bio */}
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Brief bio (optional)
+                  </label>
+                  <textarea
+                    placeholder="A sentence or two about you as a writer..."
+                    value={authorBio}
+                    onChange={(e) => setAuthorBio(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border)',
+                      background: 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit',
+                      minHeight: 80,
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+
+                {/* Experience level */}
+                <div>
+                  <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: 12 }}>
+                    Writing experience
+                  </label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {['Beginner', 'Intermediate', 'Advanced', 'Professional'].map((level) => (
+                      <Card
+                        key={level}
+                        active={experienceLevel === level}
+                        onClick={() => setExperienceLevel(level)}
+                        style={{ cursor: 'pointer', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                      >
+                        <span style={{ fontSize: '0.9rem' }}>{level}</span>
+                        {experienceLevel === level && <span style={{ color: 'var(--accent)' }}>✓</span>}
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Skip option */}
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    onClick={() => {
+                      setAuthorName('');
+                      setAuthorBio('');
+                      setExperienceLevel(null);
+                    }}
+                    style={{
+                      fontSize: '0.8rem',
+                      color: 'var(--text-muted)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      padding: 0,
+                    }}
+                  >
+                    Skip for now
+                  </button>
+                </div>
+              </div>
             </>
           )}
         </div>

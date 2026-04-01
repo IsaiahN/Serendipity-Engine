@@ -5,10 +5,10 @@ const variants = {
   amber: { background: 'rgba(251,191,36,0.15)', color: 'var(--health-good)' },
 };
 
-export default function Badge({ children, variant = 'accent', style }) {
+export default function Badge({ children, variant = 'accent', style, onClick }) {
   const v = variants[variant] || variants.accent;
   return (
-    <span style={{
+    <span onClick={onClick} style={{
       display: 'inline-flex',
       alignItems: 'center',
       padding: '3px 10px',
