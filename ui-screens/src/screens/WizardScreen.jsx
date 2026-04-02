@@ -1,7 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import Card from '../components/Card';
+
+/* Smooth auto-scroll: drops an invisible anchor that scrolls into view on mount */
+function ScrollIntoView({ delay = 80 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return <div ref={ref} />;
+}
 import { BookOpen, Film, Tv, Mic, Gamepad2, Theater, Pen, Globe, Image, Music, Headphones, Layers, ChevronRight, Upload, Users, Sparkles, Target, BookMarked } from 'lucide-react';
 
 const categories = [
@@ -190,6 +202,7 @@ export default function WizardScreen() {
                       {selectedSub === sub && <span style={{ color: 'var(--accent)' }}>✓</span>}
                     </Card>
                   ))}
+                  <ScrollIntoView />
 
                   {/* Submission Target */}
                   {selectedSub && (
@@ -212,6 +225,7 @@ export default function WizardScreen() {
                           </Card>
                         ))}
                       </div>
+                      <ScrollIntoView />
                     </div>
                   )}
                 </div>
@@ -425,6 +439,7 @@ export default function WizardScreen() {
                       />
                     </div>
                   </div>
+                  <ScrollIntoView />
                 </div>
               )}
             </>

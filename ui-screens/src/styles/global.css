@@ -17,6 +17,10 @@
   --accent-hover: #e08840;
   --accent-glow: rgba(240, 160, 80, 0.15);
   --accent-subtle: rgba(240, 160, 80, 0.08);
+  --accent-muted: rgba(240, 160, 80, 0.7);
+  --accent-border: rgba(240, 160, 80, 0.25);
+  --accent-focus: rgba(240, 160, 80, 0.45);
+  --accent-tint: rgba(240, 160, 80, 0.1);
 
   --health-exceptional: #4ade80;
   --health-strong: #86efac;
@@ -27,6 +31,12 @@
 
   --border: #2a2f3f;
   --border-active: #f0a050;
+
+  --editor-bg: #0d0f14;
+  --editor-gutter: #0a0c10;
+  --editor-text: #c9d1d9;
+  --editor-minimap: #c9d1d944;
+  --accent-btn-text: #000;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -52,6 +62,11 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 100px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--bg-hover); }
+
+textarea::placeholder {
+  color: var(--text-secondary);
+  opacity: 1;
+}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }

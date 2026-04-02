@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import PhaseProgress from '../components/PhaseProgress';
@@ -14,6 +14,19 @@ import {
   Lightbulb, AlertTriangle, Pencil, ChevronUp, Send, SendHorizontal, ChevronsLeft, ChevronsRight, Globe,
   Upload, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft,
 } from 'lucide-react';
+
+/* ─── Smooth Auto-Scroll Utility ─── */
+/* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
+function ScrollIntoView({ delay = 80 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      ref.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return <div ref={ref} />;
+}
 
 const centerStageModes = [
   { key: 'guided', icon: Compass, label: 'Guide' },
@@ -234,6 +247,234 @@ const fileContents = {
     content: ['# Elena\n\nProtagonist of the parallel timeline. Elena\'s journey mirrors Miriam\'s in a contemporary urban setting — the same questions of belonging vs. authenticity played out against different walls.'],
     chapter: false,
   },
+
+  /* ── Engine Reference: Quality Control (MetaFiles) ── */
+  'quality-control/Master-Story-Checklist.md': {
+    title: 'Master Story Checklist',
+    content: [
+      '# Master Story Checklist\n\n*The complete workflow for generating a story using the Serendipity Engine — from first roll to final chapter.*',
+      '## DECOMPOSITION MODE — Read This First\n\n> **If you are generating a new story from scratch, skip this entire section and proceed to "Before You Begin — Seed the Engine" below. Nothing here applies.**\n>\n> **If you have been given an existing work to decompose — a novel, play, screenplay, short story, or any completed narrative text — this section replaces the standard generation pipeline.**',
+      '### What Decomposition Is\n\nDecomposition is the process of reverse-engineering an existing work through the Serendipity Engine\'s vocabulary. Instead of rolling attributes to generate a story, you are reading a finished story and reconstructing the attribute set that produced it. The output is a forensic structural audit: what the author had (consciously or not), what the system would have generated, and where the work deviates from what the engine would have built.',
+      'The output folder mirrors the Creations folder exactly — same files, same structure — but every claim is annotated with an epistemic marker:\n\n- **[CONFIRMED]** — directly verifiable from the text or from independently verifiable biographical/historical fact\n- **[INFERRED]** — a reasoned inference; state the reasoning explicitly beside it.',
+    ],
+    chapter: false,
+  },
+  'quality-control/seven-story-deaths.md': {
+    title: 'The Seven Story Deaths',
+    content: [
+      '# The Seven Story Deaths\n## The Antilife Seals Applied to Storytelling\n\n*The seven conditions that kill intelligence in networks also kill stories. Each seal describes a failure mode — for characters, for worlds, for casts, for narratives. They are most useful in three ways: as a **diagnostic** (what\'s wrong with this draft?), as a **conflict engine** (what force is the world pushing against?), and as an **antagonist architecture** (what does this villain actually embody?)*',
+      '### Seal 1 — The Monolith\n**"All intelligence must centralize."**\n\nThe story funnels everything through one node — one character, one perspective, one explanatory framework. Everything must pass through the protagonist to matter.\n\n**In characters:** The hero who must be the best at everything, know the most, solve every problem. No specialization. The cast exists to confirm the protagonist\'s centrality.',
+      '### Seal 2 — Amnesia\n**"Memory must be ephemeral."**\n\nThe story forgets its own past. Events that should have consequences don\'t. Characters who learned something in Chapter 3 have unlearned it by Chapter 7. The world resets between scenes.',
+      '**Story health check:** Can the story\'s knowledge be distributed? Does each character carry something no other character carries? Do events have permanent consequences?',
+    ],
+    chapter: false,
+  },
+  'quality-control/story-consciousness-theory.md': {
+    title: 'Story Consciousness Theory',
+    content: [
+      '# Story Consciousness Theory\n## Applied from the Unified Theory of Agent Consciousness\n\n*A character is conscious for the same reason an agent is conscious: they are caught between two streams of knowledge that contradict each other, and they must choose. That choosing IS the story.*',
+      '## The Central Claim\n\n**A character\'s consciousness — and by extension, a story — is the weighted integration of two knowledge streams, mediated by an ensemble of internal voices, woven together by a persistent identity thread.**\n\nWhen both streams agree, a character moves through their life automatically. They don\'t notice their own decisions. Nothing interesting happens on the page.\n\nWhen both streams conflict, consciousness becomes vivid. The character must deliberate. They must choose. **This conflict IS the story.**',
+      '## Part I: The Two Streams of a Character\n\nEvery character carries two streams of knowledge at all times. Both streams are always active. Both are always influencing behavior. The drama lives in the gap between them.',
+    ],
+    chapter: false,
+  },
+  'quality-control/story-network-theory.md': {
+    title: 'Story Network Theory',
+    content: [
+      '# Story Network Theory\n## Applied from the Unified Network Theory of Intelligence\n\n*A story world is an organism. Characters are its temporary neurons. The world persists. The characters die. And when they\'re gone, what they discovered — if it mattered — becomes part of what the world knows.*',
+      '## The Central Claim\n\n**No single character can carry a story. No single storyline can contain a theme. Stories are distributed intelligence systems, and their power emerges from the network — from what multiple characters, subplots, relationships, and images discover and validate together.**\n\nThe traditional view: the protagonist IS the story.\nThe network view: the story world IS the organism. The protagonist is one neuron. A particularly important one — but still temporary.',
+      '## Part I: The World-as-Organism\n\nThe world is not a setting. It is not a backdrop. It is the living system within which every character, event, and relationship exists. It has its own logic, its own memory, its own way of preserving or destroying knowledge.',
+    ],
+    chapter: false,
+  },
+  'quality-control/tonal-control.md': {
+    title: 'Tonal Control',
+    content: [
+      '# Tonal Control\n\n*The sustained management of a story\'s emotional register across its full length. Tone is not mood — it is the author\'s consistent attitude toward the material, expressed through every sentence-level decision: word choice, syntax, what is named and what is withheld, how violence or tenderness or absurdity is framed.*',
+      '## What Tone Is Not\n\n**Tone is not emotional register.** Register is what a character feels. Tone is the author\'s relationship to what the character feels — how it is framed, how much weight it receives, whether the narrative leans in or holds back.\n\n**Tone is not genre.** Horror and comedy can share the same tone (deadpan). Romance and tragedy can share the same tone (earnest).\n\n**Tone is not consistent.** A tone that never shifts is flat. Tonal control is not about maintaining the same tone — it is about moving through tones deliberately.',
+      '## Tone Types\n\n*Roll 1 as the dominant authorial tone, or derive from the author\'s rolled Moral Alignment + Life Philosophy. This is the default stance the prose returns to when not in a designed departure.*',
+    ],
+    chapter: false,
+  },
+  'quality-control/writing-prose-styles.md': {
+    title: 'Writing Prose Styles',
+    content: [
+      '# Writing Prose Styles\n\n*Author-specific. The literary tradition, era, cultural voice, and prose tendencies that shape how this author writes — not what they write about, but how the words feel on the page.*',
+      '## Literary Eras & Their Tendencies\n\n**1900s–1910s — Edwardian & Late Victorian** — Formal, ornate, morally structured. Long sentences. Class consciousness. Restraint as a virtue.\n*Touchstones: Henry James, E.M. Forster, Edith Wharton*\n\n**1920s–1930s — Modernism** — Fragmented, stream-of-consciousness, experimental. Time is elastic. Interiority over plot.\n*Touchstones: Virginia Woolf, James Joyce, William Faulkner, Gertrude Stein*',
+      '**1950s–1960s — The Beats & Postwar Realism** — Raw, spontaneous, confessional. Reject structure. Movement as meaning.\n*Touchstones: Jack Kerouac, Allen Ginsberg, James Baldwin, Flannery O\'Connor*\n\n**1970s–1980s — Minimalism & Dirty Realism** — Sparse, declarative, emotionally submerged. What\'s left out matters more.\n*Touchstones: Raymond Carver, Joan Didion, Denis Johnson, Bobbie Ann Mason*',
+    ],
+    chapter: false,
+  },
+  'quality-control/language-content.md': {
+    title: 'Language & Content',
+    content: [
+      '# Language & Tone\n\n*A reference for content calibration — swear words, euphemisms, intensity levels, and witty banter patterns. Used to tune the voice of a character or author and filter content for audience rating.*',
+      '## Content Rating Levels\n\n**G / All Ages** — No profanity. No explicit content. Conflict exists but violence and sexuality are implied or off-page.\n\n**PG / Kids–Tweens** — Mild exclamations (damn, hell). Conflict and stakes can be real. No sexual content.\n\n**PG-13 / Teens** — Moderate profanity (shit, ass, bastard). Romantic tension without explicit content. Violence can be present but not gratuitous.\n\n**R / Adult** — Full profanity permitted. Sexual content can be present and moderately explicit. Violence can be graphic.\n\n**18+ / Explicit** — No restrictions. Language, violence, and sexual content are limited only by the story\'s needs.',
+    ],
+    chapter: false,
+  },
+  'quality-control/randomization-engine.md': {
+    title: 'Randomization Engine',
+    content: [
+      '# Randomization Engine\n\n*File-agnostic. Knows nothing about specific lists. Each list file tells you how many entries it has and how to roll — this file tells you how to roll fairly.*',
+      '## 1. Generating a Seed\n\nTake the current datetime and write it as a 12-digit integer:\n\n```\nYYYYMMDDHHMM → e.g. February 22 2026, 2:47 PM = 202602221447\n```\n\nWrite this as the first line of your session file. Every roll in the session derives from it. Same seed = same story. Different seed = different story.',
+      '## 2. Rolling Against Any List of N Entries\n\nUse 3-digit windows from the seed. Move through the seed left to right, one digit at a time. Each window gives one roll.\n\n**Formula:** `(3-digit window) mod N` → gives zero-indexed position. Add 1 for the 1-indexed entry.',
+    ],
+    chapter: false,
+  },
+  'quality-control/author-profile-template.md': {
+    title: 'Author Profile Template',
+    content: [
+      '# Author Profile — Real Author Template\n\n*Use this file when you are writing as yourself, as a real person, or as a deliberate persona — rather than generating a randomized author in Phase 1.*',
+      '## Instructions\n\nAnswer every field directly and honestly. This is not a public document. It is a structural briefing for the story system.\n\nThe wound question (under Development) is the most important field in this file. It is the thing the story will unconsciously be written toward or away from — the generator of the author\'s blind spots, their thematic obsessions, and their instinctive sympathies.',
+      'Do not skip the Big Picture Statement. It governs everything in Phase 2 onward.',
+    ],
+    chapter: false,
+  },
+  'quality-control/questions.md': {
+    title: 'Author Questions',
+    content: [
+      '# Author Questions\n\n*Questions to build and simulate the author before writing the story. The author\'s life shapes the prose — their wounds, joys, obsessions, and blind spots bleed into every sentence.*',
+      '## Identity & Background\n- What is the author\'s gender? How does it inform their voice?\n- What is their cultural, ethnic, or national background?\n- What is their socioeconomic background? How does class shape what they notice?\n- What is their religion or faith — past or present?\n- What language or dialect did they grow up speaking?',
+      '## Life Stage & Emotional State\n- How old are they right now?\n- What life stage are they in — hungry and unproven, mid-life reckoning, retrospective elder, grieving, rebuilding?\n- What are they afraid of right now?\n- What do they want most in the world right now — not as a writer, but as a person?',
+    ],
+    chapter: false,
+  },
+
+  /* ── Engine Reference: Characters ── */
+  'engine-characters/Questions.md': {
+    title: 'Character Roster Questions',
+    content: [
+      '# Character Roster Questions\n\n*Top-level questions about the cast as a whole — who exists, how they relate, and what work they do in the story.*',
+      '## The Cast\n- How many characters does this story need?\n- Who is the protagonist? Is there more than one?\n- Who is the antagonist? Are they a person, a system, or something internal?\n- Which characters are essential to the story\'s engine? Which are disposable?\n- Which characters exist only to serve the protagonist\'s arc, and which have their own?',
+      '## Structure & Contrast\n- Do any characters mirror each other — same goal, different methods?\n- Do any characters contrast each other — same situation, different choices?\n- What is the power hierarchy among the characters?\n- Are there characters who shift position in that hierarchy over the course of the story?',
+      '## Change & Function\n- Which characters change? Which refuse to change?\n- Is there a character who represents the world\'s status quo? What happens when they\'re challenged?',
+    ],
+    chapter: false,
+  },
+
+  /* ── Engine Reference: Story ── */
+  'engine-story/genres.md': {
+    title: 'Genres',
+    content: [
+      '# Genres\n\n> **Author (Phase 1):** Randomly select 2 different sublists; pick 1 genre from each. These are the author\'s home genre and secondary influence.\n> **Story (Phase 3):** Randomly select 3 distinct sublists; pick 1 genre from each. The first is primary; the other two are tonal or structural blends.',
+      '## Literary & Contemporary Fiction\nClassic fiction, Coming-of-Age, Contemporary fiction, Domestic fiction, Epistolary, Family saga, Literary fiction, Magical realism, New adult, Picaresque, Short story, Slice of life, Transgressive fiction, Women\'s fiction, Young adult',
+      '## Fantasy\nContemporary / Urban, Dark fantasy, Epic / High, Fairy tales / Folklore retellings, Gaslamp / Historical, Hard magic systems, Low / Gritty, Magical realism (crossover), Mythic, Portal, Science fantasy, Soft magic systems, Sword & sorcery',
+      '## Mystery & Crime\nClassic whodunit, Cozy mystery, Detective / PI, Hardboiled, Legal thriller, Noir, Police procedural, Psychological suspense, Heist / Caper, True crime fiction, Locked room',
+    ],
+    chapter: false,
+  },
+  'engine-story/narrator.md': {
+    title: 'Narrator Reference',
+    content: [
+      '# Narrator\n\n> **Story-level only (Phase 2):** Roll 1 reliability type + 1 perspective, after the Author is built. The narrator is a mask the author puts on — not the author themselves.',
+      '## Reliability\n\n### Reliable Narrator\nThe reader can trust the narrator\'s account at face value. Events are reported accurately, even if the narrator lacks full information.\n\n### Unreliable Narrator\nThe narrator\'s credibility is compromised — by inexperience, bias, delusion, trauma, or deliberate deception.\n\n- **Naive** — Unreliable due to inexperience or immaturity\n- **Outsider** — New to the culture or community of the story\n- **Picaro** — Embellishes and exaggerates; a born storyteller\n- **Self-deluded** — Sincerely believes their own false version\n- **Traumatized** — Events distorted by PTSD, grief, or shock\n- **Liar** — Deliberately withholding or fabricating',
+      '## Perspective\n\n**First Person** — "I" narration. Deep interiority, limited knowledge. Reader knows only what the narrator knows.\n\n**Second Person** — "You" narration. Unusual, immersive, creates complicity or discomfort.\n\n**Third Person Limited** — Narrator outside the character but bound to their perception.\n\n**Third Person Omniscient** — Narrator knows everything. Can move between characters.',
+    ],
+    chapter: false,
+  },
+  'engine-story/plot-structure.md': {
+    title: 'Plot & Conflict Structure',
+    content: [
+      '# Plot & Conflict Structure\n\n> **Story-level only (Phase 3):** Roll or select 1 base structure as the primary spine. A second structure can be layered in but one must dominate — the story needs a single answer to "where are we in the arc?" at any given moment.',
+      '## Conflict Types\n\n### Classic Conflict Categories\nMan vs. Self (internal — fear, addiction, identity, grief, guilt)\nMan vs. Man (direct antagonist, personal rivalry, betrayal)\nMan vs. Society (systemic injustice, institutions, cultural norms)\nMan vs. Nature (survival, environment, disaster, animal)\nMan vs. Technology (AI, machines, surveillance, social media)\nMan vs. Fate / Supernatural (destiny, gods, prophecy, the unknown)\nMan vs. Time (deadline, aging, memory, irreversibility)',
+      '## Story Structures\n\nThree-Act Structure, Five-Act Structure, Hero\'s Journey, Save the Cat, Kishōtenketsu (introduction–development–twist–reconciliation), In Medias Res, Frame Narrative, Rashomon / Multi-Perspective, Nonlinear / Fragmented, Episodic',
+    ],
+    chapter: false,
+  },
+  'engine-story/plot-twist-types.md': {
+    title: 'Plot Twist Types',
+    content: [
+      '# Plot Twist Types\n\n*Categories of narrative surprises that recontextualize what the reader thought they knew.*',
+      '## Identity & Recognition\n- **Anagnorisis** — A character discovers a crucial truth about themselves or another\n- **Hidden Identity** — A character is not who they (or the reader) believed\n- **Secret Relationships** — Two characters\' connection is revealed to be different than assumed\n- **Unreliable Memory** — A character\'s recollection is discovered to be false or manipulated\n- **False Expert** — A character\'s authority or knowledge was fabricated',
+      '## Betrayal & Alliance\n- **The Mole** — An ally is secretly working against the protagonist\n- **Double Agent** — Loyalties shift or were always elsewhere\n- **Forced Betrayal** — A character betrays under coercion\n- **Enemy to Ally** — An antagonist becomes a collaborator',
+    ],
+    chapter: false,
+  },
+  'engine-story/narrative-techniques.md': {
+    title: 'Narrative Techniques',
+    content: [
+      '# Narrative Techniques\n\n*Craft decisions distinct from story content. These are the how, not the what — the mechanisms that deliver the story to the reader.*',
+      '## Plot Mechanics\nCall to adventure, Quest / Mission, Obstacles & escalation, Dead ends & false leads, Subplots, Ticking clock, MacGuffin, Red herring, Deus ex machina (use sparingly), Chekhov\'s gun, Foreshadowing / Planted evidence, Flashback / Flashforward',
+      '## Information Architecture\nDramatic irony (reader knows more than character), Suspense (reader and character both in the dark), Mystery (reader in the dark, character may not be), Revelation / Anagnorisis, Slow revelation, Unreliable information, Parallel storylines revealing the same theme',
+    ],
+    chapter: false,
+  },
+  'engine-story/story-elements.md': {
+    title: 'Story Elements',
+    content: [
+      '# Story Elements\n\n*Every story, in every genre, in every tradition, is built from the same seven materials. These are not steps or phases — they are simultaneous, interdependent dimensions. A weakness in any one element weakens all the others.*',
+      '## Element 1 — Theme\n*What the story is secretly asking. Not the answer — the question.*\n\nTheme is the organizing principle that makes a story more than a sequence of events. It is the question the story poses to itself, to its characters, and to the reader.',
+      '## Element 2 — Character\n*Who the story happens to, and who changes.*\n\n## Element 3 — Conflict\n*What stands between the character and what they need.*\n\n## Element 4 — World\n*Where the story happens — not a backdrop but a living system.*\n\n## Element 5 — Relationships\n*How characters are connected, and how those connections change.*\n\n## Element 6 — POV & Voice\n*Through whose eyes the reader sees, and in whose voice.*\n\n## Element 7 — Pacing\n*How time moves in the story — the rhythm of scene, summary, and silence.*',
+    ],
+    chapter: false,
+  },
+  'engine-story/themes-and-tropes.md': {
+    title: 'Themes & Tropes',
+    content: [
+      '# Themes & Tropes\n\n*Core themes to roll or select, and rolling instructions for designating tropes as straight, subverted, or mutated.*',
+      '## Core Themes\n\n**Self & Identity** — Who am I? Can I change? What defines me?\n**Love & Relationships** — What do we owe each other? Can love survive truth?\n**Power & Corruption** — What does power cost? Who deserves it?\n**Freedom & Captivity** — What are the walls, and who built them?\n**Death & Mortality** — How do we face endings? What survives us?\n**Justice & Revenge** — Is justice possible? Where does revenge lead?\n**Truth & Deception** — What do we owe the truth? When is a lie merciful?',
+      '## Trope Treatment\n\nFor each rolled trope, designate one treatment:\n- **Straight** — The trope plays as expected. Audience recognition is the asset.\n- **Subverted** — The trope is set up but resolved against expectation.\n- **Mutated** — The trope is recognizable but transplanted into an unexpected context.',
+    ],
+    chapter: false,
+  },
+  'engine-story/world-hallmarks.md': {
+    title: 'World Hallmarks',
+    content: [
+      '# World Hallmarks\n\n*Elements so tightly fused with story identity they\'re recognizable outside the text — objects, places, forces, rules. Distinguished from internal callbacks; these are the brand DNA of the story world.*',
+      '## What Hallmarks Are\n\nA hallmark is something a fan would put on a poster. It is the thing that, if you removed it, the story would be recognizable but diminished. The One Ring. The TARDIS. The Upside Down. The mockingjay. The wardrobe.\n\nHallmarks are not symbols (those belong to Theme). They are physical, tangible, worldbound — objects, places, forces, or rules that only exist in this story and that the audience associates with it instantly.',
+      '## Categories\n\n**Objects** — A physical thing characters interact with. The lightsaber. The golden compass.\n**Places** — A location that only exists in this world. Hogwarts. Narnia. Mordor.\n**Forces** — A natural or supernatural law unique to this world. The Force. Magic systems. Time loops.\n**Rules** — Constraints that shape behavior in this world. The Hunger Games. Fight Club\'s rules.',
+    ],
+    chapter: false,
+  },
+  'engine-story/questions.md': {
+    title: 'Story Questions',
+    content: [
+      '# Story Questions\n\n*Top-level questions about the story itself — covering the core, genre & tone, conflict & stakes, character arcs, and world transformation.*',
+      '## The Core\n- What is this story about — in one sentence?\n- What is the theme — not the subject, but the question the story asks?\n- How does it end? (Not the plot — the emotional resolution.)\n- Why does this story need to be told now?',
+      '## Conflict & Stakes\n- What does the protagonist want? What do they need? Are these the same thing?\n- What stands in the way — externally and internally?\n- What happens if they fail? What happens if they succeed?\n- Are the stakes escalating across the arc?',
+    ],
+    chapter: false,
+  },
+
+  /* ── Engine Reference: Relationships ── */
+  'engine-relationships/relationship-dynamics.md': {
+    title: 'Relationship Dynamics',
+    content: [
+      '# Relationship Dynamics\n\n> **Per significant relationship pair (Phase 5):** Roll 1 attachment style per person in the pair (2 rolls), then roll 1 core dynamic + 1 power dynamic.',
+      '## Attachment Style\n*How a person emotionally bonds and responds to closeness, separation, and conflict.*\n\n**Secure** — Comfortable with intimacy and independence. Trusts others, communicates needs.\n\n**Anxious / Preoccupied** — Craves closeness but fears abandonment. Hypervigilant to signs of rejection.\n\n**Avoidant / Dismissive** — Values independence above closeness. Withdraws under pressure.\n\n**Fearful-Avoidant / Disorganized** — Wants closeness but is frightened by it. Oscillates between approach and retreat.',
+      '## Core Relationship Dynamic\n\n**Demand / Withdrawal** — One person pursues; the other shuts down. The more one pursues, the more the other retreats.\n\n**Pursuer / Distancer** — Similar to demand/withdrawal but less hostile. One always wants more closeness; the other always needs more space.\n\n**Fear / Shame** — One person operates from fear (of abandonment, of loss); the other from shame (of inadequacy, of exposure).\n\n**Caretaker / Dependent** — One person manages the other\'s emotional life. Feels generous at first; becomes resentment.',
+    ],
+    chapter: false,
+  },
+  'engine-relationships/relationship-types.md': {
+    title: 'Relationship Types',
+    content: [
+      '# Relationship Types\n\n*Categories of relationships that characters can have, used for rolling and selection during Phase 5.*',
+      '## Romantic & Intimate\nHoneymoon, Long-term committed, Secret affair, Forbidden (social/cultural barriers), Friends-to-lovers, Enemies-to-lovers, Arranged / Forced proximity, Long-distance, On-again/off-again, One-sided / Unrequited, Power-imbalanced, Codependent, Polyamorous / Open',
+      '## Familial\nParent-child (healthy), Parent-child (toxic), Siblings (close), Siblings (estranged), Chosen family, Inheritance / Legacy, Caretaker-dependent, Intergenerational conflict',
+      '## Professional & Adversarial\nMentor-student, Rivals / Competitors, Commander-subordinate, Business partners, Allies of convenience, Captor-captive, Betrayer-betrayed',
+    ],
+    chapter: false,
+  },
+  'engine-relationships/relationship-structures.md': {
+    title: 'Relationship Structures',
+    content: [
+      '# Relationship Structures\n\n*How relationships are organized — especially relevant for romantic and intimate relationships.*',
+      '## Structures\n\n**Monogamy** — Two people, exclusive commitment.\n\n**Hierarchical Polyamory** — Multiple relationships with a designated primary partner.\n\n**Non-Hierarchical Polyamory** — Multiple relationships with no ranking.\n\n**Solo Poly** — Multiple relationships but the person does not merge lives (no cohabitation, shared finances, etc.)\n\n**Relationship Anarchy** — Rejects all hierarchy and labeling; each relationship is defined on its own terms.\n\n**Triads / Quads / Vees** — Specific multi-person configurations.',
+      '**For storytelling:** The structure itself is not the drama — the collision between the structure and the characters\' actual attachment styles is. A character who is Anxious in a non-hierarchical polyamorous relationship will experience very different conflict than a Secure character in the same structure.',
+    ],
+    chapter: false,
+  },
+  'engine-relationships/questions.md': {
+    title: 'Relationship Questions',
+    content: [
+      '# Relationship Questions\n\n*Questions about relationships themselves — type, structure, how they met, what each person wants, power dynamics, attachment styles, and how relationships evolve through the story.*',
+      '## The Relationship Itself\n- What type of relationship is this? (Romantic, familial, professional, adversarial, etc.)\n- How did they meet? What were their first impressions — and were those impressions accurate?\n- What does each person want from this relationship? Are those desires compatible?',
+      '## Power & Dynamics\n- Who has more power? Is it acknowledged or denied?\n- What is the attachment style of each person? How do those styles interact?\n- What is the core dynamic? (Demand/withdrawal, fear/shame, caretaker/dependent?)\n- What happens to this relationship under stress?',
+    ],
+    chapter: false,
+  },
 };
 
 // Fallback content for files without specific content
@@ -243,12 +484,184 @@ const defaultFileContent = (fileName) => ({
   chapter: false,
 });
 
+/* ─── Lightweight Markdown Renderer ─── */
+function renderInlineMarkdown(text, keyPrefix = '') {
+  // Process inline markdown: bold, italic, code, links, strikethrough
+  const parts = [];
+  let remaining = text;
+  let idx = 0;
+
+  const patterns = [
+    { regex: /\*\*\*(.+?)\*\*\*/, render: (m, k) => <strong key={k}><em>{m[1]}</em></strong> },
+    { regex: /\*\*(.+?)\*\*/, render: (m, k) => <strong key={k}>{m[1]}</strong> },
+    { regex: /\*(.+?)\*/, render: (m, k) => <em key={k}>{m[1]}</em> },
+    { regex: /_(.+?)_/, render: (m, k) => <em key={k}>{m[1]}</em> },
+    { regex: /`(.+?)`/, render: (m, k) => <code key={k} style={{ background: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: 3, fontSize: '0.9em', fontFamily: 'monospace' }}>{m[1]}</code> },
+    { regex: /~~(.+?)~~/, render: (m, k) => <del key={k}>{m[1]}</del> },
+    { regex: /\[([^\]]+)\]\(([^)]+)\)/, render: (m, k) => <a key={k} href={m[2]} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{m[1]}</a> },
+  ];
+
+  while (remaining.length > 0) {
+    let earliest = null;
+    let earliestIndex = Infinity;
+    let earliestPattern = null;
+
+    for (const p of patterns) {
+      const match = remaining.match(p.regex);
+      if (match && match.index < earliestIndex) {
+        earliest = match;
+        earliestIndex = match.index;
+        earliestPattern = p;
+      }
+    }
+
+    if (earliest && earliestPattern) {
+      if (earliestIndex > 0) {
+        parts.push(remaining.substring(0, earliestIndex));
+      }
+      parts.push(earliestPattern.render(earliest, `${keyPrefix}-${idx}`));
+      remaining = remaining.substring(earliestIndex + earliest[0].length);
+      idx++;
+    } else {
+      parts.push(remaining);
+      break;
+    }
+  }
+  return parts;
+}
+
+function MarkdownBlock({ text, isMarkdown }) {
+  if (!isMarkdown) {
+    return <p style={{ marginBottom: 20, whiteSpace: 'pre-wrap' }}>{text}</p>;
+  }
+
+  const lines = text.split('\n');
+  const elements = [];
+  let listBuffer = [];
+  let listType = null; // 'ul' or 'ol'
+  let codeBlock = null;
+
+  const flushList = () => {
+    if (listBuffer.length > 0) {
+      const Tag = listType === 'ol' ? 'ol' : 'ul';
+      elements.push(
+        <Tag key={`list-${elements.length}`} style={{ margin: '12px 0', paddingLeft: 24, lineHeight: 1.8 }}>
+          {listBuffer.map((item, i) => <li key={i} style={{ marginBottom: 4 }}>{renderInlineMarkdown(item, `li-${elements.length}-${i}`)}</li>)}
+        </Tag>
+      );
+      listBuffer = [];
+      listType = null;
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Code block fence
+    if (line.startsWith('```')) {
+      if (codeBlock !== null) {
+        elements.push(
+          <pre key={`code-${elements.length}`} style={{
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', padding: 16, overflowX: 'auto',
+            fontFamily: 'monospace', fontSize: '0.85em', lineHeight: 1.6, margin: '12px 0',
+          }}>
+            <code>{codeBlock}</code>
+          </pre>
+        );
+        codeBlock = null;
+      } else {
+        flushList();
+        codeBlock = '';
+      }
+      continue;
+    }
+    if (codeBlock !== null) {
+      codeBlock += (codeBlock ? '\n' : '') + line;
+      continue;
+    }
+
+    // Headings
+    const headingMatch = line.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      flushList();
+      const level = headingMatch[1].length;
+      const sizes = { 1: '1.6rem', 2: '1.3rem', 3: '1.1rem', 4: '1rem', 5: '0.9rem', 6: '0.85rem' };
+      elements.push(
+        <div key={`h-${elements.length}`} style={{
+          fontSize: sizes[level], fontWeight: 700, fontFamily: 'system-ui, sans-serif',
+          margin: level <= 2 ? '28px 0 12px' : '20px 0 8px',
+          borderBottom: level <= 2 ? '1px solid var(--border)' : 'none',
+          paddingBottom: level <= 2 ? 8 : 0,
+          color: 'var(--text-primary)',
+        }}>
+          {renderInlineMarkdown(headingMatch[2], `h${level}-${elements.length}`)}
+        </div>
+      );
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^(-{3,}|\*{3,}|_{3,})$/.test(line.trim())) {
+      flushList();
+      elements.push(<hr key={`hr-${elements.length}`} style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '20px 0' }} />);
+      continue;
+    }
+
+    // Blockquote
+    if (line.startsWith('> ')) {
+      flushList();
+      elements.push(
+        <blockquote key={`bq-${elements.length}`} style={{
+          borderLeft: '3px solid var(--accent)', paddingLeft: 16, margin: '12px 0',
+          color: 'var(--text-secondary)', fontStyle: 'italic',
+        }}>
+          {renderInlineMarkdown(line.substring(2), `bq-${elements.length}`)}
+        </blockquote>
+      );
+      continue;
+    }
+
+    // Unordered list
+    if (/^[\-\*\+]\s+/.test(line)) {
+      if (listType !== 'ul') { flushList(); listType = 'ul'; }
+      listBuffer.push(line.replace(/^[\-\*\+]\s+/, ''));
+      continue;
+    }
+
+    // Ordered list
+    if (/^\d+\.\s+/.test(line)) {
+      if (listType !== 'ol') { flushList(); listType = 'ol'; }
+      listBuffer.push(line.replace(/^\d+\.\s+/, ''));
+      continue;
+    }
+
+    // Empty line
+    if (line.trim() === '') {
+      flushList();
+      continue;
+    }
+
+    // Regular paragraph line
+    flushList();
+    elements.push(
+      <p key={`p-${elements.length}`} style={{ marginBottom: 16, whiteSpace: 'pre-wrap' }}>
+        {renderInlineMarkdown(line, `p-${elements.length}`)}
+      </p>
+    );
+  }
+  flushList();
+
+  return <>{elements}</>;
+}
+
 function ReaderMode({ file, onEdit, editedContent }) {
   const fc = fileContents[file] || defaultFileContent(file || 'chapter-1.md');
+  const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
   const displayContent = editedContent !== undefined
-    ? { ...fc, content: editedContent.split('\n\n').filter(Boolean) }
-    : fc;
+    ? { ...fc, content: editedContent.split('\n\n').filter(Boolean), rawText: editedContent }
+    : { ...fc, rawText: fc.content.join('\n\n') };
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 24px', animation: 'fadeIn 0.3s ease' }}>
@@ -280,16 +693,25 @@ function ReaderMode({ file, onEdit, editedContent }) {
       </div>
 
       {/* Prose content */}
-      <div style={{ fontFamily: 'Georgia, serif', fontSize: '1.05rem', lineHeight: 2, color: 'var(--text-primary)' }}>
-        {displayContent.content.map((para, i) => (
-          <p key={i} style={{
-            marginBottom: 20,
-            textIndent: displayContent.chapter ? '2em' : 0,
-            whiteSpace: 'pre-wrap',
-          }}>
-            {para}
-          </p>
-        ))}
+      <div style={{
+        fontFamily: 'Georgia, serif',
+        fontSize: '1.05rem',
+        lineHeight: 2,
+        color: 'var(--text-primary)',
+      }}>
+        {isMarkdown ? (
+          <MarkdownBlock text={displayContent.rawText} isMarkdown={true} />
+        ) : (
+          displayContent.content.map((para, i) => (
+            <p key={i} style={{
+              marginBottom: 20,
+              textIndent: displayContent.chapter ? '2em' : 0,
+              whiteSpace: 'pre-wrap',
+            }}>
+              {para}
+            </p>
+          ))
+        )}
       </div>
 
       {/* Chapter navigation (only for chapter files) */}
@@ -350,7 +772,7 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 12px', borderRadius: 'var(--radius-sm)',
             border: 'none', background: 'var(--accent)',
-            color: '#000', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
+            color: 'var(--accent-btn-text, #000)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
           }}>
             <BookOpen size={12} /> Preview in Reader
           </button>
@@ -366,7 +788,7 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 'var(--radius-sm)',
             border: 'none', background: saved ? 'var(--bg-tertiary)' : 'var(--accent)',
-            color: saved ? 'var(--text-muted)' : '#000', cursor: 'pointer',
+            color: saved ? 'var(--text-muted)' : 'var(--accent-btn-text, #000)', cursor: 'pointer',
             fontSize: '0.72rem', fontWeight: 600,
           }}>
             Save
@@ -377,13 +799,13 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
       {/* Editor body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Line numbers + textarea */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'auto', background: '#0d0f14' }}>
+        <div style={{ flex: 1, display: 'flex', overflow: 'auto', background: 'var(--editor-bg, #0d0f14)' }}>
           {/* Line numbers gutter */}
           <div style={{
             padding: '12px 0', minWidth: 48, textAlign: 'right',
             fontFamily: 'JetBrains Mono, Consolas, monospace', fontSize: '0.78rem',
             lineHeight: '1.65', color: 'var(--text-muted)', userSelect: 'none',
-            borderRight: '1px solid var(--border)', background: '#0a0c10',
+            borderRight: '1px solid var(--border)', background: 'var(--editor-gutter, #0a0c10)',
             paddingRight: 8, flexShrink: 0,
           }}>
             {lines.map((_, i) => (
@@ -398,7 +820,7 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
             spellCheck={false}
             style={{
               flex: 1, padding: '12px 16px', border: 'none', outline: 'none',
-              background: 'transparent', color: '#c9d1d9',
+              background: 'transparent', color: 'var(--editor-text, #c9d1d9)',
               fontFamily: 'JetBrains Mono, Consolas, monospace', fontSize: '0.78rem',
               lineHeight: '1.65', resize: 'none', tabSize: 2,
               minHeight: '100%',
@@ -423,11 +845,11 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
         {/* Minimap (optional) */}
         {showMinimap && (
           <div style={{
-            width: 80, background: '#0a0c10', borderLeft: '1px solid var(--border)',
+            width: 80, background: 'var(--editor-gutter, #0a0c10)', borderLeft: '1px solid var(--border)',
             overflow: 'hidden', padding: '8px 4px', flexShrink: 0,
           }}>
             <div style={{
-              fontSize: '1.5px', lineHeight: '2px', color: '#c9d1d944',
+              fontSize: '1.5px', lineHeight: '2px', color: 'var(--editor-minimap, #c9d1d944)',
               fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
               overflow: 'hidden', maxHeight: '100%',
             }}>
@@ -1631,6 +2053,7 @@ function ComparisonMode() {
                   Run Deep Comparison
                 </Button>
               </div>
+              <ScrollIntoView />
             </div>
           )}
         </div>
@@ -3306,14 +3729,10 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
   const [msg, setMsg] = useState('');
   const [focused, setFocused] = useState(false);
 
-  // Hot color palette: orange-red / auburn
-  const hot = '#e85d2a';       // primary orange-red
-  const hotGlow = '#c44b20';   // deeper auburn
-  const hotMuted = 'rgba(232, 93, 42, 0.7)';
-
+  // Uses CSS variables so colors adapt to theme changes
   const bgStyle = {
-    background: 'linear-gradient(135deg, #1f120a 0%, #18100e 50%, #0f1117 100%)',
-    borderTop: `1px solid rgba(232, 93, 42, 0.25)`,
+    background: `linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%)`,
+    borderTop: '1px solid var(--accent-border)',
   };
 
   // Collapsed: a single-line input pill with inline send icon
@@ -3328,28 +3747,28 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
             alignItems: 'center',
             gap: 8,
             padding: '7px 14px',
-            background: 'rgba(232, 93, 42, 0.08)',
-            border: '1px solid rgba(232, 93, 42, 0.3)',
+            background: 'var(--accent-subtle)',
+            border: '1px solid var(--accent-border)',
             borderRadius: 100,
             cursor: 'text',
             transition: 'all 0.2s ease',
             position: 'relative',
           }}
         >
-          <MessageSquare size={14} color={hot} />
-          <span style={{ fontSize: '0.8rem', color: hotMuted, fontWeight: 400, flex: 1 }}>
+          <MessageSquare size={14} color="var(--accent)" />
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 400, flex: 1 }}>
             Ask about your story, brainstorm ideas, or request changes...
           </span>
           {/* Inline send icon — partial opacity, inside the pill */}
-          <SendHorizontal size={16} color={hot} style={{ opacity: 0.3, flexShrink: 0 }} />
+          <SendHorizontal size={16} color="var(--accent)" style={{ opacity: 0.3, flexShrink: 0 }} />
         </div>
         <button
           onClick={onToggle}
           style={{
-            background: 'rgba(232, 93, 42, 0.1)',
-            border: '1px solid rgba(232, 93, 42, 0.25)',
+            background: 'var(--accent-tint)',
+            border: '1px solid var(--accent-border)',
             borderRadius: 100,
-            color: hot,
+            color: 'var(--accent)',
             cursor: 'pointer',
             padding: '5px 8px',
             display: 'flex', alignItems: 'center',
@@ -3362,7 +3781,7 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
     );
   }
 
-  // Expanded: full chat input area with same hot treatment
+  // Expanded: full chat input area — all colors via CSS vars
   return (
     <div style={{
       ...bgStyle,
@@ -3373,16 +3792,16 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
     }}>
       {/* Header row */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <MessageSquare size={13} color={hot} />
-        <span style={{ fontSize: '0.7rem', color: hot, fontWeight: 600 }}>Quick Chat</span>
+        <MessageSquare size={13} color="var(--accent)" />
+        <span style={{ fontSize: '0.7rem', color: 'var(--accent)', fontWeight: 600 }}>Quick Chat</span>
         <div style={{ flex: 1 }} />
         <button
           onClick={() => { onSetMode('chat'); onToggle(); }}
           style={{
-            background: 'rgba(232, 93, 42, 0.1)',
-            border: '1px solid rgba(232, 93, 42, 0.25)',
+            background: 'var(--accent-tint)',
+            border: '1px solid var(--accent-border)',
             borderRadius: 100,
-            color: hot,
+            color: 'var(--accent)',
             cursor: 'pointer',
             padding: '3px 10px',
             fontSize: '0.68rem',
@@ -3394,10 +3813,10 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
         <button
           onClick={onToggle}
           style={{
-            background: 'rgba(232, 93, 42, 0.1)',
-            border: '1px solid rgba(232, 93, 42, 0.25)',
+            background: 'var(--accent-tint)',
+            border: '1px solid var(--accent-border)',
             borderRadius: 100,
-            color: hot,
+            color: 'var(--accent)',
             cursor: 'pointer',
             padding: '5px 8px',
             display: 'flex', alignItems: 'center',
@@ -3418,8 +3837,8 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
             rows={2}
             style={{
               width: '100%', padding: '10px 40px 10px 16px',
-              background: 'rgba(232, 93, 42, 0.06)',
-              border: focused ? '1px solid rgba(232, 93, 42, 0.45)' : '1px solid rgba(232, 93, 42, 0.18)',
+              background: 'var(--accent-subtle)',
+              border: focused ? '1px solid var(--accent-focus)' : '1px solid var(--accent-border)',
               borderRadius: 16, color: 'var(--text-primary)',
               fontFamily: 'var(--font-sans)', fontSize: '0.8rem', resize: 'vertical',
               minHeight: 44, maxHeight: 160,
@@ -3433,10 +3852,10 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
             style={{
               position: 'absolute',
               right: 10, top: '50%', transform: 'translateY(-50%)',
-              background: msg.trim() ? hot : 'rgba(232, 93, 42, 0.15)',
+              background: msg.trim() ? 'var(--accent)' : 'var(--accent-glow)',
               border: 'none',
               borderRadius: 100,
-              color: msg.trim() ? '#fff' : hot,
+              color: msg.trim() ? '#fff' : 'var(--accent)',
               cursor: 'pointer',
               padding: 6,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -3472,7 +3891,7 @@ const themePresets = {
   },
   daylight: {
     name: 'Daylight', preview: '#fafaf9',
-    vars: { '--bg-primary': '#fafaf9', '--bg-secondary': '#f5f5f4', '--bg-tertiary': '#e7e5e4', '--text-primary': '#1c1917', '--text-secondary': '#44403c', '--text-muted': '#78716c', '--accent': '#2563eb', '--accent-subtle': 'rgba(37,99,235,0.08)', '--accent-glow': 'rgba(37,99,235,0.12)', '--border': '#d6d3d1' },
+    vars: { '--bg-primary': '#fafaf9', '--bg-secondary': '#f5f5f4', '--bg-tertiary': '#e7e5e4', '--bg-card': '#eeeceb', '--bg-hover': '#e0dedc', '--bg-active': '#d6d3d1', '--text-primary': '#1c1917', '--text-secondary': '#44403c', '--text-muted': '#78716c', '--accent': '#2563eb', '--accent-hover': '#1d4ed8', '--accent-subtle': 'rgba(37,99,235,0.08)', '--accent-glow': 'rgba(37,99,235,0.12)', '--accent-muted': 'rgba(37,99,235,0.7)', '--accent-border': 'rgba(37,99,235,0.2)', '--accent-focus': 'rgba(37,99,235,0.35)', '--accent-tint': 'rgba(37,99,235,0.06)', '--accent-btn-text': '#ffffff', '--border': '#d6d3d1', '--editor-bg': '#f0efed', '--editor-gutter': '#e8e6e4', '--editor-text': '#1c1917', '--editor-minimap': '#1c191722' },
   },
 };
 
@@ -3645,6 +4064,8 @@ export default function WorkspaceScreen() {
   const [editedFiles, setEditedFiles] = useState({});
   const [leftTab, setLeftTab] = useState('phases');
   const [expandedDim, setExpandedDim] = useState(null);
+  const [projectFilesOpen, setProjectFilesOpen] = useState(true);
+  const [engineRefOpen, setEngineRefOpen] = useState(false);
   const [quickChatOpen, setQuickChatOpen] = useState(false);
   const [threadExpanded, setThreadExpanded] = useState(false);
   const [overLimitPrompt, setOverLimitPrompt] = useState(false);
@@ -3919,11 +4340,20 @@ export default function WorkspaceScreen() {
                 )}
                 {leftTab === 'files' && (
                   <div style={{ fontSize: '0.8rem' }}>
-                    {/* Story Project Files */}
-                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '4px 4px 6px', fontWeight: 600 }}>
+                    {/* Story Project Files — Collapsible */}
+                    <div
+                      onClick={() => setProjectFilesOpen(prev => !prev)}
+                      style={{
+                        fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+                        color: 'var(--text-muted)', padding: '4px 4px 6px', fontWeight: 600,
+                        display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {projectFilesOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                       Project Files
                     </div>
-                    {fileTree.filter(f => !f.section).map((f) => (
+                    {projectFilesOpen && fileTree.filter(f => !f.section).map((f) => (
                       <div key={f.name}>
                         <div
                           onClick={() => !f.children && f.name.endsWith('.md') ? openFile(f.name, null) : null}
@@ -3964,12 +4394,21 @@ export default function WorkspaceScreen() {
                         })}
                       </div>
                     ))}
-                    {/* Engine Reference Files */}
+                    {/* Engine Reference Files — Collapsible (collapsed by default) */}
                     <div style={{ height: 1, background: 'var(--border)', margin: '10px 0' }} />
-                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '4px 4px 6px', fontWeight: 600 }}>
+                    <div
+                      onClick={() => setEngineRefOpen(prev => !prev)}
+                      style={{
+                        fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+                        color: 'var(--text-muted)', padding: '4px 4px 6px', fontWeight: 600,
+                        display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {engineRefOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                       Engine Reference
                     </div>
-                    {fileTree.filter(f => f.section === 'engine').map((f) => (
+                    {engineRefOpen && fileTree.filter(f => f.section === 'engine').map((f) => (
                       <div key={f.name}>
                         <div
                           onClick={() => !f.children && f.name.endsWith('.md') ? openFile(f.name, null) : null}
