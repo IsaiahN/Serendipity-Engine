@@ -1,6 +1,30 @@
 import { useState } from 'react';
 import { Check, Circle, Loader, Lock, AlertTriangle } from 'lucide-react';
 
+/*
+ * Phase gating rules:
+ *   - Phases 8 (Chapter Execution) and 9 (Editor) are gated by default.
+ *   - Gates unlock when ALL non-gated phases reach 100% completion.
+ *
+ * TODO: Decompose / Import flow override
+ *   When a user uploads a rough draft or completed book (via /wizard?mode=decompose),
+ *   the gates on Phase 8 and 9 should be UNLOCKED immediately because chapters already
+ *   exist. Implementation steps:
+ *     1. Add a project-level flag: `isDecomposed` (or `hasImportedManuscript`).
+ *        Set this to true when the decompose wizard completes successfully.
+ *     2. When `isDecomposed` is true:
+ *        - Set `gated: false` on phases 8 and 9 (or bypass the gate check entirely).
+ *        - The uploaded manuscript should be split into individual chapter/scene/act files
+ *          (e.g., chapter-1.md, chapter-2.md, etc.) placed in the project's story/ folder.
+ *        - Chapters should be parsed from the uploaded content using heading markers,
+ *          page breaks, or "Chapter N" patterns. Each resulting file should include
+ *          scene metadata: goal, dominant tone, active threads, location, time of day.
+ *        - Phase 8 should display these files as already-generated content ready for editing.
+ *        - Phase 9 (Editor) should be immediately available for review/refinement.
+ *     3. The decompose pipeline still runs Phases 1–7 in reverse (inferring structure
+ *        from existing text), but Phases 8–9 are accessible from the start since the
+ *        raw chapter content is already available.
+ */
 export const phases = [
   { num: 1, name: 'Author', gated: false },
   { num: 2, name: 'Narrator', gated: false },
@@ -10,12 +34,14 @@ export const phases = [
   { num: 6, name: 'Story Foundation', gated: false },
   { num: 7, name: 'Quality Control', gated: false },
   { num: '⟡', name: 'Bridge', gated: false },
-  { num: 8, name: 'Chapter Execution', gated: true },
-  { num: 9, name: 'Editor', gated: true },
+  { num: 8, name: 'Chapter Execution', gated: true },  // Unlock when decomposed or all prereqs complete
+  { num: 9, name: 'Editor', gated: true },              // Unlock when decomposed or all prereqs complete
 ];
 
 // Check if all non-gated phases are complete (accepts pctMap: { phaseNum: pct })
-export function allPrereqsComplete(pctMap = {}) {
+// TODO: Also return true when `isDecomposed` project flag is set (imported manuscript)
+export function allPrereqsComplete(pctMap = {}, isDecomposed = false) {
+  if (isDecomposed) return true;
   return phases.filter(p => !p.gated).every(p => (pctMap[p.num] || 0) === 100);
 }
 

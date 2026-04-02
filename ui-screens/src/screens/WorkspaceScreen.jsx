@@ -4715,7 +4715,76 @@ export default function WorkspaceScreen() {
             zIndex: threadExpanded ? 50 : 1,
           }}
         >
-          {/* Project items */}
+          {/* Project items
+           *
+           * TODO: Project Switching — Save & Restore Flow
+           * =============================================
+           * When a user clicks on a different project in this sidebar, we need to:
+           *
+           * 1. DIRTY STATE DETECTION
+           *    Before switching, check for unsaved work across all stateful areas:
+           *    - editedFiles: any file with unsaved edits in the file editor
+           *    - phaseAnswers: any new/changed answers since last save
+           *    - boardItems: any new scratchpad notes or drafts
+           *    - newChar: if the Add Character modal is open with partially filled data
+           *    - chatInput: if there's unstyped text in the Story Assistant
+           *    Build a `hasDirtyState()` helper that checks all of these.
+           *
+           * 2. SAVE CONFIRMATION MODAL
+           *    If dirty state exists, show a modal BEFORE navigating away:
+           *      "You have unsaved changes in [The Shunning Season]"
+           *      - List what's unsaved: "2 edited files, 3 new phase answers"
+           *      - Three buttons: [Save & Switch] [Discard & Switch] [Cancel]
+           *    If no dirty state, switch immediately without prompting.
+           *
+           * 3. PROJECT SERIALIZATION (Save)
+           *    Serialize the current project state to a project data object:
+           *    {
+           *      id, name, abbr, gradient,
+           *      phaseAnswers,          // all guide answers
+           *      editedFiles,           // modified file contents
+           *      boardItems,            // scratchpad/drawing board
+           *      characters,            // cast roster data
+           *      activePhase,           // last viewed phase
+           *      activeMode,            // last active mode (guide/reader/chat/etc)
+           *      activeFile,            // last opened file
+           *      leftTab,               // last sidebar tab
+           *      wordCount,             // manuscript word count
+           *      isDecomposed,          // whether this was an imported manuscript
+           *    }
+           *    Store in localStorage or a project store (context/zustand).
+           *    Key: `serendipity-project-${projectId}`
+           *
+           * 4. PROJECT DESERIALIZATION (Load)
+           *    When switching TO a project:
+           *    - Load its saved state from storage
+           *    - Hydrate all useState hooks with saved values
+           *    - Recompute phasePcts from loaded phaseAnswers
+           *    - If no saved state exists (new project), use fresh defaults
+           *    - Restore the user's last position (activePhase, activeMode, activeFile)
+           *
+           * 5. STATE MANAGEMENT REFACTOR
+           *    Current approach: all state lives in useState hooks inside WorkspaceScreen.
+           *    For multi-project support, consider:
+           *    - Option A: useReducer with a single project state object (simpler serialize/deserialize)
+           *    - Option B: React Context + localStorage persistence layer
+           *    - Option C: Zustand store with project-scoped slices
+           *    Recommendation: Option A (useReducer) is lightest and keeps everything in this component.
+           *    Define a `projectReducer` and a single `dispatch` that handles all state mutations.
+           *
+           * 6. PROJECT LIST
+           *    Move from hardcoded array to state-driven:
+           *    - const [projects, setProjects] = useState(loadProjectList());
+           *    - "New Project" creates a fresh entry with default state
+           *    - Each project card shows: name, last modified, word count, overall progress %
+           *    - Active project has the accent border (current behavior)
+           *
+           * 7. EDGE CASES
+           *    - User closes browser with unsaved changes → use beforeunload event
+           *    - Auto-save on interval (e.g., every 60s) to minimize data loss
+           *    - Project deletion should require confirmation
+           *    - "New Project" while current project has unsaved changes → same save prompt
+           */}
           {[
             { abbr: 'TS', name: 'The Shunning Season', gradient: 'linear-gradient(135deg, #818cf8, #f97316)', active: true },
             { abbr: 'OD', name: 'Orbital Decay', gradient: 'linear-gradient(135deg, #2dd4bf, #60a5fa)', active: false },
@@ -5329,23 +5398,26 @@ export default function WorkspaceScreen() {
             </p>
             <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, marginBottom: 20, textAlign: 'left' }}>
               <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>Incomplete Phases</div>
-              {phases.filter(p => !p.gated && p.pct < 100).map((p, i) => (
+              {phases.filter(p => !p.gated && (phasePcts[p.num] || 0) < 100).map((p, i) => {
+                const pct = phasePcts[p.num] || 0;
+                return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: '0.8rem' }}>
-                  <span style={{ color: p.pct > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
-                    {p.pct > 0 ? `${p.pct}%` : '○'}
+                  <span style={{ color: pct > 0 ? 'var(--accent)' : 'var(--text-muted)' }}>
+                    {pct > 0 ? `${pct}%` : '○'}
                   </span>
                   <span style={{ color: 'var(--text-secondary)' }}>
                     {typeof p.num === 'number' ? `Phase ${p.num}` : ''} — {p.name}
                   </span>
                 </div>
-              ))}
+                );
+              })}
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <Button variant="secondary" onClick={() => setShowGateWarning(false)}>Got it</Button>
               <Button variant="primary" onClick={() => {
                 setShowGateWarning(false);
                 // Navigate to first incomplete phase
-                const firstIncomplete = phases.find(p => !p.gated && p.pct < 100);
+                const firstIncomplete = phases.find(p => !p.gated && (phasePcts[p.num] || 0) < 100);
                 if (firstIncomplete) {
                   setActivePhase(firstIncomplete.num);
                   setActiveMode('guided');
