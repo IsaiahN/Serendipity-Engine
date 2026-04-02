@@ -674,7 +674,7 @@ function FullCastMode({ onCharacterClick, onBack }) {
         }}>
           <ChevronLeft size={14} /> Back
         </button>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Full Cast — The Shunning Season</h2>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Full Cast/Characters — The Shunning Season</h2>
         <Badge variant="muted">{allChars.length} characters</Badge>
       </div>
 
@@ -2599,7 +2599,7 @@ const characterProfiles = {
     selfCareDestructive: 'Isolation that becomes withdrawal',
     socialPositioning: 'Insider who secretly doesn\'t belong',
     networkArchetype: 'Bridge',
-    antilifeSeal: 'Projection (Seal 5) — assigns her own fears to others and then reacts to the projection',
+    storyDeath: 'Projection (Seal 5) — assigns her own fears to others and then reacts to the projection',
     voice: {
       speechRhythm: 'Circling / Recursive', vocabularyRegister: 'Educated Casual',
       volumePacing: 'Quiet by default', dialogueTic: 'Starts sentences with "I mean—" when about to say something true',
@@ -2648,7 +2648,7 @@ const characterProfiles = {
     selfCareDestructive: 'Overworking to the point of collapse',
     socialPositioning: 'Overestimated position',
     networkArchetype: 'Hub',
-    antilifeSeal: 'Deception (Seal 3) — the lie he told is the load-bearing wall; remove it and everything falls',
+    storyDeath: 'Deception (Seal 3) — the lie he told is the load-bearing wall; remove it and everything falls',
     voice: {
       speechRhythm: 'Declarative / Direct', vocabularyRegister: 'Formal / Elevated',
       volumePacing: 'Measured regardless', dialogueTic: 'Names people in conversation — "Elena, listen" — as a control mechanism',
@@ -2695,7 +2695,7 @@ const characterProfiles = {
     selfCareDestructive: 'Social saturation — being with people constantly',
     socialPositioning: 'Orientation lateral',
     networkArchetype: 'Connector',
-    antilifeSeal: 'None — she is the story\'s clearest-seeing character, which costs her differently',
+    storyDeath: 'None — she is the story\'s clearest-seeing character, which costs her differently',
     voice: {
       speechRhythm: 'Question-forward', vocabularyRegister: 'Educated Casual',
       volumePacing: 'Loud by default — fills the room', dialogueTic: 'Deflects with humor when the subject is serious',
@@ -3091,10 +3091,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             </div>
           )}
 
-          {char.antilifeSeal && (
+          {char.storyDeath && (
             <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              <div style={{ ...labelStyle, color: '#ef4444' }}>Antilife Seal</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.antilifeSeal}</div>
+              <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath}</div>
             </Card>
           )}
 
@@ -3693,6 +3693,42 @@ function SettingsModal({ onClose, currentTheme, onThemeChange }) {
             )}
           </div>
         ))}
+      </div>
+      <div style={{ height: 1, background: 'var(--border)', marginBottom: 16 }} />
+      {/* LLM Provider section */}
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>LLM Provider</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provider</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>Anthropic (Claude)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Model</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>claude-sonnet-4</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>API Key</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>sk-...configured</span>
+        </div>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.5, padding: '4px 0' }}>
+          Supported: Anthropic (Claude), DeepSeek, OpenAI, Google Gemini, Ollama (local). Recommended ranking: Claude &gt; DeepSeek &gt; OpenAI &gt; Ollama.
+        </div>
+      </div>
+      {/* TTS section */}
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Text-to-Speech</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>TTS Engine</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>Piper TTS</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Voice</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>Amy (US English)</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Speed</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>1.0x</span>
+        </div>
       </div>
       <div style={{ height: 1, background: 'var(--border)', marginBottom: 16 }} />
       {/* Other settings */}
