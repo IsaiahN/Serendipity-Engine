@@ -341,6 +341,7 @@ function renderInlineMarkdown(text, keyPrefix = '') {
     { regex: /_(.+?)_/, render: (m, k) => <em key={k}>{m[1]}</em> },
     { regex: /`(.+?)`/, render: (m, k) => <code key={k} style={{ background: 'var(--bg-tertiary)', padding: '1px 5px', borderRadius: 3, fontSize: '0.9em', fontFamily: 'monospace' }}>{m[1]}</code> },
     { regex: /~~(.+?)~~/, render: (m, k) => <del key={k}>{m[1]}</del> },
+    { regex: /!\[([^\]]*)\]\(([^)]+)\)/, render: (m, k) => <img key={k} src={m[2]} alt={m[1]} style={{ maxWidth: '100%', borderRadius: 'var(--radius-sm)', margin: '8px 0' }} /> },
     { regex: /\[([^\]]+)\]\(([^)]+)\)/, render: (m, k) => <a key={k} href={m[2]} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{m[1]}</a> },
   ];
 
@@ -479,6 +480,61 @@ function MarkdownBlock({ text, isMarkdown }) {
       continue;
     }
 
+    // Table: collect consecutive lines starting with |
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      flushList();
+      const tableLines = [line];
+      while (i + 1 < lines.length && lines[i + 1].trim().startsWith('|') && lines[i + 1].trim().endsWith('|')) {
+        i++;
+        tableLines.push(lines[i]);
+      }
+      // Parse: first line = header, second line = separator (skip), rest = body rows
+      const parseRow = (row) => row.split('|').slice(1, -1).map(c => c.trim());
+      const headerCells = parseRow(tableLines[0]);
+      // Detect alignment from separator row
+      const sepRow = tableLines.length > 1 ? parseRow(tableLines[1]) : [];
+      const isSeparator = sepRow.every(c => /^[-:]+$/.test(c));
+      const aligns = isSeparator ? sepRow.map(c => {
+        if (c.startsWith(':') && c.endsWith(':')) return 'center';
+        if (c.endsWith(':')) return 'right';
+        return 'left';
+      }) : headerCells.map(() => 'left');
+      const bodyStart = isSeparator ? 2 : 1;
+      const bodyRows = tableLines.slice(bodyStart).map(parseRow);
+
+      const cellStyle = {
+        padding: '8px 12px', borderBottom: '1px solid var(--border)',
+        fontSize: '0.85rem', lineHeight: 1.5,
+      };
+      elements.push(
+        <div key={`tbl-${elements.length}`} style={{ overflowX: 'auto', margin: '16px 0' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)' }}>
+            <thead>
+              <tr style={{ background: 'var(--bg-tertiary)' }}>
+                {headerCells.map((c, ci) => (
+                  <th key={ci} style={{ ...cellStyle, fontWeight: 600, color: 'var(--text-primary)', textAlign: aligns[ci] || 'left' }}>
+                    {renderInlineMarkdown(c, `th-${elements.length}-${ci}`)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {bodyRows.map((row, ri) => (
+                <tr key={ri} style={{ background: ri % 2 === 0 ? 'transparent' : 'var(--bg-secondary)' }}>
+                  {row.map((c, ci) => (
+                    <td key={ci} style={{ ...cellStyle, color: 'var(--text-secondary)', textAlign: aligns[ci] || 'left' }}>
+                      {renderInlineMarkdown(c, `td-${elements.length}-${ri}-${ci}`)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      );
+      continue;
+    }
+
     // Empty line
     if (line.trim() === '') {
       flushList();
@@ -499,6 +555,30 @@ function MarkdownBlock({ text, isMarkdown }) {
 }
 
 function ReaderMode({ file, onEdit, editedContent }) {
+  // Welcome screen when no file is selected
+  if (!file) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        height: '100%', minHeight: 400, animation: 'fadeIn 0.3s ease', padding: '40px 24px',
+      }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: 16,
+          background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          marginBottom: 20,
+        }}>
+          <BookOpen size={32} color="var(--accent)" />
+        </div>
+        <h2 style={{ color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 600, margin: '0 0 8px' }}>
+          Reader
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', maxWidth: 320, margin: 0, lineHeight: 1.5 }}>
+          Select a file from the sidebar to start reading. Chapters, notes, and world-building docs all render here.
+        </p>
+      </div>
+    );
+  }
+
   const fc = fileContents[file] || defaultFileContent(file || 'chapter-1.md');
   const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
@@ -846,10 +926,11 @@ function ChatMode() {
   const [chatInput, setChatInput] = useState('');
   const suggestionsRef = useState(null);
 
+  const gatedUnlocked = allPrereqsComplete();
   const suggestions = [
     'Talk to a character',
-    'Talk to the editor',
-    'Work on Chapter 5',
+    ...(gatedUnlocked ? ['Talk to the editor'] : []),
+    ...(gatedUnlocked ? ['Work on Chapter 5'] : []),
     'Brainstorm plot ideas',
     'Fix a plot hole',
     'Develop a backstory',
@@ -4981,7 +5062,10 @@ export default function WorkspaceScreen() {
               return (
                 <button
                   key={m.key}
-                  onClick={() => setActiveMode(m.key)}
+                  onClick={() => {
+                    setActiveMode(m.key);
+                    if (m.key === 'reader' || m.key === 'file-editor') setLeftTab('files');
+                  }}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 4,
                     padding: '6px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
