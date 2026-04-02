@@ -1,4 +1,5 @@
-import { MessageSquare, FileText, Plus, Users } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Trash2, Plus, Users } from 'lucide-react';
 
 const characters = [
   { name: 'Elena', role: 'Protagonist', tier: 'main', gradient: 'linear-gradient(135deg, #2dd4bf, #f472b6)', photo: null },
@@ -29,7 +30,9 @@ function Avatar({ char, size = 36 }) {
   );
 }
 
-function MainCharRow({ c, onCharacterClick }) {
+function MainCharRow({ c, onCharacterClick, onCharacterChat, onCharacterDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   return (
     <div
       data-char-name={c.name}
@@ -49,12 +52,29 @@ function MainCharRow({ c, onCharacterClick }) {
         <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{c.name}</div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{c.role}</div>
       </div>
-      <button onClick={(e) => { e.stopPropagation(); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title="Talk">
+      <button onClick={(e) => { e.stopPropagation(); onCharacterChat?.(c.name); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title={`Chat with ${c.name}`}>
         <MessageSquare size={13} />
       </button>
-      <button onClick={(e) => { e.stopPropagation(); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title="File">
-        <FileText size={13} />
-      </button>
+      {confirmDelete ? (
+        <div onClick={(e) => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <button
+            onClick={() => { onCharacterDelete?.(c.name); setConfirmDelete(false); }}
+            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px 6px', fontSize: '0.6rem', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+          <button
+            onClick={() => setConfirmDelete(false)}
+            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px 4px', fontSize: '0.6rem' }}
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title={`Remove ${c.name}`}>
+          <Trash2 size={13} />
+        </button>
+      )}
     </div>
   );
 }
@@ -85,7 +105,7 @@ function MinorCharCell({ c, onCharacterClick }) {
   );
 }
 
-export default function CastRoster({ onCharacterClick, onViewFullCast, onAddCharacter }) {
+export default function CastRoster({ onCharacterClick, onViewFullCast, onAddCharacter, onCharacterChat, onCharacterDelete }) {
   const mainChars = characters.filter(c => c.tier === 'main');
   const minorChars = characters.filter(c => c.tier === 'minor');
 
@@ -115,7 +135,7 @@ export default function CastRoster({ onCharacterClick, onViewFullCast, onAddChar
         Main Characters
       </div>
       {mainChars.map((c) => (
-        <MainCharRow key={c.name} c={c} onCharacterClick={onCharacterClick} />
+        <MainCharRow key={c.name} c={c} onCharacterClick={onCharacterClick} onCharacterChat={onCharacterChat} onCharacterDelete={onCharacterDelete} />
       ))}
 
       {/* Minor Characters — compact two-per-row grid */}

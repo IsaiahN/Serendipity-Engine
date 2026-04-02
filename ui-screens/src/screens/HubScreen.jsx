@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import HealthBar from '../components/HealthBar';
 import Badge from '../components/Badge';
-import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pencil } from 'lucide-react';
+import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pencil, Check, X } from 'lucide-react';
 
 const projects = [
   {
@@ -29,15 +29,37 @@ const projects = [
 
 const quickActions = [
   { icon: Upload, label: 'Import a story to decompose', path: '/wizard?mode=decompose' },
-  { icon: Users, label: 'Build a character (standalone)', path: '/workspace?mode=cast' },
+  { icon: Users, label: 'Build a character (standalone)', path: '/workspace?mode=full-cast&action=add-character' },
   { icon: Globe, label: 'Build a world (standalone)', path: '/workspace?mode=world' },
-  { icon: GitCompare, label: 'Compare two stories', path: '/wizard?mode=compare' },
+  { icon: GitCompare, label: 'Compare two stories', path: '/workspace?mode=comparison' },
   { icon: FolderOpen, label: 'Open from folder', path: '/wizard?mode=import' },
 ];
 
 export default function HubScreen() {
   const navigate = useNavigate();
+  const [projectList, setProjectList] = useState(projects);
   const [selectedProject, setSelectedProject] = useState(projects[0]);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef(null);
+
+  useEffect(() => {
+    if (renamingId !== null) renameInputRef.current?.focus();
+  }, [renamingId]);
+
+  const startRename = (e, p) => {
+    e.stopPropagation();
+    setRenamingId(p.id);
+    setRenameValue(p.title);
+  };
+
+  const commitRename = (id) => {
+    if (renameValue.trim()) {
+      setProjectList(prev => prev.map(p => p.id === id ? { ...p, title: renameValue.trim() } : p));
+      if (selectedProject?.id === id) setSelectedProject(prev => ({ ...prev, title: renameValue.trim() }));
+    }
+    setRenamingId(null);
+  };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
@@ -74,7 +96,7 @@ export default function HubScreen() {
           <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '8px 12px' }}>
             My Projects
           </div>
-          {projects.map((p) => (
+          {projectList.map((p) => (
             <div
               key={p.id}
               onClick={() => setSelectedProject(p)}
@@ -94,16 +116,40 @@ export default function HubScreen() {
                   background: p.gradient,
                   flexShrink: 0,
                 }} />
-                <span style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                  {p.title}
-                </span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); }}
-                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, opacity: 0.5, flexShrink: 0 }}
-                  title="Rename project"
-                >
-                  <Pencil size={12} />
-                </button>
+                {renamingId === p.id ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
+                    <input
+                      ref={renameInputRef}
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') commitRename(p.id); if (e.key === 'Escape') setRenamingId(null); }}
+                      style={{
+                        flex: 1, background: 'var(--bg-primary)', border: '1px solid var(--accent)',
+                        borderRadius: 4, color: 'var(--text-primary)', fontSize: '0.85rem',
+                        padding: '2px 6px', outline: 'none', minWidth: 0,
+                      }}
+                    />
+                    <button onClick={() => commitRename(p.id)} style={{ background: 'none', border: 'none', color: 'var(--health-strong)', cursor: 'pointer', padding: 2 }} title="Save">
+                      <Check size={12} />
+                    </button>
+                    <button onClick={() => setRenamingId(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} title="Cancel">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                      {p.title}
+                    </span>
+                    <button
+                      onClick={(e) => startRename(e, p)}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, opacity: 0.5, flexShrink: 0 }}
+                      title="Rename project"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  </>
+                )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 32 }}>
                 <HealthBar rating={p.health} size="sm" showLabel={false} style={{ flex: 1 }} />
@@ -122,9 +168,9 @@ export default function HubScreen() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 10px' }}>
             {[
               { label: 'Deconstruct a book', path: '/wizard?mode=decompose' },
-              { label: 'Compare two stories', path: '/wizard?mode=compare' },
-              { label: 'Talk to a character', path: '/workspace?mode=chat' },
-              { label: 'Retell from another POV', path: '/workspace?mode=guided' },
+              { label: 'Compare two stories', path: '/workspace?mode=comparison' },
+              { label: 'Talk to a character', path: '/workspace?mode=chat&panel=cast' },
+              { label: 'Retell from another POV', path: '/wizard?mode=retell' },
               { label: 'Write a spinoff', path: '/wizard?mode=spinoff' },
               { label: 'Write a sequel', path: '/wizard?mode=sequel' },
               { label: 'Write a prequel', path: '/wizard?mode=prequel' },
@@ -211,7 +257,7 @@ export default function HubScreen() {
                 <Button variant="primary" onClick={() => navigate('/workspace')}>
                   Pick Up Where I Left Off
                 </Button>
-                <Button variant="secondary" onClick={() => navigate('/workspace')}>
+                <Button variant="secondary" onClick={() => navigate('/workspace?mode=reader')}>
                   Show Full Picture
                 </Button>
                 <Button variant="ghost" onClick={() => navigate('/workspace?mode=timeline')}>

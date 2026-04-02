@@ -1,15 +1,121 @@
-import { useState } from 'react';
-import { Settings, Search, Keyboard, Palette, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Settings, Search, Keyboard, Palette, ChevronDown, FileText, BookOpen, MessageSquare, Clock, Users, Compass, Edit3, GitCompare } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import HealthBar, { getHealthLevel } from './HealthBar';
+
+/* ─── Command Palette / Search Modal ─── */
+const commandItems = [
+  { icon: Compass, label: 'Open Guide Mode', shortcut: null, action: (nav) => nav('/workspace?mode=guided') },
+  { icon: MessageSquare, label: 'Open Story Assistant', shortcut: null, action: (nav) => nav('/workspace?mode=chat') },
+  { icon: BookOpen, label: 'Open Reader', shortcut: null, action: (nav) => nav('/workspace?mode=reader') },
+  { icon: Edit3, label: 'Open Editor', shortcut: null, action: (nav) => nav('/workspace?mode=editor') },
+  { icon: Clock, label: 'Open Timeline', shortcut: null, action: (nav) => nav('/workspace?mode=timeline') },
+  { icon: GitCompare, label: 'Compare Stories', shortcut: null, action: (nav) => nav('/workspace?mode=comparison') },
+  { icon: Users, label: 'View Full Cast', shortcut: null, action: (nav) => nav('/workspace?mode=full-cast') },
+  { icon: FileText, label: 'Go to Hub', shortcut: null, action: (nav) => nav('/hub') },
+  { icon: Settings, label: 'Open Settings', shortcut: 'Ctrl+,', action: (nav) => nav('/settings') },
+];
+
+function SearchModal({ onClose, navigate }) {
+  const [query, setQuery] = useState('');
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  const filtered = commandItems.filter(
+    (item) => item.label.toLowerCase().includes(query.toLowerCase())
+  );
+
+  const runCommand = (item) => {
+    item.action(navigate);
+    onClose();
+  };
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      paddingTop: 120, zIndex: 9999,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: 440, background: 'var(--bg-card)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+        overflow: 'hidden',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+          <Search size={16} color="var(--text-muted)" />
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && filtered.length > 0) runCommand(filtered[0]); }}
+            placeholder="Search commands..."
+            style={{
+              flex: 1, background: 'none', border: 'none', outline: 'none',
+              color: 'var(--text-primary)', fontSize: '0.9rem',
+            }}
+          />
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', padding: '2px 6px', border: '1px solid var(--border)', borderRadius: 4 }}>ESC</span>
+        </div>
+        <div style={{ maxHeight: 320, overflowY: 'auto', padding: '4px 0' }}>
+          {filtered.length === 0 && (
+            <div style={{ padding: '20px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              No matching commands
+            </div>
+          )}
+          {filtered.map((item) => (
+            <div
+              key={item.label}
+              onClick={() => runCommand(item)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem',
+                color: 'var(--text-secondary)', transition: 'var(--transition)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--accent)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            >
+              <item.icon size={15} color="var(--text-muted)" />
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.shortcut && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>{item.shortcut}</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick, onSettingsClick, onThemeClick }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+
+  // Ctrl+K / Cmd+K keyboard shortcut for command palette
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return (
+    <>
+    {showSearch && <SearchModal onClose={() => setShowSearch(false)} navigate={navigate} />}
     <div style={{
       height: 48,
       background: 'var(--bg-secondary)',
@@ -100,7 +206,7 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
       )}
 
       {/* Actions */}
-      <button onClick={() => {}} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Command Palette (Ctrl+K)">
+      <button onClick={() => setShowSearch(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Command Palette (Ctrl+K)">
         <Search size={16} />
       </button>
       <button onClick={() => {}} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Keyboard Shortcuts">
@@ -113,5 +219,6 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
         <Settings size={16} />
       </button>
     </div>
+    </>
   );
 }

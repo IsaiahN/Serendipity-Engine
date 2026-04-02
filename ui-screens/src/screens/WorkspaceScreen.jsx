@@ -276,6 +276,37 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
 }
 
 function EditorMode() {
+  const [editorFilter, setEditorFilter] = useState('all'); // 'all' | 'issues' | 'suggestions' | 'strengths'
+
+  const editorItems = [
+    { type: 'issue', color: '#f97316', label: 'Issue', text: "Marcus's dialogue in the confrontation scene (lines 34-41) sounds too formal for someone in emotional crisis. His register should drop — shorter sentences, fragments, raw vocabulary." },
+    { type: 'issue', color: '#f97316', label: 'Issue', text: "The transition between the kitchen scene and the church meeting (lines 78-82) is abrupt. A brief bridging sentence showing Elena's internal state would smooth it." },
+    { type: 'issue', color: '#f97316', label: 'Issue', text: "Bishop Lapp's dialogue on line 112 inadvertently echoes Marcus's phrasing from Chapter 3. Either differentiate or make it an intentional callback." },
+    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "The physical description of the hallway before Elena opens the door is doing important tension work. Consider extending it — the reader needs to feel her hesitation before the reveal." },
+    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "Priya's reaction in the aftermath could carry more weight if you plant a small foreshadowing detail earlier — even a throwaway line about her own family history." },
+    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "The chapter title 'Unraveling' is functional but generic. Consider something that mirrors the Mennonite community language." },
+    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "Consider ending the chapter one paragraph earlier — the current final line explains what the silence already conveyed." },
+    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "Ruth's body language during the confrontation is understated in a way that works, but one precise physical detail would anchor her presence more." },
+    { type: 'strength', color: '#4ade80', label: 'Strength', text: "The emotional trajectory from dread → shock → fury → quiet grief is perfectly paced. The fury is brief and cathartic — the grief that replaces it is the real payload. Don't change this." },
+    { type: 'strength', color: '#4ade80', label: 'Strength', text: "The dialogue rhythm in the confrontation scene is excellent — the pauses (marked by action beats) feel natural and let the tension breathe." },
+  ];
+
+  const counts = {
+    issues: editorItems.filter(i => i.type === 'issue').length,
+    suggestions: editorItems.filter(i => i.type === 'suggestion').length,
+    strengths: editorItems.filter(i => i.type === 'strength').length,
+  };
+
+  const filtered = editorFilter === 'all' ? editorItems : editorItems.filter(i => i.type === editorFilter.replace(/s$/, ''));
+
+  const badgeStyle = (filterKey, bg, fg) => ({
+    background: editorFilter === filterKey ? fg + '33' : bg,
+    color: fg,
+    cursor: 'pointer',
+    border: editorFilter === filterKey ? `1px solid ${fg}` : '1px solid transparent',
+    transition: 'var(--transition)',
+  });
+
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -289,21 +320,34 @@ function EditorMode() {
         padding: 24,
         minHeight: 300,
       }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <Badge style={{ background: '#f9731622', color: '#f97316' }}>3 Issues</Badge>
-          <Badge style={{ background: '#fbbf2422', color: '#fbbf24' }}>5 Suggestions</Badge>
-          <Badge style={{ background: '#4ade8022', color: '#4ade80' }}>2 Strengths</Badge>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          <Badge
+            onClick={() => setEditorFilter(editorFilter === 'issues' ? 'all' : 'issues')}
+            style={badgeStyle('issues', '#f9731622', '#f97316')}
+          >{counts.issues} Issues</Badge>
+          <Badge
+            onClick={() => setEditorFilter(editorFilter === 'suggestions' ? 'all' : 'suggestions')}
+            style={badgeStyle('suggestions', '#fbbf2422', '#fbbf24')}
+          >{counts.suggestions} Suggestions</Badge>
+          <Badge
+            onClick={() => setEditorFilter(editorFilter === 'strengths' ? 'all' : 'strengths')}
+            style={badgeStyle('strengths', '#4ade8022', '#4ade80')}
+          >{counts.strengths} Strengths</Badge>
+          {editorFilter !== 'all' && (
+            <span onClick={() => setEditorFilter('all')} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', alignSelf: 'center', marginLeft: 4 }}>
+              Clear filter ×
+            </span>
+          )}
         </div>
         <div style={{ fontSize: '0.85rem', color: '#d4a574', lineHeight: 1.8 }}>
-          <p style={{ marginBottom: 12 }}>
-            <strong style={{ color: '#f97316' }}>Issue:</strong> Marcus's dialogue in the confrontation scene (lines 34-41) sounds too formal for someone in emotional crisis. His register should drop — shorter sentences, fragments, raw vocabulary.
-          </p>
-          <p style={{ marginBottom: 12 }}>
-            <strong style={{ color: '#fbbf24' }}>Suggestion:</strong> The physical description of the hallway before Elena opens the door is doing important tension work. Consider extending it — the reader needs to feel her hesitation before the reveal.
-          </p>
-          <p>
-            <strong style={{ color: '#4ade80' }}>Strength:</strong> The emotional trajectory from dread → shock → fury → quiet grief is perfectly paced. The fury is brief and cathartic — the grief that replaces it is the real payload. Don't change this.
-          </p>
+          {filtered.map((item, i) => (
+            <p key={i} style={{ marginBottom: 12 }}>
+              <strong style={{ color: item.color }}>{item.label}:</strong> {item.text}
+            </p>
+          ))}
+          {filtered.length === 0 && (
+            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No items match this filter.</p>
+          )}
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -2292,6 +2336,7 @@ function ComparisonMode() {
   const [comparisonType, setComparisonType] = useState(null);
   const [workA, setWorkA] = useState(null);
   const [workB, setWorkB] = useState(null);
+  const [comparisonValidation, setComparisonValidation] = useState(null);
   const [pickingSide, setPickingSide] = useState(null); // 'A' | 'B'
   const [activeDimensions, setActiveDimensions] = useState(comparisonDimensions.map(d => d.key));
   const [expandedDimension, setExpandedDimension] = useState(null);
@@ -2467,12 +2512,25 @@ function ComparisonMode() {
               <div style={{ textAlign: 'center' }}>
                 <Button
                   variant={workA && workB ? 'primary' : 'secondary'}
-                  onClick={() => { if (workA && workB) setPhase('results'); }}
-                  style={{ opacity: workA && workB ? 1 : 0.4, pointerEvents: workA && workB ? 'auto' : 'none', padding: '10px 32px' }}
+                  onClick={() => {
+                    if (workA && workB) {
+                      setPhase('results');
+                      setComparisonValidation(null);
+                    } else {
+                      setComparisonValidation(!workA && !workB ? 'Select both works before running the comparison.' : !workA ? 'Select Work A to continue.' : 'Select Work B to continue.');
+                    }
+                  }}
+                  style={{ opacity: workA && workB ? 1 : 0.5, padding: '10px 32px' }}
                 >
                   <Sparkles size={14} style={{ marginRight: 6 }} />
                   Run Deep Comparison
                 </Button>
+                {comparisonValidation && (
+                  <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, animation: 'fadeIn 0.3s ease' }}>
+                    <AlertTriangle size={13} />
+                    {comparisonValidation}
+                  </div>
+                )}
               </div>
               <ScrollIntoView />
             </div>
@@ -4381,7 +4439,7 @@ function ExportModal({ onClose }) {
 }
 
 /* ─── Settings Modal ─── */
-function SettingsModal({ onClose, currentTheme, onThemeChange }) {
+function SettingsModal({ onClose, currentTheme, onThemeChange, onGoToFullSettings }) {
   const settings = [
     { label: 'Auto-save interval', value: '30 seconds', type: 'select' },
     { label: 'Word count goal', value: '70,000', type: 'input' },
@@ -4391,7 +4449,23 @@ function SettingsModal({ onClose, currentTheme, onThemeChange }) {
   ];
   return (
     <ModalOverlay onClose={onClose}>
-      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Settings</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Quick Settings</h3>
+        <button
+          onClick={onGoToFullSettings}
+          style={{
+            background: 'none', border: 'none', color: 'var(--accent)',
+            cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+            transition: 'var(--transition)',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--accent-glow)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+        >
+          All Settings →
+        </button>
+      </div>
       {/* Theme picker section */}
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Appearance</div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
@@ -4518,6 +4592,8 @@ export default function WorkspaceScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') || 'guided';
+  const initialAction = searchParams.get('action'); // e.g. 'add-character'
+  const initialPanel = searchParams.get('panel');   // e.g. 'cast'
   const [activeMode, setActiveMode] = useState(initialMode);
   const [activeFile, setActiveFile] = useState(null); // tracks which file is open
   const [selectedCharacter, setSelectedCharacter] = useState(null); // for character profile view
@@ -4526,7 +4602,7 @@ export default function WorkspaceScreen() {
   const [activePhase, setActivePhase] = useState(3); // which phase is being viewed in Guide
   const [showGateWarning, setShowGateWarning] = useState(false); // modal for locked phases
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
-  const [showAddCharModal, setShowAddCharModal] = useState(false);
+  const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null });
   // Phase answers — tracks user input per phase per question
   const [phaseAnswers, setPhaseAnswers] = useState({
@@ -4546,7 +4622,7 @@ export default function WorkspaceScreen() {
   // Derive current active phase = first incomplete non-gated phase
   const derivedCurrentPhase = currentActivePhase(phasePcts);
 
-  const [leftTab, setLeftTab] = useState('phases');
+  const [leftTab, setLeftTab] = useState(initialPanel === 'cast' ? 'cast' : 'phases');
   const [expandedDim, setExpandedDim] = useState(null);
   const [projectFilesOpen, setProjectFilesOpen] = useState(true);
   const [engineRefOpen, setEngineRefOpen] = useState(false);
@@ -4792,7 +4868,7 @@ export default function WorkspaceScreen() {
           ].map((p) => (
             <div
               key={p.abbr}
-              onClick={() => p.active ? navigate('/hub') : null}
+              onClick={() => navigate('/hub')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -4939,6 +5015,8 @@ export default function WorkspaceScreen() {
                     onAddCharacter={() => setShowAddCharModal(true)}
                     onCharacterClick={(name) => { setSelectedCharacter(name); setActiveMode('character-profile'); }}
                     onViewFullCast={() => setActiveMode('full-cast')}
+                    onCharacterChat={(name) => { setSelectedCharacter(name); setActiveMode('chat'); }}
+                    onCharacterDelete={(name) => { /* TODO: remove character from project state */ }}
                   />
                 )}
                 {leftTab === 'files' && (
@@ -5378,13 +5456,13 @@ export default function WorkspaceScreen() {
         currentPhase={derivedCurrentPhase}
         wordCount={wordCount}
         wordLimit={wordLimit}
-        onPhaseClick={() => { setLeftCollapsed(false); setLeftTab('phases'); }}
+        onPhaseClick={() => { setLeftCollapsed(false); setLeftTab('phases'); setActiveMode('guided'); }}
         onOverLimitClick={() => { setActiveMode('chat'); setOverLimitPrompt(true); }}
       />
 
       {/* Modals */}
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
-      {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
+      {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} onGoToFullSettings={() => { setShowSettingsModal(false); navigate('/settings'); }} />}
       {showThemeModal && <ThemePickerModal onClose={() => setShowThemeModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
 
       {/* Gate Warning Modal — locked phases */}
