@@ -85,7 +85,7 @@ function MinorCharCell({ c, onCharacterClick }) {
   );
 }
 
-export default function CastRoster({ onCharacterClick, onViewFullCast }) {
+export default function CastRoster({ onCharacterClick, onViewFullCast, onAddCharacter }) {
   const mainChars = characters.filter(c => c.tier === 'main');
   const minorChars = characters.filter(c => c.tier === 'minor');
 
@@ -97,6 +97,7 @@ export default function CastRoster({ onCharacterClick, onViewFullCast }) {
           Cast Roster
         </h4>
         <button
+          onClick={() => onAddCharacter?.()}
           style={{
             display: 'flex', alignItems: 'center', gap: 4,
             background: 'none', border: '1px solid var(--border)',

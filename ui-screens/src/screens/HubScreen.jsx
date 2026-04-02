@@ -28,11 +28,11 @@ const projects = [
 ];
 
 const quickActions = [
-  { icon: Upload, label: 'Import a story to decompose' },
-  { icon: Users, label: 'Build a character (standalone)' },
-  { icon: Globe, label: 'Build a world (standalone)' },
-  { icon: GitCompare, label: 'Compare two stories' },
-  { icon: FolderOpen, label: 'Open from folder' },
+  { icon: Upload, label: 'Import a story to decompose', path: '/wizard?mode=decompose' },
+  { icon: Users, label: 'Build a character (standalone)', path: '/workspace?mode=cast' },
+  { icon: Globe, label: 'Build a world (standalone)', path: '/workspace?mode=world' },
+  { icon: GitCompare, label: 'Compare two stories', path: '/wizard?mode=compare' },
+  { icon: FolderOpen, label: 'Open from folder', path: '/wizard?mode=import' },
 ];
 
 export default function HubScreen() {
@@ -121,17 +121,18 @@ export default function HubScreen() {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, padding: '0 10px' }}>
             {[
-              'Deconstruct a book',
-              'Compare two stories',
-              'Talk to a character',
-              'Retell from another POV',
-              'Write a spinoff',
-              'Write a sequel',
-              'Write a prequel',
-              'Build a world',
-            ].map((label) => (
+              { label: 'Deconstruct a book', path: '/wizard?mode=decompose' },
+              { label: 'Compare two stories', path: '/wizard?mode=compare' },
+              { label: 'Talk to a character', path: '/workspace?mode=chat' },
+              { label: 'Retell from another POV', path: '/workspace?mode=guided' },
+              { label: 'Write a spinoff', path: '/wizard?mode=spinoff' },
+              { label: 'Write a sequel', path: '/wizard?mode=sequel' },
+              { label: 'Write a prequel', path: '/wizard?mode=prequel' },
+              { label: 'Build a world', path: '/workspace?mode=world' },
+            ].map((item) => (
               <div
-                key={label}
+                key={item.label}
+                onClick={() => navigate(item.path)}
                 style={{
                   padding: '5px 12px',
                   borderRadius: 100,
@@ -153,7 +154,7 @@ export default function HubScreen() {
                   e.currentTarget.style.background = 'transparent';
                 }}
               >
-                {label}
+                {item.label}
               </div>
             ))}
           </div>
@@ -227,12 +228,15 @@ export default function HubScreen() {
               {quickActions.map((a) => (
                 <div
                   key={a.label}
+                  onClick={() => navigate(a.path)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     padding: '10px 12px', borderRadius: 'var(--radius-sm)',
                     cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)',
                     transition: 'var(--transition)',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
                 >
                   <a.icon size={16} color="var(--text-muted)" />
                   {a.label}

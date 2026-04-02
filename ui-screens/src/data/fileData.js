@@ -989,7 +989,7 @@ The engine is functional. It produced a coherent, internally consistent story fr
   - Example: if a character was created in Phase 4 with no visible Stream A/B conflict, fixing it in Phase 7 requires going back and revising the character file. Fixing it during Phase 4 would have been one step.
 - **Recommendation:** Add brief "micro-checks" at the end of Phase 3 and Phase 4:
   - Phase 3 micro-check: "Does your theme question create a Stream A/B conflict for your protagonist? Does your world have all four network archetypes in its design?"
-  - Phase 4 micro-check (per character): "What is this character's Stream A / Stream B conflict? Which network archetype are they? Which Seven Deaths seal are they most at risk of carrying?"
+  - Phase 4 micro-check (per character): "What is this character's Stream A / Stream B conflict? Which network archetype are they? Which Story Deaths seal are they most at risk of carrying?"
 - **Priority:** MEDIUM. Would significantly reduce backtracking.
 
 ---
@@ -1654,7 +1654,7 @@ It's not a question.
 - Stream B: Lawful Evil — he IS Stream B in this story. He has been the institutional voice for thirty years. His Stream B is almost total, which makes him terrifying.
 - Stream Conflict: Near-zero visible conflict on the surface. The conflict in his consciousness is between his private theosophy (which makes the community's Christian doctrine a governing tool, not a personal belief) and his public role. He has resolved this by deciding they serve the same end: order.
 - I-Thread: "I am the one who maintains the structure." This has not changed since approximately 1930. The threat Maren poses is not personal — she threatens the I-Thread by demonstrating that the structure maintained in 1933 did not save anything, only delayed the accounting.
-- **Check: PASS** — Eicher's near-zero visible conflict is correct. The horror of him is that he has no crack. His I-Thread is airtight. This is what the Seven Deaths checklist calls Stasis, and it is deliberate.
+- **Check: PASS** — Eicher's near-zero visible conflict is correct. The horror of him is that he has no crack. His I-Thread is airtight. This is what the Story Deaths checklist calls Stasis, and it is deliberate.
 
 **Jean-Luc Dupree**
 - Stream A: Grief-avoidance built into every comic deflection. Jean-Paul's disappearance in 1944 has never been processed. His private truth is that he has been looking for his brother in every missing-persons case he's ever worked.
@@ -1807,7 +1807,7 @@ The story's final act is Maren making *a decision* — to protect Clara's privac
 
 ## Phase 7 Summary
 
-All five frameworks pass. The story is internally coherent, the consciousness theory is mapped, all four network archetypes are represented, the Seven Deaths are addressed or intentionally weaponized, and the 6/6 resonance domains are active. The story is ready for Chapter 1 execution.
+All five frameworks pass. The story is internally coherent, the consciousness theory is mapped, all four network archetypes are represented, the Story Deaths are addressed or intentionally weaponized, and the 6/6 resonance domains are active. The story is ready for Chapter 1 execution.
 
 **One flag carried forward to the audit:**
 - Phase 7 checks are currently embedded in a single review file rather than being checkpoints within each Phase. The checklist could benefit from integrating these micro-checks at Phase 3 (world) and Phase 4 (characters) as well as at Phase 7, so that late-phase misalignment is caught earlier. This is a workflow design flag, not a story flag.

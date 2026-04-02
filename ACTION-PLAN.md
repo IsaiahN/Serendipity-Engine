@@ -271,6 +271,12 @@ Reads/writes: drawing-board/notes.md (freeform content).
 
 **What happens:** The randomization engine generates a complete author persona using the datetime seed. Each attribute (age, gender, religion, sexuality, MBTI, enneagram, alignment, character type, wound, values, etc.) is rolled against the corresponding reference file. Alternatively, the user fills out the author-profile-template.md as themselves.
 
+**Author Profile Mode:** Before generating or filling in the author profile, the user selects one of two modes:
+- **"This is me"** - The author.md represents the real user. The silent writing assessment calibrates against their actual prose style and tendencies. Editor feedback references their real strengths and blind spots. The coaching layer is personalized.
+- **"This is a persona"** - The author.md is a fictional or aspirational identity the user wants to write through. The system still uses it for narrator derivation, voice calibration, and chapter generation, but the silent writing assessment and editor feedback calibrate against the *persona's* declared style rather than the user's real tendencies. This mode is legitimate and useful for writers who want to stretch beyond their comfort zone or create a distinct authorial voice different from their own.
+
+This distinction is stored as a single metadata flag on the author.md file. It does not restrict any functionality. Both modes produce the same file structure and go through the same pipeline. The only difference is how the coaching/assessment layer interprets the gap between the user's actual writing and the author profile.
+
 **LLM involvement:** After rolls are complete, the LLM conducts an interactive interview with the user to refine the author profile. It asks about the Big Picture Statement, checks for internal contradictions, and writes the final author.md.
 
 **Guided mode UI:** One attribute at a time, card-reveal style. Each roll is shown with the reference context (what does this MBTI type mean for writing?). User can re-roll any attribute or manually override.
