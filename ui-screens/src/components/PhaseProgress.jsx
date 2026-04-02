@@ -2,27 +2,33 @@ import { useState } from 'react';
 import { Check, Circle, Loader, Lock, AlertTriangle } from 'lucide-react';
 
 export const phases = [
-  { num: 1, name: 'Author', pct: 100, gated: false },
-  { num: 2, name: 'Narrator', pct: 100, gated: false },
-  { num: 3, name: 'World', pct: 72, gated: false },
-  { num: 4, name: 'Characters', pct: 0, gated: false },
-  { num: 5, name: 'Relationships', pct: 0, gated: false },
-  { num: 6, name: 'Story Foundation', pct: 0, gated: false },
-  { num: 7, name: 'Quality Control', pct: 0, gated: false },
-  { num: '⟡', name: 'Bridge', pct: 0, gated: false },
-  { num: 8, name: 'Chapter Execution', pct: 0, gated: true },
-  { num: 9, name: 'Editor', pct: 0, gated: true },
+  { num: 1, name: 'Author', gated: false },
+  { num: 2, name: 'Narrator', gated: false },
+  { num: 3, name: 'World', gated: false },
+  { num: 4, name: 'Characters', gated: false },
+  { num: 5, name: 'Relationships', gated: false },
+  { num: 6, name: 'Story Foundation', gated: false },
+  { num: 7, name: 'Quality Control', gated: false },
+  { num: '⟡', name: 'Bridge', gated: false },
+  { num: 8, name: 'Chapter Execution', gated: true },
+  { num: 9, name: 'Editor', gated: true },
 ];
 
-// Check if all non-gated phases are complete
-export function allPrereqsComplete() {
-  return phases.filter(p => !p.gated).every(p => p.pct === 100);
+// Check if all non-gated phases are complete (accepts pctMap: { phaseNum: pct })
+export function allPrereqsComplete(pctMap = {}) {
+  return phases.filter(p => !p.gated).every(p => (pctMap[p.num] || 0) === 100);
 }
 
 // Compute overall progress
-export function overallProgress() {
-  const total = phases.reduce((s, p) => s + p.pct, 0);
+export function overallProgress(pctMap = {}) {
+  const total = phases.reduce((s, p) => s + (pctMap[p.num] || 0), 0);
   return Math.round(total / phases.length);
+}
+
+// Find the current active phase — first incomplete non-gated phase
+export function currentActivePhase(pctMap = {}) {
+  const incomplete = phases.find(p => !p.gated && (pctMap[p.num] || 0) < 100);
+  return incomplete ? incomplete.num : phases[phases.length - 1].num;
 }
 
 function StatusIcon({ pct, locked }) {
@@ -32,10 +38,10 @@ function StatusIcon({ pct, locked }) {
   return <Circle size={14} color="var(--text-muted)" />;
 }
 
-export default function PhaseProgress({ currentPhase = 3, onPhaseClick }) {
+export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePcts = {} }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
-  const pctOverall = overallProgress();
-  const prereqsDone = allPrereqsComplete();
+  const pctOverall = overallProgress(phasePcts);
+  const prereqsDone = allPrereqsComplete(phasePcts);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -51,6 +57,7 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick }) {
         </div>
       </div>
       {phases.map((p, i) => {
+        const pct = phasePcts[p.num] || 0;
         const isActive = p.num === currentPhase;
         const isLocked = p.gated && !prereqsDone;
         const isHovered = hoveredIdx === i;
@@ -74,10 +81,10 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick }) {
               opacity: isLocked ? 0.55 : 1,
             }}
           >
-            <StatusIcon pct={p.pct} locked={isLocked} />
+            <StatusIcon pct={pct} locked={isLocked} />
             <span style={{
               fontSize: '0.8rem',
-              color: isActive ? 'var(--accent)' : p.pct === 100 ? 'var(--text-secondary)' : 'var(--text-muted)',
+              color: isActive ? 'var(--accent)' : pct === 100 ? 'var(--text-secondary)' : 'var(--text-muted)',
               fontWeight: isActive ? 600 : 400,
               flex: 1,
             }}>
@@ -86,10 +93,10 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick }) {
             {isLocked && (
               <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', opacity: 0.7 }}>locked</span>
             )}
-            {!isLocked && p.pct > 0 && p.pct < 100 && (
-              <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>{p.pct}%</span>
+            {!isLocked && pct > 0 && pct < 100 && (
+              <span style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>{pct}%</span>
             )}
-            {!isLocked && p.pct === 100 && (
+            {!isLocked && pct === 100 && (
               <span style={{ fontSize: '0.7rem', color: 'var(--health-exceptional)' }}>✓</span>
             )}
           </div>

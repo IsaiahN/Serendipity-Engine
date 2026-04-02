@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
-import PhaseProgress, { phases, allPrereqsComplete } from '../components/PhaseProgress';
+import PhaseProgress, { phases, allPrereqsComplete, overallProgress, currentActivePhase } from '../components/PhaseProgress';
 import CastRoster from '../components/CastRoster';
 import fileContents from '../data/fileData';
 import HealthBar from '../components/HealthBar';
@@ -922,11 +922,11 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
   );
 }
 
-function ChatMode() {
+function ChatMode({ phasePcts = {} }) {
   const [chatInput, setChatInput] = useState('');
   const suggestionsRef = useState(null);
 
-  const gatedUnlocked = allPrereqsComplete();
+  const gatedUnlocked = allPrereqsComplete(phasePcts);
   const suggestions = [
     'Talk to a character',
     ...(gatedUnlocked ? ['Talk to the editor'] : []),
@@ -4535,6 +4535,17 @@ export default function WorkspaceScreen() {
     3: { 1: 'Rural Lancaster County, PA — Amish/Mennonite settlement', 2: 'Contemporary (present day)', 3: 'Tight-knit religious community with rigid social rules' },
     4: {}, 5: {}, 6: {}, 7: {}, '⟡': {}, 8: {}, 9: {},
   });
+
+  // Compute phase percentages dynamically from answers vs questions
+  const phasePcts = {};
+  phases.forEach(p => {
+    const qs = phaseQuestions[p.num] || [];
+    const answered = Object.keys(phaseAnswers[p.num] || {}).length;
+    phasePcts[p.num] = qs.length > 0 ? Math.round((answered / qs.length) * 100) : 0;
+  });
+  // Derive current active phase = first incomplete non-gated phase
+  const derivedCurrentPhase = currentActivePhase(phasePcts);
+
   const [leftTab, setLeftTab] = useState('phases');
   const [expandedDim, setExpandedDim] = useState(null);
   const [projectFilesOpen, setProjectFilesOpen] = useState(true);
@@ -4624,7 +4635,7 @@ export default function WorkspaceScreen() {
               if (idx < phaseOrder.length - 1) {
                 const nextNum = phaseOrder[idx + 1];
                 const nextPhase = phases[idx + 1];
-                if (nextPhase.gated && !allPrereqsComplete()) {
+                if (nextPhase.gated && !allPrereqsComplete(phasePcts)) {
                   setShowGateWarning(true);
                 } else {
                   setActivePhase(nextNum);
@@ -4654,7 +4665,7 @@ export default function WorkspaceScreen() {
       />;
       case 'comparison': return <ComparisonMode />;
       case 'graph': return <RelationshipGraph />;
-      case 'chat': return <ChatMode />;
+      case 'chat': return <ChatMode phasePcts={phasePcts} />;
       case 'timeline': return <TimelineMode />;
       case 'board': return <DrawingBoard onOpenFile={openFile} boardItems={boardItems} setBoardItems={setBoardItems} />;
       case 'world': return <WorldBuildingMode />;
@@ -4837,7 +4848,7 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-                {leftTab === 'phases' && <PhaseProgress currentPhase={activePhase} onPhaseClick={(num, name, isLocked) => {
+                {leftTab === 'phases' && <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} onPhaseClick={(num, name, isLocked) => {
                   if (isLocked) {
                     setShowGateWarning(true);
                     return;
@@ -5143,9 +5154,12 @@ export default function WorkspaceScreen() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
                   {(() => {
                     const steps = [];
-                    // Find phases that are partially complete — finish those first
-                    const partial = phases.find(p => p.pct > 0 && p.pct < 100);
-                    if (partial) {
+                    // Find ALL phases that are partially complete — finish those first
+                    const partials = phases.filter(p => {
+                      const pct = phasePcts[p.num] || 0;
+                      return pct > 0 && pct < 100;
+                    });
+                    partials.forEach(partial => {
                       const qs = phaseQuestions[partial.num] || [];
                       const answered = Object.keys(phaseAnswers[partial.num] || {}).length;
                       const remaining = qs.length - answered;
@@ -5153,9 +5167,9 @@ export default function WorkspaceScreen() {
                         label: `Finish ${partial.name} questions (${remaining} remaining)`,
                         action: () => { setActivePhase(partial.num); setActiveMode('guided'); setLeftTab('phases'); },
                       });
-                    }
+                    });
                     // Find the next phase that has 0% progress
-                    const nextEmpty = phases.find(p => p.pct === 0 && !p.gated);
+                    const nextEmpty = phases.find(p => (phasePcts[p.num] || 0) === 0 && !p.gated);
                     if (nextEmpty) {
                       const label = typeof nextEmpty.num === 'number'
                         ? `Begin Phase ${nextEmpty.num} — ${nextEmpty.name}`
@@ -5174,7 +5188,7 @@ export default function WorkspaceScreen() {
                       });
                     });
                     // If all non-gated phases done, suggest content generation
-                    if (allPrereqsComplete()) {
+                    if (allPrereqsComplete(phasePcts)) {
                       steps.push({
                         label: 'All structure complete — begin content generation',
                         action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
@@ -5292,7 +5306,7 @@ export default function WorkspaceScreen() {
 
       {/* ─── Bottom Bar ─── */}
       <BottomStatusBar
-        currentPhase={4}
+        currentPhase={derivedCurrentPhase}
         wordCount={wordCount}
         wordLimit={wordLimit}
         onPhaseClick={() => { setLeftCollapsed(false); setLeftTab('phases'); }}
