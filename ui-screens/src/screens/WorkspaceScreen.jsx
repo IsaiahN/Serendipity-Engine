@@ -28,17 +28,45 @@ const centerStageModes = [
 ];
 
 const fileTree = [
+  // Story project files (from Creations)
   { name: 'author.md', exists: true },
   { name: 'narrator.md', exists: true },
   { name: 'abstract.md', exists: true },
   { name: 'outline.md', exists: true },
-  { name: 'characters/', exists: true, children: ['elena.md', 'marcus.md', 'priya.md', 'thomas.md'] },
-  { name: 'relationships/', exists: true, children: ['relationship-graph.csv'] },
-  { name: 'world/', exists: true, children: ['world-building.md', 'hallmarks.md'] },
-  { name: 'story/', exists: true, children: ['arc.md', 'chapter-1.md', 'chapter-2.md'] },
+  { name: 'dry-run-audit.md', exists: true },
+  { name: 'characters/', exists: true, children: [
+    'maren-yoder.md', 'ruth-yoder.md', 'bishop-ezra-eicher.md',
+    'esther-flint.md', 'jean-luc-dupree.md', 'clara-penner-thumbnail.md',
+    'questions-answered.md',
+  ]},
+  { name: 'relationships/', exists: true, children: ['questions-answered.md'] },
+  { name: 'world/', exists: true, children: ['world-building.md', 'questions-answered.md'] },
+  { name: 'story/', exists: true, children: [
+    'arc.md', 'chapter-1.md', 'chapter-1-notes.md',
+    'chapter-checklist.md', 'metafiles-review.md', 'questions-answered.md',
+  ]},
   { name: 'feedback/', exists: true, children: ['editor-v1.md'] },
   { name: 'drawing-board/', exists: true, children: ['notes.md'] },
   { name: 'media/', exists: true, children: ['characters/', 'hallmarks/', 'locations/'] },
+  // Engine reference files (Quality Control / MetaFiles)
+  { name: 'quality-control/', exists: true, section: 'engine', children: [
+    'Master-Story-Checklist.md', 'seven-story-deaths.md', 'story-consciousness-theory.md',
+    'story-network-theory.md', 'tonal-control.md', 'writing-prose-styles.md',
+    'language-content.md', 'randomization-engine.md', 'author-profile-template.md',
+    'questions.md',
+  ]},
+  { name: 'engine-characters/', exists: true, section: 'engine', children: [
+    'Identity/', 'Personality/', 'Development/', 'Names/', 'Questions.md',
+  ]},
+  { name: 'engine-story/', exists: true, section: 'engine', children: [
+    'genres.md', 'narrator.md', 'plot-structure.md', 'plot-twist-types.md',
+    'narrative-techniques.md', 'story-elements.md', 'themes-and-tropes.md',
+    'world-hallmarks.md', 'questions.md', 'World Building/',
+  ]},
+  { name: 'engine-relationships/', exists: true, section: 'engine', children: [
+    'relationship-dynamics.md', 'relationship-types.md', 'relationship-structures.md',
+    'questions.md',
+  ]},
 ];
 
 const healthDimensions = [
@@ -58,7 +86,7 @@ const healthDimensions = [
 function GuidedFlow() {
   return (
     <div style={{ maxWidth: 560, margin: '0 auto', padding: '40px 20px', animation: 'fadeIn 0.3s ease' }}>
-      <Badge variant="muted" style={{ marginBottom: 12 }}>Phase 3 — World / Question 4 of 8</Badge>
+      <Badge variant="muted" style={{ marginBottom: 12 }}>Phase 4 — World / Question 4 of 8</Badge>
       <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 12 }}>
         What are the hallmarks of this world?
       </h2>
@@ -88,10 +116,12 @@ function GuidedFlow() {
         }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-        <Button variant="ghost">← Previous</Button>
+        <Button variant="ghost" onClick={() => {}}>← Previous</Button>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button variant="secondary">Roll for Me</Button>
-          <Button variant="primary">Continue →</Button>
+          <Button variant="secondary" onClick={() => {}}>
+            <Sparkles size={14} style={{ marginRight: 4 }} /> Roll for Me
+          </Button>
+          <Button variant="primary" onClick={() => {}}>Continue →</Button>
         </div>
       </div>
     </div>
@@ -213,8 +243,12 @@ const defaultFileContent = (fileName) => ({
   chapter: false,
 });
 
-function ReaderMode({ file, onEdit }) {
+function ReaderMode({ file, onEdit, editedContent }) {
   const fc = fileContents[file] || defaultFileContent(file || 'chapter-1.md');
+  // If there's edited content, parse it into paragraphs for display
+  const displayContent = editedContent !== undefined
+    ? { ...fc, content: editedContent.split('\n\n').filter(Boolean) }
+    : fc;
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 24px', animation: 'fadeIn 0.3s ease' }}>
@@ -247,10 +281,10 @@ function ReaderMode({ file, onEdit }) {
 
       {/* Prose content */}
       <div style={{ fontFamily: 'Georgia, serif', fontSize: '1.05rem', lineHeight: 2, color: 'var(--text-primary)' }}>
-        {fc.content.map((para, i) => (
+        {displayContent.content.map((para, i) => (
           <p key={i} style={{
             marginBottom: 20,
-            textIndent: fc.chapter ? '2em' : 0,
+            textIndent: displayContent.chapter ? '2em' : 0,
             whiteSpace: 'pre-wrap',
           }}>
             {para}
@@ -259,7 +293,7 @@ function ReaderMode({ file, onEdit }) {
       </div>
 
       {/* Chapter navigation (only for chapter files) */}
-      {fc.chapter && (
+      {displayContent.chapter && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 40 }}>
           <Button variant="ghost" disabled={fc.chapterNum <= 1}>← Chapter {fc.chapterNum - 1}</Button>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', alignSelf: 'center' }}>
@@ -273,11 +307,11 @@ function ReaderMode({ file, onEdit }) {
 }
 
 /* ─── IDE-like File Editor ─── */
-function FileEditorMode({ file, onPreview, onEditorReview }) {
+function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onContentChange, onSave }) {
   const fc = fileContents[file] || defaultFileContent(file || 'untitled.md');
-  const fullText = fc.content.join('\n\n');
-  const [content, setContent] = useState(fullText);
-  const [saved, setSaved] = useState(true);
+  const fallbackText = fc.content.join('\n\n');
+  const content = editedContent !== undefined ? editedContent : fallbackText;
+  const [saved, setSaved] = useState(editedContent === undefined);
   const [showMinimap, setShowMinimap] = useState(true);
 
   const lines = content.split('\n');
@@ -285,11 +319,14 @@ function FileEditorMode({ file, onPreview, onEditorReview }) {
   const charCount = content.length;
 
   const handleChange = (e) => {
-    setContent(e.target.value);
+    onContentChange(e.target.value);
     setSaved(false);
   };
 
-  const handleSave = () => setSaved(true);
+  const handleSave = () => {
+    onSave(content);
+    setSaved(true);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', animation: 'fadeIn 0.3s ease' }}>
@@ -376,7 +413,7 @@ function FileEditorMode({ file, onPreview, onEditorReview }) {
                 e.preventDefault();
                 const start = e.target.selectionStart;
                 const end = e.target.selectionEnd;
-                setContent(content.substring(0, start) + '  ' + content.substring(end));
+                onContentChange(content.substring(0, start) + '  ' + content.substring(end));
                 setTimeout(() => { e.target.selectionStart = e.target.selectionEnd = start + 2; }, 0);
               }
             }}
@@ -414,6 +451,115 @@ function FileEditorMode({ file, onPreview, onEditorReview }) {
           {showMinimap ? 'Hide' : 'Show'} Minimap
         </span>
         <span>UTF-8</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Full Cast Mode ─── */
+function FullCastMode({ onCharacterClick, onBack }) {
+  const allChars = Object.entries(characterProfiles);
+  const mainChars = allChars.filter(([, c]) => c.tier !== 'minor');
+  const minorChars = allChars.filter(([, c]) => c.tier === 'minor');
+
+  const CharCard = ({ name, char }) => {
+    const isMinor = char.tier === 'minor';
+    return (
+      <div
+        onClick={() => onCharacterClick(name)}
+        style={{
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', padding: isMinor ? 16 : 20, cursor: 'pointer',
+          transition: 'var(--transition)', display: 'flex', flexDirection: 'column', gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: isMinor ? 36 : 48, height: isMinor ? 36 : 48, borderRadius: '50%', background: char.gradient,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: isMinor ? 16 : 20, fontWeight: 700, color: '#000', flexShrink: 0,
+          }}>
+            {name[0]}
+          </div>
+          <div>
+            <div style={{ fontSize: isMinor ? '0.9rem' : '1rem', fontWeight: 700 }}>{char.name}</div>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+              <Badge variant="accent" style={{ fontSize: '0.65rem' }}>{char.role}</Badge>
+              {char.type && <Badge variant="muted" style={{ fontSize: '0.65rem' }}>{char.type}</Badge>}
+            </div>
+          </div>
+        </div>
+        {char.physicalDescription && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            {char.physicalDescription.split('.').slice(0, 2).join('.') + '.'}
+          </p>
+        )}
+        {char.backstory && !char.physicalDescription && (
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
+            {char.backstory.split('.').slice(0, 2).join('.') + '.'}
+          </p>
+        )}
+        {(char.mbti || char.enneagramWing || char.alignment) && (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {char.mbti && <Badge style={{ background: `${char.color || 'var(--accent)'}20`, color: char.color || 'var(--accent)', fontSize: '0.6rem' }}>{char.mbti}</Badge>}
+            {char.enneagramWing && <Badge style={{ background: '#fbbf2420', color: '#fbbf24', fontSize: '0.6rem' }}>{char.enneagramWing}</Badge>}
+            {char.alignment && <Badge style={{ background: '#a78bfa20', color: '#a78bfa', fontSize: '0.6rem' }}>{char.alignment}</Badge>}
+          </div>
+        )}
+        {(char.wound || char.flaw || char.virtue) && (
+          <div style={{ display: 'grid', gridTemplateColumns: [char.wound, char.flaw, char.virtue].filter(Boolean).length > 1 ? `repeat(${[char.wound, char.flaw, char.virtue].filter(Boolean).length}, 1fr)` : '1fr', gap: 8, marginTop: 4 }}>
+            {char.wound && (
+              <div style={{ padding: '6px 8px', background: 'rgba(239,68,68,0.06)', borderRadius: 'var(--radius-sm)', borderLeft: '2px solid #ef4444' }}>
+                <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: '#ef4444', fontWeight: 600 }}>Wound</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: 2 }}>{char.wound}</div>
+              </div>
+            )}
+            {char.flaw && (
+              <div style={{ padding: '6px 8px', background: 'rgba(251,191,36,0.06)', borderRadius: 'var(--radius-sm)', borderLeft: '2px solid #fbbf24' }}>
+                <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: '#fbbf24', fontWeight: 600 }}>Flaw</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: 2 }}>{char.flaw}</div>
+              </div>
+            )}
+            {char.virtue && (
+              <div style={{ padding: '6px 8px', background: 'rgba(16,185,129,0.06)', borderRadius: 'var(--radius-sm)', borderLeft: '2px solid #10b981' }}>
+                <div style={{ fontSize: '0.55rem', textTransform: 'uppercase', color: '#10b981', fontWeight: 600 }}>Virtue</div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: 1.4, marginTop: 2 }}>{char.virtue}</div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <button onClick={onBack} style={{
+          background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', cursor: 'pointer',
+          padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          <ChevronLeft size={14} /> Back
+        </button>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Full Cast — The Shunning Season</h2>
+        <Badge variant="muted">{allChars.length} characters</Badge>
+      </div>
+
+      {/* Main Characters */}
+      <h3 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>
+        Main Characters
+      </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 28 }}>
+        {mainChars.map(([name, char]) => <CharCard key={name} name={name} char={char} />)}
+      </div>
+
+      {/* Minor Characters */}
+      <h3 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>
+        Minor Characters
+      </h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+        {minorChars.map(([name, char]) => <CharCard key={name} name={name} char={char} />)}
       </div>
     </div>
   );
@@ -2298,6 +2444,775 @@ function WorldBuildingMode() {
   );
 }
 
+/* ─── Character Profile ─── */
+const characterProfiles = {
+  Elena: {
+    name: 'Elena Vasquez', role: 'Protagonist', type: 'Main protagonist', tier: 'main',
+    color: '#2dd4bf', gradient: 'linear-gradient(135deg, #2dd4bf, #f472b6)',
+    age: '28', gender: 'Cis woman', sexuality: 'Heterosexual',
+    religion: 'Lapsed Catholic', lifePhilosophy: 'Existentialism',
+    relationshipStatus: 'Recently separated', parentalStatus: 'No children',
+    livingStatus: 'Lives alone', financialUpbringing: 'Middle class', currentFinancial: 'Financially stable',
+    emotionalRegister: 'Anxious',
+    mbti: 'INFJ-T', mbtiLabel: 'The Advocate',
+    enneagram: 'Type 4 — The Individualist', enneagramWing: '4w5',
+    alignment: 'Chaotic Good',
+    zodiac: 'Scorpio',
+    build: 'Slim', height: 'Average (5\'4"–5\'6")', hairColor: 'Dark brown', eyeColor: 'Hazel-green', skinTone: 'Olive',
+    flaw: 'Fear of abandonment', virtue: 'Empathy', wound: 'Conditional love — only loved when performing/achieving',
+    coreValues: ['Honesty / Integrity', 'Freedom / Autonomy'],
+    personalCode: ['Never lie to someone who trusts you', 'Question every authority', 'If you break it, you fix it'],
+    selfCareHealthy: 'Meaningful conversation with a trusted person',
+    selfCareDestructive: 'Isolation that becomes withdrawal',
+    socialPositioning: 'Insider who secretly doesn\'t belong',
+    networkArchetype: 'Bridge',
+    antilifeSeal: 'Projection (Seal 5) — assigns her own fears to others and then reacts to the projection',
+    voice: {
+      speechRhythm: 'Circling / Recursive', vocabularyRegister: 'Educated Casual',
+      volumePacing: 'Quiet by default', dialogueTic: 'Starts sentences with "I mean—" when about to say something true',
+      metaphorFamily: 'Architecture / Structure', defensiveSpeech: 'Becomes overly analytical',
+      subtextDefault: 'Cannot say "I need you"',
+    },
+    arcStart: 'Ordinary life — performing normalcy after separation',
+    arcEnd: 'Quiet resolve — accepts imperfection, stops performing',
+    arcType: 'Positive arc with regression',
+    beats: ['Ordinary life', 'Discovers letter', 'Confronts Marcus', 'Investigates past', 'Betrayal revealed', 'Confrontation', 'Grief & doubt', 'Final reckoning', 'Quiet resolve', 'Rebuilding', 'New normal', 'Epilogue'],
+    physicalDescription: 'Elena is twenty-eight and looks it — not in the way that means young, but in the way that means she has started to carry things. Slim, average height, olive-toned skin that holds the remnants of summers she barely remembers enjoying. Dark brown hair she keeps shoulder-length and mostly forgets about. Hazel-green eyes that change color depending on the light, which people comment on and she finds exhausting.',
+    // Radar chart data
+    strengths: { emotional: 9, analytical: 7, social: 6, physical: 4, creative: 8, resilience: 5, intuition: 9, leadership: 5 },
+    temperament: { openness: 9, conscientiousness: 6, extraversion: 3, agreeableness: 7, neuroticism: 8 },
+    swot: {
+      strengths: ['Deep empathy reads people accurately', 'Strong moral compass', 'Creative problem-solver'],
+      weaknesses: ['Overthinks to paralysis', 'Avoids direct confrontation', 'Performance-based self-worth'],
+      opportunities: ['Separation forces genuine self-discovery', 'New relationships without pretense', 'Marcus situation demands courage she has but doesn\'t know'],
+      threats: ['Abandonment wound triggered by every departure', 'Isolation spiral when overwhelmed', 'Projection flaw creates false enemies'],
+    },
+    relationships: [
+      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Complicated ally / former trust', attachment: 'Anxious-Avoidant' },
+      { name: 'Priya', type: 'Supporting', dynamic: 'Best friend / honest mirror', attachment: 'Secure' },
+      { name: 'Thomas', type: 'Minor', dynamic: 'Information source / old connection', attachment: 'Avoidant' },
+      { name: 'Ruth', type: 'Minor', dynamic: 'Maternal figure / quiet anchor', attachment: 'Secure' },
+      { name: 'Bishop Lapp', type: 'Minor', dynamic: 'Authority figure / pressure', attachment: 'Fearful-Avoidant' },
+    ],
+  },
+  Marcus: {
+    name: 'Marcus Chen', role: 'Deuteragonist', type: 'Antihero', tier: 'main',
+    color: '#818cf8', gradient: 'linear-gradient(135deg, #818cf8, #f97316)',
+    age: '32', gender: 'Cis man', sexuality: 'Heterosexual',
+    religion: 'Agnostic', lifePhilosophy: 'Pragmatism',
+    relationshipStatus: 'Single — recently ended', parentalStatus: 'No children',
+    livingStatus: 'Lives alone', financialUpbringing: 'Upper-middle class', currentFinancial: 'Comfortable',
+    emotionalRegister: 'Tense',
+    mbti: 'ENTJ-A', mbtiLabel: 'The Commander',
+    enneagram: 'Type 3 — The Achiever', enneagramWing: '3w4',
+    alignment: 'Lawful Neutral',
+    zodiac: 'Capricorn',
+    build: 'Athletic / Toned', height: 'Tall (5\'11"–6\'1")', hairColor: 'Black', eyeColor: 'Dark brown', skinTone: 'Warm tan',
+    flaw: 'Compulsive lying', virtue: 'Determination', wound: 'Had success stolen or uncredited',
+    coreValues: ['Achievement / Excellence', 'Loyalty'],
+    personalCode: ['Never let them see you bleed', 'Always finish what you start', 'The ends justify the means'],
+    selfCareHealthy: 'Physical movement — running, training',
+    selfCareDestructive: 'Overworking to the point of collapse',
+    socialPositioning: 'Overestimated position',
+    networkArchetype: 'Hub',
+    antilifeSeal: 'Deception (Seal 3) — the lie he told is the load-bearing wall; remove it and everything falls',
+    voice: {
+      speechRhythm: 'Declarative / Direct', vocabularyRegister: 'Formal / Elevated',
+      volumePacing: 'Measured regardless', dialogueTic: 'Names people in conversation — "Elena, listen" — as a control mechanism',
+      metaphorFamily: 'Business / Transactions', defensiveSpeech: 'Becomes charming',
+      subtextDefault: 'Cannot say "I was wrong"',
+    },
+    arcStart: 'Keeping secrets — maintaining the edifice',
+    arcEnd: 'Open wound — the lie undone, no rebuild yet',
+    arcType: 'Negative arc (fall)',
+    beats: ['Keeping secrets', 'Avoidance', 'Deflection', 'Cracking facade', 'Exposed', 'Rage', 'Rock bottom', 'Admission', 'Penance', 'Withdrawal', 'Tentative return', 'Open wound'],
+    physicalDescription: 'Marcus is thirty-two and built like someone who runs before dawn — athletic, toned, the specific kind of fit that reads as discipline rather than vanity. Tall, dark-haired, dark-eyed, warm tan skin. He dresses well in the way that costs money but pretends not to. His face is handsome and controlled — the kind of face that looks like it is listening carefully when it is actually calculating.',
+    strengths: { emotional: 4, analytical: 9, social: 8, physical: 7, creative: 5, resilience: 7, intuition: 6, leadership: 9 },
+    temperament: { openness: 5, conscientiousness: 9, extraversion: 8, agreeableness: 3, neuroticism: 4 },
+    swot: {
+      strengths: ['Charismatic and persuasive', 'Strategic thinker', 'Physically disciplined'],
+      weaknesses: ['Cannot be vulnerable', 'Compulsive dishonesty under pressure', 'Confuses control with care'],
+      opportunities: ['Exposure forces authenticity', 'Elena\'s integrity could model another way', 'Rock bottom creates genuine humility'],
+      threats: ['Success-wound makes any failure existential', 'Charm is both asset and cage', 'Overwork spiral masks emotional collapse'],
+    },
+    relationships: [
+      { name: 'Elena', type: 'Protagonist', dynamic: 'Former trust / guilt object', attachment: 'Avoidant' },
+      { name: 'Priya', type: 'Supporting', dynamic: 'Reluctant mediator', attachment: 'Dismissive' },
+      { name: 'Thomas', type: 'Minor', dynamic: 'Old ally / liability', attachment: 'Transactional' },
+      { name: 'Bishop Lapp', type: 'Minor', dynamic: 'Authority confrontation', attachment: 'Antagonistic' },
+    ],
+  },
+  Priya: {
+    name: 'Priya Sharma', role: 'Supporting', type: 'Foil', tier: 'main',
+    color: '#a78bfa', gradient: 'linear-gradient(135deg, #fbbf24, #a78bfa)',
+    age: '30', gender: 'Cis woman', sexuality: 'Lesbian',
+    religion: 'Hindu (cultural, not practicing)', lifePhilosophy: 'Stoicism',
+    relationshipStatus: 'In a long-term relationship', parentalStatus: 'No children',
+    livingStatus: 'Lives with partner', financialUpbringing: 'Upper-middle class', currentFinancial: 'Comfortable',
+    emotionalRegister: 'Sardonic',
+    mbti: 'ENTP-A', mbtiLabel: 'The Debater',
+    enneagram: 'Type 8 — The Challenger', enneagramWing: '8w7',
+    alignment: 'Neutral Good',
+    zodiac: 'Aries',
+    build: 'Curvy', height: 'Average (5\'4"–5\'6")', hairColor: 'Black', eyeColor: 'Dark brown', skinTone: 'Medium brown',
+    flaw: 'Sarcasm as a weapon', virtue: 'Courage', wound: 'First experience of racism during formative years',
+    coreValues: ['Justice / Fairness', 'Courage'],
+    personalCode: ['Say what you mean', 'Protect those who can\'t protect themselves', 'Don\'t take more than your share'],
+    selfCareHealthy: 'Humor — finding something to laugh at',
+    selfCareDestructive: 'Social saturation — being with people constantly',
+    socialPositioning: 'Orientation lateral',
+    networkArchetype: 'Connector',
+    antilifeSeal: 'None — she is the story\'s clearest-seeing character, which costs her differently',
+    voice: {
+      speechRhythm: 'Question-forward', vocabularyRegister: 'Educated Casual',
+      volumePacing: 'Loud by default — fills the room', dialogueTic: 'Deflects with humor when the subject is serious',
+      metaphorFamily: 'Food / Cooking', defensiveSpeech: 'Gets louder and funnier',
+      subtextDefault: 'Cannot say "I\'m scared for you"',
+    },
+    arcStart: 'Background ally — concerned but uninvolved',
+    arcEnd: 'New path — own agency discovered through others\' crisis',
+    arcType: 'Positive arc (growth)',
+    beats: ['Background ally', 'Concerned friend', 'Overhears', 'Starts digging', 'Caught in middle', 'Picks a side', 'Confronts Elena', 'Bridge builder', 'Own revelation', 'Taking charge', 'Mediator', 'New path'],
+    physicalDescription: 'Priya is thirty and built like someone who enjoys life — curvy in the way that means she eats well and moves when she wants to. Average height, black hair she wears in different styles depending on her mood. Dark brown eyes that are always slightly amused, which people find either disarming or infuriating.',
+    strengths: { emotional: 6, analytical: 7, social: 9, physical: 5, creative: 7, resilience: 8, intuition: 7, leadership: 7 },
+    temperament: { openness: 8, conscientiousness: 5, extraversion: 9, agreeableness: 6, neuroticism: 3 },
+    swot: {
+      strengths: ['Fearless truth-teller', 'Reads rooms instantly', 'Natural mediator despite combative style'],
+      weaknesses: ['Humor as deflection prevents depth', 'Over-identifies as the strong one', 'Social saturation avoids self-reflection'],
+      opportunities: ['Friends\' crisis reveals her own unlived questions', 'Bridge-building develops leadership', 'Confrontation with Elena deepens the friendship'],
+      threats: ['Being everyone\'s anchor exhausts her', 'Sarcasm alienates at the wrong moment', 'Justice orientation can become self-righteousness'],
+    },
+    relationships: [
+      { name: 'Elena', type: 'Protagonist', dynamic: 'Best friend / honest mirror', attachment: 'Secure' },
+      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Reluctant mediator / suspicious', attachment: 'Guarded' },
+      { name: 'Thomas', type: 'Minor', dynamic: 'Unexpected ally', attachment: 'Curious' },
+    ],
+  },
+  Thomas: {
+    name: 'Thomas Weaver', role: 'Minor', type: 'Unexpected ally', tier: 'minor',
+    color: '#6ee7b7', gradient: 'linear-gradient(135deg, #6ee7b7, #60a5fa)',
+    age: '45', gender: 'Cis man', religion: 'Mennonite (Plain)',
+    emotionalRegister: 'Cautious',
+    mbti: 'ISFJ-T', mbtiLabel: 'The Defender',
+    enneagram: 'Type 6 — The Loyalist', enneagramWing: '6w5',
+    alignment: 'Lawful Neutral',
+    build: 'Sturdy', height: 'Tall (5\'10"–5\'11")', hairColor: 'Gray-brown', eyeColor: 'Blue-gray', skinTone: 'Fair',
+    flaw: 'Overprotectiveness', virtue: 'Reliability', wound: 'Lost faith in community institutions',
+    voice: {
+      speechRhythm: 'Measured', vocabularyRegister: 'Plain-spoken',
+      subtextDefault: 'Cannot say "I am afraid for you"',
+    },
+    arcStart: 'Isolated insider — caught between two worlds',
+    arcEnd: 'Deliberate choice — chooses his own path',
+    arcType: 'Subtle positive arc',
+    beats: ['Isolation', 'First contact', 'Suspicion', 'Shared truth', 'Commitment', 'Consequence', 'Standing firm'],
+    physicalDescription: 'Thomas is forty-five and looks like someone who has worked with his hands all his life. Sturdy build, tall, with graying hair and blue-gray eyes. The kind of quiet presence that takes up space without demanding attention.',
+    strengths: { emotional: 5, analytical: 6, social: 4, physical: 7, creative: 3, resilience: 7, intuition: 6, leadership: 4 },
+    relationships: [
+      { name: 'Elena', type: 'Protagonist', dynamic: 'Information source / old connection', attachment: 'Avoidant' },
+      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Old ally / liability', attachment: 'Transactional' },
+    ],
+    swot: {
+      strengths: ['Trustworthy', 'Deep community knowledge', 'Physically capable'],
+      weaknesses: ['Difficulty with direct confrontation', 'Bound by loyalty codes', 'Isolated from mainstream support'],
+      opportunities: ['New relationships outside the community', 'Voice of dissent becomes strength', 'Redemption through honesty'],
+      threats: ['Community rejection if truth emerges', 'Caught between protecting others and himself', 'Age and isolation compound isolation'],
+    },
+  },
+  Ruth: {
+    name: 'Ruth Miller', role: 'Minor', type: 'Maternal anchor', tier: 'minor',
+    color: '#f9a8d4', gradient: 'linear-gradient(135deg, #f9a8d4, #818cf8)',
+    age: '58', gender: 'Cis woman', religion: 'Mennonite (Plain)',
+    emotionalRegister: 'Grounded',
+    mbti: 'ISFP-A', mbtiLabel: 'The Adventurer',
+    enneagram: 'Type 2 — The Helper', enneagramWing: '2w1',
+    alignment: 'Lawful Good',
+    build: 'Round', height: 'Average (5\'2"–5\'3")', hairColor: 'Gray with silver', eyeColor: 'Warm brown', skinTone: 'Fair',
+    flaw: 'Enables others\' avoidance', virtue: 'Kindness', wound: 'Too much responsibility too young',
+    voice: {
+      speechRhythm: 'Gentle', vocabularyRegister: 'Plain-spoken with warmth',
+      subtextDefault: 'Cannot say "You must face this yourself"',
+    },
+    arcStart: 'Quiet anchor — holding space for others',
+    arcEnd: 'Gentle boundaries — love with honesty',
+    arcType: 'Subtle positive arc',
+    beats: ['Ordinary duty', 'Elena arrives', 'Small kindnesses', 'Hears truth', 'Torn loyalty', 'Clear sight', 'Quiet wisdom'],
+    physicalDescription: 'Ruth is fifty-eight and moves through the world with the ease of someone who has settled into her own skin. Round-faced, warm brown eyes, gray and silver hair pulled back. Her hands are always doing something — counting change, wiping a counter, reaching out to steady someone.',
+    strengths: { emotional: 8, analytical: 4, social: 7, physical: 5, creative: 4, resilience: 7, intuition: 7, leadership: 3 },
+    relationships: [
+      { name: 'Elena', type: 'Protagonist', dynamic: 'Maternal figure / quiet anchor', attachment: 'Secure' },
+    ],
+    swot: {
+      strengths: ['Genuine kindness', 'Deep listening', 'Community trusted'],
+      weaknesses: ['Difficulty setting boundaries', 'Over-identifies with caretaker role', 'Conflict avoidance'],
+      opportunities: ['Truth-telling deepens relationships', 'Discovering own needs', 'Modeling healthy boundaries'],
+      threats: ['Community judgment if loyalty questioned', 'Compassion fatigue', 'Enabling others\' harm cycles'],
+    },
+  },
+  'Bishop Lapp': {
+    name: 'Bishop Lapp', role: 'Minor', type: 'Authority figure', tier: 'minor',
+    color: '#94a3b8', gradient: 'linear-gradient(135deg, #94a3b8, #475569)',
+    age: '72', gender: 'Cis man', religion: 'Mennonite (Plain) — Elder',
+    emotionalRegister: 'Rigid',
+    mbti: 'ISTJ-T', mbtiLabel: 'The Logistician',
+    enneagram: 'Type 1 — The Reformer', enneagramWing: '1w2',
+    alignment: 'Lawful Neutral',
+    build: 'Lean', height: 'Tall (5\'9"–5\'10")', hairColor: 'White', eyeColor: 'Steel gray', skinTone: 'Fair',
+    flaw: 'Righteousness disguises fear', virtue: 'Principle', wound: 'Changing world threatens identity',
+    voice: {
+      speechRhythm: 'Declarative', vocabularyRegister: 'Biblical / formal',
+      subtextDefault: 'Cannot say "I don\'t know what to do"',
+    },
+    arcStart: 'Absolute authority — enforcing the law',
+    arcEnd: 'Uncertain ground — law fails to contain truth',
+    arcType: 'Negative arc (pressure)',
+    beats: ['Absolute order', 'First challenge', 'Community pressure', 'Rules invoked', 'Rule fails', 'Confrontation', 'Helplessness'],
+    physicalDescription: 'Bishop Lapp is seventy-two and carries authority in his posture. Lean, tall, white-bearded, with steel gray eyes that see through every pretense. His clothes are severe Plain dress — the uniform of his office.',
+    strengths: { emotional: 2, analytical: 7, social: 6, physical: 3, creative: 2, resilience: 5, intuition: 3, leadership: 8 },
+    relationships: [
+      { name: 'Elena', type: 'Protagonist', dynamic: 'Authority figure / pressure', attachment: 'Fearful-Avoidant' },
+      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Authority confrontation', attachment: 'Antagonistic' },
+    ],
+    swot: {
+      strengths: ['Community respect and authority', 'Clear moral framework', 'Decades of experience'],
+      weaknesses: ['Cannot adapt to changing values', 'Weaponizes scripture', 'Deaf to dissenting voices'],
+      opportunities: ['Crisis forces reflection on doctrine', 'Meeting resistance shows limits of power', 'Possible growth toward humility'],
+      threats: ['Community fractures if authority questioned', 'Personal faith shaken', 'Becomes isolated fixture of old order'],
+    },
+  },
+};
+
+function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationships }) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const char = characterProfiles[characterName];
+  if (!char) return <div style={{ padding: 40, textAlign: 'center' }}><p style={{ color: 'var(--text-muted)' }}>Character profile not found.</p></div>;
+
+  const tabs = [
+    { key: 'overview', label: 'Overview' },
+    { key: 'identity', label: 'Identity' },
+    { key: 'personality', label: 'Personality' },
+    { key: 'voice', label: 'Voice' },
+    { key: 'arc', label: 'Arc & Role' },
+    { key: 'radar', label: 'Analysis' },
+  ];
+
+  // Radar chart renderer
+  const renderRadar = (data, labels, colors, title, size = 220) => {
+    const cx = size / 2, cy = size / 2, r = size / 2 - 30;
+    const keys = Object.keys(data);
+    const n = keys.length;
+    if (n < 3) return null;
+    const angleStep = (Math.PI * 2) / n;
+    const getPoint = (i, val, maxVal = 10) => {
+      const angle = (i * angleStep) - Math.PI / 2;
+      return { x: cx + (val / maxVal) * r * Math.cos(angle), y: cy + (val / maxVal) * r * Math.sin(angle) };
+    };
+    const rings = [0.25, 0.5, 0.75, 1];
+    return (
+      <div>
+        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8, textAlign: 'center' }}>{title}</h4>
+        <svg width="100%" viewBox={`0 0 ${size} ${size}`} style={{ maxHeight: size }}>
+          {rings.map(pct => {
+            const pts = keys.map((_, i) => {
+              const angle = (i * angleStep) - Math.PI / 2;
+              return `${cx + r * pct * Math.cos(angle)},${cy + r * pct * Math.sin(angle)}`;
+            });
+            return <polygon key={pct} points={pts.join(' ')} fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />;
+          })}
+          {keys.map((k, i) => {
+            const angle = (i * angleStep) - Math.PI / 2;
+            const lx = cx + r * Math.cos(angle);
+            const ly = cy + r * Math.sin(angle);
+            const labelX = cx + (r + 16) * Math.cos(angle);
+            const labelY = cy + (r + 16) * Math.sin(angle);
+            return (
+              <g key={k}>
+                <line x1={cx} y1={cy} x2={lx} y2={ly} stroke="var(--border)" strokeWidth={0.5} opacity={0.3} />
+                <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle"
+                  fill={colors || char.color} fontSize={6.5} fontWeight={500}>{labels?.[k] || k}</text>
+              </g>
+            );
+          })}
+          <polygon
+            points={keys.map((k, i) => { const p = getPoint(i, data[k]); return `${p.x},${p.y}`; }).join(' ')}
+            fill={char.color} fillOpacity={0.2} stroke={char.color} strokeWidth={1.5}
+          />
+          {keys.map((k, i) => {
+            const p = getPoint(i, data[k]);
+            return <circle key={k} cx={p.x} cy={p.y} r={3} fill={char.color} />;
+          })}
+        </svg>
+      </div>
+    );
+  };
+
+  const sectionStyle = { marginBottom: 20 };
+  const labelStyle = { fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 };
+  const valueStyle = { fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.6 };
+  const gridRowStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 };
+  const attrCard = (label, value, accent) => (
+    <div style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+      <div style={labelStyle}>{label}</div>
+      <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value}</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+        <button onClick={onBack} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+          <ChevronLeft size={14} /> Cast
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flex: 1 }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: char.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, fontWeight: 700, color: '#000', flexShrink: 0 }}>
+            {characterName[0]}
+          </div>
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{char.name}</h1>
+            <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              <Badge variant="accent">{char.role}</Badge>
+              <Badge variant="muted">{char.type}</Badge>
+              <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>
+              <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>
+              <Badge style={{ background: '#a78bfa20', color: '#a78bfa' }}>{char.alignment}</Badge>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Button variant="secondary" onClick={onViewArc} style={{ fontSize: '0.75rem', padding: '5px 10px' }}>
+            <TrendingUp size={12} style={{ marginRight: 4 }} /> View Arc
+          </Button>
+          <Button variant="secondary" onClick={onViewRelationships} style={{ fontSize: '0.75rem', padding: '5px 10px' }}>
+            <Heart size={12} style={{ marginRight: 4 }} /> Relationships
+          </Button>
+        </div>
+      </div>
+
+      {/* Tab navigation */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 0 }}>
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
+            background: 'none', border: 'none', padding: '8px 14px', cursor: 'pointer',
+            fontSize: '0.8rem', fontWeight: activeTab === t.key ? 600 : 400,
+            color: activeTab === t.key ? 'var(--accent)' : 'var(--text-muted)',
+            borderBottom: activeTab === t.key ? '2px solid var(--accent)' : '2px solid transparent',
+            marginBottom: -1,
+          }}>{t.label}</button>
+        ))}
+      </div>
+
+      {/* ── Overview Tab ── */}
+      {activeTab === 'overview' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+          <div>
+            {/* Physical description */}
+            <Card style={{ padding: 16, marginBottom: 16 }}>
+              <h3 style={labelStyle}>Physical Description</h3>
+              <p style={{ ...valueStyle, fontStyle: 'italic', fontSize: '0.83rem' }}>{char.physicalDescription}</p>
+            </Card>
+
+            {/* Quick stats grid */}
+            <div style={gridRowStyle}>
+              {attrCard('Age', char.age)}
+              {char.zodiac ? attrCard('Zodiac', char.zodiac) : attrCard('Tier', char.tier === 'minor' ? 'Minor Character' : 'Main Character')}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Build', char.build)}
+              {attrCard('Height', char.height)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Hair', char.hairColor)}
+              {attrCard('Eyes', char.eyeColor)}
+            </div>
+
+            {/* Wound / Flaw / Virtue triangle */}
+            <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(16,185,129,0.06) 100%)' }}>
+              <h3 style={{ ...labelStyle, color: 'var(--accent)' }}>Wound → Flaw → Virtue</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>WOUND</div>
+                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.wound}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 600, marginBottom: 4 }}>FLAW</div>
+                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.flaw}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 600, marginBottom: 4 }}>VIRTUE</div>
+                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.virtue}</div>
+                </div>
+              </div>
+            </Card>
+
+            {/* SWOT */}
+            <div style={{ marginTop: 16 }}>
+              <h3 style={labelStyle}>SWOT Analysis</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { key: 'strengths', label: 'Strengths', color: '#10b981', bg: 'rgba(16,185,129,0.06)' },
+                  { key: 'weaknesses', label: 'Weaknesses', color: '#ef4444', bg: 'rgba(239,68,68,0.06)' },
+                  { key: 'opportunities', label: 'Opportunities', color: '#60a5fa', bg: 'rgba(96,165,250,0.06)' },
+                  { key: 'threats', label: 'Threats', color: '#fbbf24', bg: 'rgba(251,191,36,0.06)' },
+                ].map(s => (
+                  <Card key={s.key} style={{ padding: 12, background: s.bg, border: `1px solid ${s.color}20` }}>
+                    <div style={{ fontSize: '0.65rem', fontWeight: 700, color: s.color, marginBottom: 6, textTransform: 'uppercase' }}>{s.label}</div>
+                    {char.swot[s.key].map((item, i) => (
+                      <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 3, paddingLeft: 8, borderLeft: `2px solid ${s.color}30` }}>
+                        {item}
+                      </div>
+                    ))}
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right column: Radar charts */}
+          <div>
+            <Card style={{ padding: 16, marginBottom: 12 }}>
+              {char.strengths && renderRadar(char.strengths, {
+                emotional: 'Emotional', analytical: 'Analytical', social: 'Social', physical: 'Physical',
+                creative: 'Creative', resilience: 'Resilience', intuition: 'Intuition', leadership: 'Leadership',
+              }, null, 'Strengths Profile')}
+            </Card>
+            {char.temperament && (
+              <Card style={{ padding: 16 }}>
+                {renderRadar(char.temperament, {
+                  openness: 'Openness', conscientiousness: 'Conscient.', extraversion: 'Extraversion',
+                  agreeableness: 'Agreeable.', neuroticism: 'Neuroticism',
+                }, '#a78bfa', 'Big Five Temperament')}
+              </Card>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Identity Tab ── */}
+      {activeTab === 'identity' && (
+        <div style={{ maxWidth: 680 }}>
+          <div style={gridRowStyle}>
+            {attrCard('Gender', char.gender || '—')}
+            {char.sexuality ? attrCard('Sexuality', char.sexuality) : attrCard('Emotional Register', char.emotionalRegister, char.color)}
+          </div>
+          <div style={gridRowStyle}>
+            {attrCard('Religion / Faith', char.religion || '—')}
+            {attrCard('Life Philosophy', char.lifePhilosophy || '—')}
+          </div>
+          {char.relationshipStatus && (
+            <div style={gridRowStyle}>
+              {attrCard('Relationship Status', char.relationshipStatus)}
+              {attrCard('Parental Status', char.parentalStatus || '—')}
+            </div>
+          )}
+          {char.livingStatus && (
+            <div style={gridRowStyle}>
+              {attrCard('Living Situation', char.livingStatus)}
+              {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+            </div>
+          )}
+          {char.financialUpbringing && (
+            <div style={gridRowStyle}>
+              {attrCard('Financial Upbringing', char.financialUpbringing)}
+              {attrCard('Current Financial', char.currentFinancial || '—')}
+            </div>
+          )}
+
+          {/* Core Values & Personal Code — only for main characters */}
+          {char.coreValues && (
+            <Card style={{ padding: 16, marginTop: 8 }}>
+              <h3 style={labelStyle}>Core Values</h3>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
+                {char.coreValues.map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+              </div>
+              {char.personalCode && (
+                <>
+                  <h3 style={labelStyle}>Personal Code</h3>
+                  {char.personalCode.map((c, i) => (
+                    <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
+                      "{c}"
+                    </div>
+                  ))}
+                </>
+              )}
+            </Card>
+          )}
+
+          {char.selfCareHealthy && (
+            <div style={{ ...gridRowStyle, marginTop: 12 }}>
+              <Card style={{ padding: 12 }}>
+                <div style={labelStyle}>Self-Care (Healthy)</div>
+                <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy}</div>
+              </Card>
+              <Card style={{ padding: 12 }}>
+                <div style={labelStyle}>Self-Care (Destructive)</div>
+                <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive}</div>
+              </Card>
+            </div>
+          )}
+
+          {char.socialPositioning && (
+            <div style={gridRowStyle}>
+              {attrCard('Social Positioning', char.socialPositioning)}
+              {attrCard('Network Archetype', char.networkArchetype || '—')}
+            </div>
+          )}
+
+          {char.antilifeSeal && (
+            <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <div style={{ ...labelStyle, color: '#ef4444' }}>Antilife Seal</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.antilifeSeal}</div>
+            </Card>
+          )}
+
+          {/* Simplified identity card for minor characters */}
+          {char.tier === 'minor' && (
+            <Card style={{ padding: 16, marginTop: 12, background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginBottom: 8 }}>Minor Character</div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                This is a minor character with a simplified profile. Key identity details are shown above. For deeper analysis, see the Personality and Arc tabs.
+              </p>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ── Personality Tab ── */}
+      {activeTab === 'personality' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          {/* MBTI Card */}
+          <Card style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: `${char.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Brain size={22} color={char.color} />
+              </div>
+              <div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 700, color: char.color }}>{char.mbti}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{char.mbtiLabel}</div>
+              </div>
+            </div>
+            {/* MBTI axes visualization */}
+            {[
+              { axis: 'E/I', left: 'Extrovert', right: 'Introvert', value: char.mbti.includes('I') ? 75 : 25 },
+              { axis: 'S/N', left: 'Sensing', right: 'Intuitive', value: char.mbti.includes('N') ? 75 : 25 },
+              { axis: 'T/F', left: 'Thinking', right: 'Feeling', value: char.mbti.includes('F') ? 75 : 25 },
+              { axis: 'J/P', left: 'Judging', right: 'Perceiving', value: char.mbti.includes('P') ? 75 : 25 },
+            ].map(a => (
+              <div key={a.axis} style={{ marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 3 }}>
+                  <span>{a.left}</span><span>{a.right}</span>
+                </div>
+                <div style={{ height: 6, borderRadius: 3, background: 'var(--bg-tertiary)', overflow: 'hidden', position: 'relative' }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, width: `${a.value}%`, height: '100%', borderRadius: 3, background: char.color, transition: 'width 0.5s ease' }} />
+                </div>
+              </div>
+            ))}
+            <div style={{ marginTop: 12, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              Variant: <span style={{ color: char.mbti.includes('-T') ? '#fbbf24' : '#10b981', fontWeight: 600 }}>{char.mbti.includes('-T') ? 'Turbulent' : 'Assertive'}</span>
+            </div>
+          </Card>
+
+          {/* Enneagram Card */}
+          <Card style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fbbf2420', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: '1.3rem', fontWeight: 700, color: '#fbbf24' }}>{char.enneagramWing[0]}</span>
+              </div>
+              <div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fbbf24' }}>{char.enneagramWing}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{char.enneagram}</div>
+              </div>
+            </div>
+            {/* Enneagram circle visualization */}
+            <svg width="100%" viewBox="0 0 200 200" style={{ maxHeight: 180 }}>
+              {Array.from({ length: 9 }, (_, i) => {
+                const angle = ((i) * (Math.PI * 2) / 9) - Math.PI / 2;
+                const cx2 = 100 + 70 * Math.cos(angle);
+                const cy2 = 100 + 70 * Math.sin(angle);
+                const typeNum = i + 1;
+                const isMain = char.enneagramWing.startsWith(String(typeNum));
+                const isWing = char.enneagramWing.includes(`w${typeNum}`);
+                return (
+                  <g key={i}>
+                    <circle cx={cx2} cy={cy2} r={isMain ? 16 : isWing ? 13 : 10}
+                      fill={isMain ? '#fbbf24' : isWing ? '#fbbf2440' : 'var(--bg-tertiary)'}
+                      stroke={isMain || isWing ? '#fbbf24' : 'var(--border)'} strokeWidth={isMain ? 2 : 1}
+                    />
+                    <text x={cx2} y={cy2} textAnchor="middle" dominantBaseline="central"
+                      fill={isMain ? '#000' : isWing ? '#fbbf24' : 'var(--text-muted)'}
+                      fontSize={isMain ? 11 : 9} fontWeight={isMain ? 700 : 400}>{typeNum}</text>
+                  </g>
+                );
+              })}
+            </svg>
+          </Card>
+
+          {/* Alignment Card */}
+          <Card style={{ padding: 16 }}>
+            <h3 style={labelStyle}>Moral Alignment</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+              {['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'True Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil'].map(a => {
+                const isActive = a === char.alignment;
+                const row = a.includes('Good') ? '#10b981' : a.includes('Evil') ? '#ef4444' : '#fbbf24';
+                return (
+                  <div key={a} style={{
+                    padding: '6px 4px', borderRadius: 'var(--radius-sm)', textAlign: 'center',
+                    fontSize: '0.65rem', fontWeight: isActive ? 700 : 400,
+                    background: isActive ? `${row}20` : 'var(--bg-tertiary)',
+                    border: isActive ? `2px solid ${row}` : '1px solid var(--border)',
+                    color: isActive ? row : 'var(--text-muted)',
+                  }}>{a}</div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Emotional Register */}
+          <Card style={{ padding: 16 }}>
+            <h3 style={labelStyle}>Emotional Register (Baseline)</h3>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: char.color, marginBottom: 8 }}>{char.emotionalRegister}</div>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+              This is where {characterName} starts — not where they end. The arc is the phase shift away from and back toward this register.
+            </p>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Voice Tab ── */}
+      {activeTab === 'voice' && (
+        <div style={{ maxWidth: 680 }}>
+          <Card style={{ padding: 20, marginBottom: 16, background: 'linear-gradient(135deg, var(--accent-glow) 0%, var(--bg-secondary) 100%)' }}>
+            <h3 style={{ ...labelStyle, color: 'var(--accent)' }}>Voice Fingerprint</h3>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
+              Derived from {char.mbti} + {char.enneagramWing} + wound ({char.wound?.split(' — ')[0] || char.wound})
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                { label: 'Speech Rhythm', value: char.voice?.speechRhythm },
+                { label: 'Vocabulary Register', value: char.voice?.vocabularyRegister },
+                { label: 'Volume & Pacing', value: char.voice?.volumePacing },
+                { label: 'Dialogue Tic', value: char.voice?.dialogueTic },
+                { label: 'Metaphor Family', value: char.voice?.metaphorFamily },
+                { label: 'Defensive Speech', value: char.voice?.defensiveSpeech },
+              ].filter(v => v.value).map(v => (
+                <div key={v.label} style={{ padding: '10px 12px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: char.color, fontWeight: 600, marginBottom: 4 }}>{v.label}</div>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{v.value}</div>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {char.voice?.subtextDefault && (
+            <Card style={{ padding: 16, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
+              <h3 style={{ ...labelStyle, color: '#ef4444' }}>Subtext Default — What They Cannot Say</h3>
+              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontStyle: 'italic' }}>
+                "{char.voice.subtextDefault}"
+              </div>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ── Arc & Role Tab ── */}
+      {activeTab === 'arc' && (
+        <div style={{ maxWidth: 720 }}>
+          <div style={gridRowStyle}>
+            {attrCard('Arc Type', char.arcType, char.color)}
+            {attrCard('Story Role', `${char.role} — ${char.type}`)}
+          </div>
+
+          <Card style={{ padding: 16, marginBottom: 16 }}>
+            <h3 style={labelStyle}>Arc Journey</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <div style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>{char.arcStart}</div>
+              <div style={{ flex: 1, height: 2, background: `linear-gradient(90deg, var(--text-muted) 0%, ${char.color} 100%)` }} />
+              <div style={{ padding: '6px 10px', background: `${char.color}15`, borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: char.color, fontWeight: 600 }}>{char.arcEnd}</div>
+            </div>
+          </Card>
+
+          {/* Beat-by-beat timeline */}
+          <Card style={{ padding: 16, marginBottom: 16 }}>
+            <h3 style={labelStyle}>Chapter Beats</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {char.beats.map((beat, i) => {
+                const tc = timelineCharacters.find(c => c.name === characterName);
+                const intensity = tc ? tc.arc[i] : 5;
+                return (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', width: 40, flexShrink: 0 }}>Ch {i + 1}</span>
+                    <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                      <div style={{ width: `${intensity * 10}%`, height: '100%', borderRadius: 3, background: char.color, opacity: 0.4 + (intensity / 10) * 0.6, transition: 'width 0.3s ease' }} />
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', minWidth: 120 }}>{beat}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', width: 20, textAlign: 'right' }}>{intensity}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Relationships quick list */}
+          <Card style={{ padding: 16 }}>
+            <h3 style={labelStyle}>Key Relationships</h3>
+            {char.relationships.map((rel, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < char.relationships.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: (characterProfiles[rel.name]?.gradient || 'var(--bg-tertiary)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#000' }}>
+                  {rel.name[0]}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{rel.name}</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 6 }}>{rel.type}</span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{rel.dynamic}</div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Attachment: {rel.attachment}</div>
+                </div>
+              </div>
+            ))}
+          </Card>
+        </div>
+      )}
+
+      {/* ── Analysis Tab (Radar Charts) ── */}
+      {activeTab === 'radar' && (
+        <div style={{ display: 'grid', gridTemplateColumns: char.temperament ? '1fr 1fr' : '1fr', gap: 16 }}>
+          {char.strengths && (
+            <Card style={{ padding: 20 }}>
+              {renderRadar(char.strengths, {
+                emotional: 'Emotional', analytical: 'Analytical', social: 'Social', physical: 'Physical',
+                creative: 'Creative', resilience: 'Resilience', intuition: 'Intuition', leadership: 'Leadership',
+              }, null, 'Strengths & Capabilities', 280)}
+            </Card>
+          )}
+          {char.temperament && (
+            <Card style={{ padding: 20 }}>
+              {renderRadar(char.temperament, {
+                openness: 'Openness', conscientiousness: 'Conscientiousness', extraversion: 'Extraversion',
+                agreeableness: 'Agreeableness', neuroticism: 'Neuroticism',
+              }, '#a78bfa', 'Big Five Temperament', 280)}
+            </Card>
+          )}
+          <Card style={{ padding: 20, gridColumn: '1 / -1' }}>
+            <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>Attribute Scores</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+              {Object.entries(char.strengths).map(([k, v]) => (
+                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', width: 70, textTransform: 'capitalize' }}>{k}</span>
+                  <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                    <div style={{ width: `${v * 10}%`, height: '100%', borderRadius: 4, background: char.color, transition: 'width 0.5s ease' }} />
+                  </div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: char.color, width: 20 }}>{v}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PlaceholderMode({ name }) {
   return (
     <div style={{ padding: 40, textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
@@ -2311,27 +3226,25 @@ function PlaceholderMode({ name }) {
 const phaseColors = {
   1: '#818cf8', // Author — indigo
   2: '#a78bfa', // Narrator — violet
-  3: '#2dd4bf', // World — teal
-  4: '#f472b6', // Characters — pink
-  5: '#f9a8d4', // Relationships — rose
-  6: '#fbbf24', // Story Foundation — amber
-  7: '#60a5fa', // MetaFiles Review — blue
+  3: '#60a5fa', // Quality Control — blue
+  4: '#2dd4bf', // World — teal
+  5: '#f472b6', // Characters — pink
+  6: '#f9a8d4', // Relationships — rose
+  7: '#fbbf24', // Story Foundation — amber
   8: '#f97316', // Chapter Execution — orange
   9: '#4ade80', // Editor — green
-  10: '#e879f9', // Polish — fuchsia
 };
 
 const phaseNames = {
   1: 'Phase 1 — Author',
   2: 'Phase 2 — Narrator',
-  3: 'Phase 3 — World',
-  4: 'Phase 4 — Characters',
-  5: 'Phase 5 — Relationships',
-  6: 'Phase 6 — Story Foundation',
-  7: 'Phase 7 — MetaFiles Review',
+  3: 'Phase 3 — Quality Control',
+  4: 'Phase 4 — World',
+  5: 'Phase 5 — Characters',
+  6: 'Phase 6 — Relationships',
+  7: 'Phase 7 — Story Foundation',
   8: 'Phase 8 — Chapter Execution',
   9: 'Phase 9 — Editor',
-  10: 'Phase 10 — Polish',
 };
 
 function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onOverLimitClick }) {
@@ -2539,6 +3452,187 @@ function QuickChat({ expanded, onToggle, onOpenFull, onSetMode }) {
   );
 }
 
+/* ─── Theme Presets ─── */
+const themePresets = {
+  midnight: {
+    name: 'Midnight', preview: '#0f172a',
+    vars: { '--bg-primary': '#0f172a', '--bg-secondary': '#1e293b', '--bg-tertiary': '#334155', '--text-primary': '#f1f5f9', '--text-secondary': '#cbd5e1', '--text-muted': '#64748b', '--accent': '#818cf8', '--accent-subtle': 'rgba(129,140,248,0.08)', '--accent-glow': 'rgba(129,140,248,0.12)', '--border': '#334155' },
+  },
+  ember: {
+    name: 'Ember', preview: '#1c1412',
+    vars: { '--bg-primary': '#1c1412', '--bg-secondary': '#2a1f1b', '--bg-tertiary': '#3d2e28', '--text-primary': '#fef2f2', '--text-secondary': '#d6bcb0', '--text-muted': '#8b7265', '--accent': '#f97316', '--accent-subtle': 'rgba(249,115,22,0.08)', '--accent-glow': 'rgba(249,115,22,0.12)', '--border': '#3d2e28' },
+  },
+  forest: {
+    name: 'Forest', preview: '#0f1a14',
+    vars: { '--bg-primary': '#0f1a14', '--bg-secondary': '#1a2e22', '--bg-tertiary': '#264032', '--text-primary': '#ecfdf5', '--text-secondary': '#a7d1b8', '--text-muted': '#5b8a6e', '--accent': '#34d399', '--accent-subtle': 'rgba(52,211,153,0.08)', '--accent-glow': 'rgba(52,211,153,0.12)', '--border': '#264032' },
+  },
+  twilight: {
+    name: 'Twilight', preview: '#1a1025',
+    vars: { '--bg-primary': '#1a1025', '--bg-secondary': '#261838', '--bg-tertiary': '#3a2650', '--text-primary': '#f5f3ff', '--text-secondary': '#c4b5fd', '--text-muted': '#7c5fbf', '--accent': '#a78bfa', '--accent-subtle': 'rgba(167,139,250,0.08)', '--accent-glow': 'rgba(167,139,250,0.12)', '--border': '#3a2650' },
+  },
+  daylight: {
+    name: 'Daylight', preview: '#fafaf9',
+    vars: { '--bg-primary': '#fafaf9', '--bg-secondary': '#f5f5f4', '--bg-tertiary': '#e7e5e4', '--text-primary': '#1c1917', '--text-secondary': '#44403c', '--text-muted': '#78716c', '--accent': '#2563eb', '--accent-subtle': 'rgba(37,99,235,0.08)', '--accent-glow': 'rgba(37,99,235,0.12)', '--border': '#d6d3d1' },
+  },
+};
+
+/* ─── Modal Overlay ─── */
+function ModalOverlay({ children, onClose }) {
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.15s ease',
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)',
+        padding: 24, minWidth: 360, maxWidth: 480, maxHeight: '80vh', overflowY: 'auto', boxShadow: '0 25px 50px rgba(0,0,0,0.4)',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Export Modal ─── */
+function ExportModal({ onClose }) {
+  const formats = [
+    { label: 'Markdown (.md)', desc: 'Plain text with formatting — works everywhere', icon: FileText },
+    { label: 'Word Document (.docx)', desc: 'Microsoft Word format with styles', icon: FileText },
+    { label: 'PDF (.pdf)', desc: 'Print-ready document with layout', icon: FileText },
+    { label: 'JSON Bundle', desc: 'Full project data for backup or migration', icon: Download },
+  ];
+  const scopes = ['Full Project', 'Current Chapter', 'Characters Only', 'World Building Only'];
+  return (
+    <ModalOverlay onClose={onClose}>
+      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Export Project</h3>
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Format</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
+        {formats.map((f, i) => (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
+            background: i === 0 ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+            border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+          }}>
+            <f.icon size={16} color={i === 0 ? 'var(--accent)' : 'var(--text-muted)'} />
+            <div>
+              <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{f.label}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{f.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Scope</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
+        {scopes.map((s, i) => (
+          <Badge key={s} variant={i === 0 ? 'accent' : 'muted'} style={{ cursor: 'pointer', padding: '4px 10px' }}>{s}</Badge>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="primary"><Download size={14} style={{ marginRight: 4 }} /> Export</Button>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ─── Settings Modal ─── */
+function SettingsModal({ onClose, currentTheme, onThemeChange }) {
+  const settings = [
+    { label: 'Auto-save interval', value: '30 seconds', type: 'select' },
+    { label: 'Word count goal', value: '70,000', type: 'input' },
+    { label: 'Show writing tips', value: true, type: 'toggle' },
+    { label: 'Spell check', value: true, type: 'toggle' },
+    { label: 'Dark mode', value: currentTheme !== 'daylight', type: 'toggle' },
+  ];
+  return (
+    <ModalOverlay onClose={onClose}>
+      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Settings</h3>
+      {/* Theme picker section */}
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Appearance</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {Object.entries(themePresets).map(([key, theme]) => (
+          <div key={key} onClick={() => onThemeChange(key)} style={{
+            width: 48, height: 48, borderRadius: 'var(--radius-sm)',
+            background: theme.preview, border: currentTheme === key ? '2px solid var(--accent)' : '2px solid var(--border)',
+            cursor: 'pointer', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', paddingBottom: 3,
+            transition: 'var(--transition)', position: 'relative',
+          }}>
+            <span style={{ fontSize: '0.55rem', color: key === 'daylight' ? '#44403c' : '#e2e8f0', fontWeight: 500 }}>{theme.name}</span>
+            {currentTheme === key && (
+              <div style={{ position: 'absolute', top: 2, right: 2, width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ height: 1, background: 'var(--border)', marginBottom: 16 }} />
+      {/* Other settings */}
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>General</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {settings.map((s) => (
+          <div key={s.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{s.label}</span>
+            {s.type === 'toggle' ? (
+              <div style={{
+                width: 36, height: 20, borderRadius: 10, cursor: 'pointer',
+                background: s.value ? 'var(--accent)' : 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                position: 'relative', transition: 'var(--transition)',
+              }}>
+                <div style={{
+                  width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                  position: 'absolute', top: 2, left: s.value ? 19 : 2, transition: 'var(--transition)',
+                }} />
+              </div>
+            ) : (
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>{s.value}</span>
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 }}>
+        <Button variant="ghost" onClick={onClose}>Close</Button>
+        <Button variant="primary" onClick={onClose}>Save</Button>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+/* ─── Theme Picker Modal ─── */
+function ThemePickerModal({ onClose, currentTheme, onThemeChange }) {
+  return (
+    <ModalOverlay onClose={onClose}>
+      <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 4 }}>Choose Theme</h3>
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 16 }}>Select a color theme for your workspace</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {Object.entries(themePresets).map(([key, theme]) => (
+          <div key={key} onClick={() => { onThemeChange(key); onClose(); }} style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+            background: currentTheme === key ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+            border: currentTheme === key ? '1px solid var(--accent)' : '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'var(--transition)',
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: 'var(--radius-sm)', background: theme.preview,
+              border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: theme.vars['--accent'] }} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.9rem', fontWeight: 600, color: currentTheme === key ? 'var(--accent)' : 'var(--text-primary)' }}>{theme.name}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'flex', gap: 4, marginTop: 3 }}>
+                {['--bg-primary', '--accent', '--text-primary'].map(v => (
+                  <div key={v} style={{ width: 12, height: 12, borderRadius: 2, background: theme.vars[v], border: '1px solid rgba(255,255,255,0.1)' }} />
+                ))}
+              </div>
+            </div>
+            {currentTheme === key && <Badge variant="accent">Active</Badge>}
+          </div>
+        ))}
+      </div>
+    </ModalOverlay>
+  );
+}
+
 /* ─── Main Workspace ─── */
 export default function WorkspaceScreen() {
   const navigate = useNavigate();
@@ -2546,11 +3640,31 @@ export default function WorkspaceScreen() {
   const initialMode = searchParams.get('mode') || 'guided';
   const [activeMode, setActiveMode] = useState(initialMode);
   const [activeFile, setActiveFile] = useState(null); // tracks which file is open
+  const [selectedCharacter, setSelectedCharacter] = useState(null); // for character profile view
+  // Shared editable file contents — persists across editor/reader mode switches
+  const [editedFiles, setEditedFiles] = useState({});
   const [leftTab, setLeftTab] = useState('phases');
   const [expandedDim, setExpandedDim] = useState(null);
   const [quickChatOpen, setQuickChatOpen] = useState(false);
   const [threadExpanded, setThreadExpanded] = useState(false);
   const [overLimitPrompt, setOverLimitPrompt] = useState(false);
+
+  // Modal state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState('midnight');
+
+  // Apply theme to document
+  const applyTheme = (themeKey) => {
+    setCurrentTheme(themeKey);
+    const theme = themePresets[themeKey];
+    if (theme) {
+      Object.entries(theme.vars).forEach(([prop, val]) => {
+        document.documentElement.style.setProperty(prop, val);
+      });
+    }
+  };
 
   // Collapsible + resizable sidebars
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -2598,14 +3712,31 @@ export default function WorkspaceScreen() {
     switch (activeMode) {
       case 'guided': return <GuidedFlow />;
       case 'editor': return <EditorMode file={activeFile} />;
-      case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} />;
-      case 'file-editor': return <FileEditorMode file={activeFile} onPreview={() => setActiveMode('reader')} onEditorReview={() => setActiveMode('editor')} />;
+      case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} editedContent={editedFiles[activeFile]} />;
+      case 'file-editor': return <FileEditorMode
+        file={activeFile}
+        onPreview={() => setActiveMode('reader')}
+        onEditorReview={() => setActiveMode('editor')}
+        editedContent={editedFiles[activeFile]}
+        onContentChange={(text) => setEditedFiles(prev => ({ ...prev, [activeFile]: text }))}
+        onSave={(text) => setEditedFiles(prev => ({ ...prev, [activeFile]: text }))}
+      />;
+      case 'full-cast': return <FullCastMode
+        onCharacterClick={(name) => { setSelectedCharacter(name); setActiveMode('character-profile'); }}
+        onBack={() => setActiveMode('guided')}
+      />;
       case 'comparison': return <ComparisonMode />;
       case 'graph': return <RelationshipGraph />;
       case 'chat': return <ChatMode />;
       case 'timeline': return <TimelineMode />;
       case 'board': return <DrawingBoard />;
       case 'world': return <WorldBuildingMode />;
+      case 'character-profile': return <CharacterProfile
+        characterName={selectedCharacter}
+        onBack={() => setActiveMode('guided')}
+        onViewArc={() => { setActiveMode('timeline'); }}
+        onViewRelationships={() => { setActiveMode('graph'); }}
+      />;
       default: return <PlaceholderMode name={centerStageModes.find(m => m.key === activeMode)?.label || activeMode} />;
     }
   };
@@ -2616,9 +3747,14 @@ export default function WorkspaceScreen() {
         projectName="The Shunning Season"
         healthRating={4}
         onHealthClick={() => {
-          const el = document.getElementById('project-health-section');
-          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          setRightCollapsed(false);
+          setTimeout(() => {
+            const el = document.getElementById('project-health-section');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
         }}
+        onSettingsClick={() => setShowSettingsModal(true)}
+        onThemeClick={() => setShowThemeModal(true)}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -2774,11 +3910,20 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-                {leftTab === 'phases' && <PhaseProgress currentPhase={3} />}
-                {leftTab === 'cast' && <CastRoster />}
+                {leftTab === 'phases' && <PhaseProgress currentPhase={4} />}
+                {leftTab === 'cast' && (
+                  <CastRoster
+                    onCharacterClick={(name) => { setSelectedCharacter(name); setActiveMode('character-profile'); }}
+                    onViewFullCast={() => setActiveMode('full-cast')}
+                  />
+                )}
                 {leftTab === 'files' && (
                   <div style={{ fontSize: '0.8rem' }}>
-                    {fileTree.map((f) => (
+                    {/* Story Project Files */}
+                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '4px 4px 6px', fontWeight: 600 }}>
+                      Project Files
+                    </div>
+                    {fileTree.filter(f => !f.section).map((f) => (
                       <div key={f.name}>
                         <div
                           onClick={() => !f.children && f.name.endsWith('.md') ? openFile(f.name, null) : null}
@@ -2819,13 +3964,59 @@ export default function WorkspaceScreen() {
                         })}
                       </div>
                     ))}
+                    {/* Engine Reference Files */}
+                    <div style={{ height: 1, background: 'var(--border)', margin: '10px 0' }} />
+                    <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '4px 4px 6px', fontWeight: 600 }}>
+                      Engine Reference
+                    </div>
+                    {fileTree.filter(f => f.section === 'engine').map((f) => (
+                      <div key={f.name}>
+                        <div
+                          onClick={() => !f.children && f.name.endsWith('.md') ? openFile(f.name, null) : null}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 6, padding: '4px 4px',
+                            cursor: f.children ? 'default' : 'pointer',
+                            color: 'var(--text-muted)',
+                            borderRadius: 'var(--radius-sm)',
+                            background: activeFile === f.name ? 'var(--accent-glow)' : 'transparent',
+                            fontWeight: activeFile === f.name ? 600 : 400,
+                          }}
+                        >
+                          {f.children ? <Library size={13} /> : <FileText size={13} />}
+                          <span>{f.name}</span>
+                        </div>
+                        {f.children && f.children.map((c) => {
+                          const fullPath = f.name + c;
+                          const isFolder = c.endsWith('/');
+                          return (
+                            <div
+                              key={c}
+                              onClick={() => !isFolder ? openFile(c, f.name) : null}
+                              style={{
+                                paddingLeft: 24, fontSize: '0.75rem',
+                                color: activeFile === fullPath ? 'var(--accent)' : 'var(--text-muted)',
+                                padding: '3px 4px 3px 24px',
+                                cursor: isFolder ? 'default' : 'pointer',
+                                borderRadius: 'var(--radius-sm)',
+                                background: activeFile === fullPath ? 'var(--accent-glow)' : 'transparent',
+                                fontWeight: activeFile === fullPath ? 600 : 400,
+                                display: 'flex', alignItems: 'center', gap: 4,
+                              }}
+                            >
+                              {isFolder ? <FolderTree size={10} /> : <FileText size={10} />}
+                              {c}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
               {/* Download */}
               <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)' }}>
-                <Button variant="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }}>
+                <Button variant="ghost" size="sm" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowExportModal(true)}>
                   <Download size={13} /> Export Project
                 </Button>
               </div>
@@ -2947,18 +4138,18 @@ export default function WorkspaceScreen() {
                 </h4>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
                   {[
-                    'Answer hallmarks questions (3 remaining)',
-                    'Run Seven Deaths audit',
-                    'Review world diagnostic',
-                    'Begin Phase 4 — Characters',
+                    { label: 'Answer hallmarks questions (3 remaining)', action: () => setActiveMode('guided') },
+                    { label: 'Run Seven Deaths audit', action: () => { openFile('seven-story-deaths.md', 'quality-control/'); } },
+                    { label: 'Review world diagnostic', action: () => setActiveMode('world') },
+                    { label: 'Begin Phase 5 — Characters', action: () => { setLeftTab('phases'); } },
                   ].map((step, i) => (
-                    <div key={i} style={{
+                    <div key={i} onClick={step.action} style={{
                       display: 'flex', alignItems: 'center', gap: 6,
                       padding: '6px 8px', fontSize: '0.8rem', color: 'var(--text-secondary)',
                       cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                     }}>
                       <span style={{ color: 'var(--accent)' }}>→</span>
-                      {step}
+                      {step.label}
                     </div>
                   ))}
                 </div>
@@ -3038,12 +4229,17 @@ export default function WorkspaceScreen() {
 
       {/* ─── Bottom Bar ─── */}
       <BottomStatusBar
-        currentPhase={3}
+        currentPhase={4}
         wordCount={wordCount}
         wordLimit={wordLimit}
-        onPhaseClick={() => setLeftTab('phases')}
+        onPhaseClick={() => { setLeftCollapsed(false); setLeftTab('phases'); }}
         onOverLimitClick={() => { setActiveMode('chat'); setOverLimitPrompt(true); }}
       />
+
+      {/* Modals */}
+      {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
+      {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
+      {showThemeModal && <ThemePickerModal onClose={() => setShowThemeModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
     </div>
   );
 }

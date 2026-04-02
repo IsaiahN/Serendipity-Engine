@@ -3,12 +3,12 @@ import { Check, Circle, Loader, AlertCircle } from 'lucide-react';
 const phases = [
   { num: 1, name: 'Author', pct: 100 },
   { num: 2, name: 'Narrator', pct: 100 },
-  { num: 3, name: 'World', pct: 72 },
-  { num: 4, name: 'Characters', pct: 0 },
-  { num: 5, name: 'Relationships', pct: 0 },
-  { num: 6, name: 'Story Foundation', pct: 0 },
+  { num: 3, name: 'Quality Control', pct: 0 },
+  { num: 4, name: 'World', pct: 72 },
+  { num: 5, name: 'Characters', pct: 0 },
+  { num: 6, name: 'Relationships', pct: 0 },
+  { num: 7, name: 'Story Foundation', pct: 0 },
   { num: '⟡', name: 'Bridge', pct: 0 },
-  { num: 7, name: 'MetaFiles Review', pct: 0 },
   { num: 8, name: 'Chapter Execution', pct: 0 },
   { num: 9, name: 'Editor', pct: 0 },
 ];

@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Settings, Search, Keyboard, ChevronDown } from 'lucide-react';
+import { Settings, Search, Keyboard, Palette, ChevronDown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import HealthBar, { getHealthLevel } from './HealthBar';
 
-export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick }) {
+export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick, onSettingsClick, onThemeClick }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
@@ -106,7 +106,10 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
       <button onClick={() => {}} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Keyboard Shortcuts">
         <Keyboard size={16} />
       </button>
-      <button onClick={() => navigate('/settings')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Settings (Ctrl+,)">
+      <button onClick={onThemeClick || (() => {})} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Theme">
+        <Palette size={16} />
+      </button>
+      <button onClick={onSettingsClick || (() => navigate('/settings'))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Settings (Ctrl+,)">
         <Settings size={16} />
       </button>
     </div>

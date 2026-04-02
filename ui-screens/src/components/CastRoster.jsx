@@ -29,9 +29,11 @@ function Avatar({ char, size = 36 }) {
   );
 }
 
-function MainCharRow({ c }) {
+function MainCharRow({ c, onCharacterClick }) {
   return (
     <div
+      data-char-name={c.name}
+      onClick={() => onCharacterClick?.(c.name)}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -47,19 +49,21 @@ function MainCharRow({ c }) {
         <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{c.name}</div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{c.role}</div>
       </div>
-      <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title="Talk">
+      <button onClick={(e) => { e.stopPropagation(); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title="Talk">
         <MessageSquare size={13} />
       </button>
-      <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title="File">
+      <button onClick={(e) => { e.stopPropagation(); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }} title="File">
         <FileText size={13} />
       </button>
     </div>
   );
 }
 
-function MinorCharCell({ c }) {
+function MinorCharCell({ c, onCharacterClick }) {
   return (
     <div
+      data-char-name={c.name}
+      onClick={() => onCharacterClick?.(c.name)}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -81,7 +85,7 @@ function MinorCharCell({ c }) {
   );
 }
 
-export default function CastRoster() {
+export default function CastRoster({ onCharacterClick, onViewFullCast }) {
   const mainChars = characters.filter(c => c.tier === 'main');
   const minorChars = characters.filter(c => c.tier === 'minor');
 
@@ -110,7 +114,7 @@ export default function CastRoster() {
         Main Characters
       </div>
       {mainChars.map((c) => (
-        <MainCharRow key={c.name} c={c} />
+        <MainCharRow key={c.name} c={c} onCharacterClick={onCharacterClick} />
       ))}
 
       {/* Minor Characters — compact two-per-row grid */}
@@ -119,18 +123,20 @@ export default function CastRoster() {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         {minorChars.map((c) => (
-          <MinorCharCell key={c.name} c={c} />
+          <MinorCharCell key={c.name} c={c} onCharacterClick={onCharacterClick} />
         ))}
       </div>
 
       {/* View Full Cast link */}
       <button
+        onClick={(e) => { e.stopPropagation(); onViewFullCast?.(); }}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
           background: 'none', border: 'none',
           color: 'var(--accent)', cursor: 'pointer',
           padding: '8px 0', marginTop: 8, fontSize: '0.75rem',
           borderTop: '1px solid var(--border)',
+          width: '100%',
         }}
       >
         <Users size={12} /> View Full Cast ({characters.length})
