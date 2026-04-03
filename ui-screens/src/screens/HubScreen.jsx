@@ -391,10 +391,10 @@ export default function HubScreen() {
                   <Button variant="primary" onClick={handleOpenProject}>
                     Pick Up Where I Left Off
                   </Button>
-                  <Button variant="secondary" onClick={() => { handleOpenProject(); navigate('/workspace?mode=reader'); }}>
+                  <Button variant="secondary" onClick={async () => { if (selectedProject) { await setActiveProject(selectedProject.id); navigate('/workspace?mode=reader'); } }}>
                     Show Full Picture
                   </Button>
-                  <Button variant="ghost" onClick={() => { handleOpenProject(); navigate('/workspace?mode=timeline'); }}>
+                  <Button variant="ghost" onClick={async () => { if (selectedProject) { await setActiveProject(selectedProject.id); navigate('/workspace?mode=timeline'); } }}>
                     Open Story Timeline
                   </Button>
                 </div>

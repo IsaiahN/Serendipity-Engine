@@ -1646,7 +1646,8 @@ function ChatMode({ phasePcts = {} }) {
           { role: 'user', content: 'Generate contextual conversation starters. Respond with JSON array only.' },
         ], 'chat');
         if (cancelled) return;
-        const match = resp.match(/\[[\s\S]*\]/);
+        const respStr = typeof resp === 'string' ? resp : (resp?.content || resp?.text || JSON.stringify(resp || ''));
+        const match = respStr.match(/\[[\s\S]*\]/);
         if (match) {
           const parsed = JSON.parse(match[0]);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -7145,9 +7146,21 @@ export default function WorkspaceScreen() {
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
               <Button variant="ghost" onClick={() => { setShowAddCharModal(false); setNewChar({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null }); }}>Cancel</Button>
-              <Button variant="primary" onClick={() => {
+              <Button variant="primary" onClick={async () => {
                 if (!newChar.name.trim()) return;
-                // For now just close — in production this would persist the character
+                const slug = newChar.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                const filePath = `characters/${slug}.md`;
+                const roleLabel = newChar.role || 'Supporting';
+                const tierLabel = newChar.tier === 'main' ? 'Main character' : 'Minor character';
+                const typeLabel = newChar.type ? `\n**Type:** ${newChar.type}` : '';
+                const bioBlock = newChar.bio ? `\n\n${newChar.bio}` : '';
+                const content = `# ${newChar.name.trim()} (${roleLabel})\n\n## Profile\n\n**Role:** ${roleLabel}\n**Tier:** ${tierLabel}${typeLabel}${bioBlock}\n`;
+                try {
+                  const { updateFile } = useProjectStore.getState();
+                  await updateFile(filePath, content);
+                } catch (err) {
+                  console.warn('Failed to save character:', err);
+                }
                 setShowAddCharModal(false);
                 setNewChar({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null });
               }} style={{ opacity: newChar.name.trim() ? 1 : 0.5 }}>Add Character</Button>

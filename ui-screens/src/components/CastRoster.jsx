@@ -1,14 +1,47 @@
 import { useState } from 'react';
 import { MessageSquare, Trash2, Plus, Users } from 'lucide-react';
+import { useProjectStore } from '../stores/projectStore';
 
-const characters = [
-  { name: 'Elena', role: 'Protagonist', tier: 'main', gradient: 'linear-gradient(135deg, #2dd4bf, #f472b6)', photo: null },
-  { name: 'Marcus', role: 'Deuteragonist', tier: 'main', gradient: 'linear-gradient(135deg, #818cf8, #f97316)', photo: null },
-  { name: 'Priya', role: 'Supporting', tier: 'main', gradient: 'linear-gradient(135deg, #fbbf24, #a78bfa)', photo: null },
-  { name: 'Thomas', role: 'Minor', tier: 'minor', gradient: 'linear-gradient(135deg, #6ee7b7, #60a5fa)', photo: null },
-  { name: 'Ruth', role: 'Minor', tier: 'minor', gradient: 'linear-gradient(135deg, #f9a8d4, #818cf8)', photo: null },
-  { name: 'Bishop Lapp', role: 'Minor', tier: 'minor', gradient: 'linear-gradient(135deg, #94a3b8, #475569)', photo: null },
+const gradients = [
+  'linear-gradient(135deg, #2dd4bf, #f472b6)',
+  'linear-gradient(135deg, #818cf8, #f97316)',
+  'linear-gradient(135deg, #fbbf24, #a78bfa)',
+  'linear-gradient(135deg, #6ee7b7, #60a5fa)',
+  'linear-gradient(135deg, #f9a8d4, #818cf8)',
+  'linear-gradient(135deg, #94a3b8, #475569)',
+  'linear-gradient(135deg, #f87171, #fbbf24)',
+  'linear-gradient(135deg, #34d399, #818cf8)',
 ];
+
+function buildCastFromFiles(files) {
+  return Object.entries(files)
+    .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'))
+    .map(([path, content], idx) => {
+      const slug = path.replace('characters/', '').replace('.md', '');
+      const name = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+      const lower = (content || '').toLowerCase();
+
+      // Derive role from content
+      let role = 'Supporting';
+      if (lower.includes('protagonist')) role = 'Protagonist';
+      else if (lower.includes('deuteragonist') || lower.includes('antihero')) role = 'Deuteragonist';
+      else if (lower.includes('antagonist')) role = 'Antagonist';
+      else if (lower.includes('confidante')) role = 'Supporting';
+      else if (lower.includes('minor') || lower.includes('authority')) role = 'Minor';
+
+      // Derive tier
+      const isMain = lower.includes('protagonist') || lower.includes('deuteragonist') || lower.includes('main character') || lower.includes('main protagonist') || lower.includes('supporting') || lower.includes('confidante') || lower.includes('antihero');
+      const tier = isMain ? 'main' : 'minor';
+
+      return {
+        name,
+        role,
+        tier,
+        gradient: gradients[idx % gradients.length],
+        photo: null,
+      };
+    });
+}
 
 function Avatar({ char, size = 36 }) {
   return (
@@ -106,6 +139,8 @@ function MinorCharCell({ c, onCharacterClick }) {
 }
 
 export default function CastRoster({ onCharacterClick, onViewFullCast, onAddCharacter, onCharacterChat, onCharacterDelete }) {
+  const files = useProjectStore(s => s.files);
+  const characters = buildCastFromFiles(files);
   const mainChars = characters.filter(c => c.tier === 'main');
   const minorChars = characters.filter(c => c.tier === 'minor');
 
@@ -131,22 +166,36 @@ export default function CastRoster({ onCharacterClick, onViewFullCast, onAddChar
       </div>
 
       {/* Main Characters — full-width rows */}
-      <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '4px 8px', marginBottom: 2 }}>
-        Main Characters
-      </div>
-      {mainChars.map((c) => (
-        <MainCharRow key={c.name} c={c} onCharacterClick={onCharacterClick} onCharacterChat={onCharacterChat} onCharacterDelete={onCharacterDelete} />
-      ))}
+      {mainChars.length > 0 && (
+        <>
+          <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '4px 8px', marginBottom: 2 }}>
+            Main Characters
+          </div>
+          {mainChars.map((c) => (
+            <MainCharRow key={c.name} c={c} onCharacterClick={onCharacterClick} onCharacterChat={onCharacterChat} onCharacterDelete={onCharacterDelete} />
+          ))}
+        </>
+      )}
 
       {/* Minor Characters — compact two-per-row grid */}
-      <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '8px 8px 4px', marginTop: 4 }}>
-        Minor Characters
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        {minorChars.map((c) => (
-          <MinorCharCell key={c.name} c={c} onCharacterClick={onCharacterClick} />
-        ))}
-      </div>
+      {minorChars.length > 0 && (
+        <>
+          <div style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', padding: '8px 8px 4px', marginTop: 4 }}>
+            Minor Characters
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            {minorChars.map((c) => (
+              <MinorCharCell key={c.name} c={c} onCharacterClick={onCharacterClick} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {characters.length === 0 && (
+        <div style={{ padding: '16px 8px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+          No characters yet. Click "+ New" to add one.
+        </div>
+      )}
 
       {/* View Full Cast link */}
       <button
@@ -166,4 +215,4 @@ export default function CastRoster({ onCharacterClick, onViewFullCast, onAddChar
   );
 }
 
-export { Avatar, characters };
+export { Avatar, buildCastFromFiles };
