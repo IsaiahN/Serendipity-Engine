@@ -21,6 +21,9 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useLlmStore } from '../stores/llmStore';
 import { useTTS } from '../hooks/useTTS';
 import { removeEmdashes } from '../lib/randomEngine';
+import { useUndoRedo, useUndoRedoKeys } from '../hooks/useUndoRedo';
+import VersionHistory from '../components/VersionHistory';
+import SearchPanel from '../components/SearchPanel';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
 /* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
@@ -58,6 +61,7 @@ const centerStageModes = [
   { key: 'world', icon: Globe, label: 'World Building' },
   { key: 'comparison', icon: GitCompare, label: 'Comparison' },
   { key: 'board', icon: Palette, label: 'Drawing Board' },
+  { key: 'search', icon: Search, label: 'Search' },
 ];
 
 const fileTree = [
@@ -1250,6 +1254,29 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
   const [saved, setSaved] = useState(editedContent === undefined);
   const [showMinimap, setShowMinimap] = useState(true);
 
+  // Undo/redo for editor content
+  const undoRedo = useUndoRedo(content, { debounceMs: 500 });
+
+  useEffect(() => {
+    const handler = (e) => {
+      const isMod = e.ctrlKey || e.metaKey;
+      if (!isMod) return;
+      if (e.key === 'z' && !e.shiftKey && undoRedo.canUndo) {
+        e.preventDefault();
+        const prev = undoRedo.undo();
+        onContentChange(prev);
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        if (undoRedo.canRedo) {
+          e.preventDefault();
+          const next = undoRedo.redo();
+          onContentChange(next);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undoRedo.canUndo, undoRedo.canRedo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const lines = content.split('\n');
   const wordCount = content.split(/\s+/).filter(Boolean).length;
   const charCount = content.length;
@@ -1282,6 +1309,36 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
           {saved && <span style={{ color: '#4ade80' }}>saved</span>}
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
+          <button
+            onClick={() => { const prev = undoRedo.undo(); if (prev !== undefined) onContentChange(prev); }}
+            disabled={!undoRedo.canUndo}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)', background: 'var(--bg-card)',
+              color: undoRedo.canUndo ? 'var(--text-secondary)' : 'var(--text-muted)',
+              cursor: undoRedo.canUndo ? 'pointer' : 'not-allowed', fontSize: '0.75rem',
+              opacity: undoRedo.canUndo ? 1 : 0.5,
+            }}
+            title="Undo (Ctrl+Z)"
+          >
+            ↩ Undo
+          </button>
+          <button
+            onClick={() => { const next = undoRedo.redo(); if (next !== undefined) onContentChange(next); }}
+            disabled={!undoRedo.canRedo}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: '4px 8px', borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--border)', background: 'var(--bg-card)',
+              color: undoRedo.canRedo ? 'var(--text-secondary)' : 'var(--text-muted)',
+              cursor: undoRedo.canRedo ? 'pointer' : 'not-allowed', fontSize: '0.75rem',
+              opacity: undoRedo.canRedo ? 1 : 0.5,
+            }}
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            Redo ↪
+          </button>
           <button onClick={onPreview} style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 12px', borderRadius: 'var(--radius-sm)',
@@ -5668,6 +5725,8 @@ export default function WorkspaceScreen() {
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('amber');
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
 
   // Apply theme to document
   const applyTheme = (themeKey) => {
@@ -5807,6 +5866,7 @@ export default function WorkspaceScreen() {
         onViewArc={() => { setActiveMode('timeline'); }}
         onViewRelationships={() => { setActiveMode('graph'); }}
       />;
+      case 'search': return <SearchPanel onOpenFile={(path) => { setActiveFile(path); setActiveMode('reader'); }} onClose={() => setActiveMode('guided')} />;
       default: return <PlaceholderMode name={centerStageModes.find(m => m.key === activeMode)?.label || activeMode} />;
     }
   };
@@ -6340,7 +6400,31 @@ export default function WorkspaceScreen() {
               />
 
               {/* Collapse button */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 6px 0', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px 0', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    onClick={() => setShowVersionHistory(true)}
+                    style={{
+                      border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer',
+                      color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                      gap: 2, fontSize: '0.65rem', padding: '3px 6px', borderRadius: 'var(--radius-sm)',
+                    }}
+                    title="Version History"
+                  >
+                    <Clock size={11} /> History
+                  </button>
+                  <button
+                    onClick={() => setActiveMode('search')}
+                    style={{
+                      border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer',
+                      color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
+                      gap: 2, fontSize: '0.65rem', padding: '3px 6px', borderRadius: 'var(--radius-sm)',
+                    }}
+                    title="Search"
+                  >
+                    <Search size={11} /> Search
+                  </button>
+                </div>
                 <button onClick={() => setRightCollapsed(true)} style={{
                   border: 'none', background: 'transparent', cursor: 'pointer',
                   color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
@@ -6351,7 +6435,30 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
-                {/* Section 1: Next Steps — dynamic based on phase progress */}
+                {/* Version History Panel */}
+                {showVersionHistory && (
+                  <VersionHistory
+                    onClose={() => setShowVersionHistory(false)}
+                    onRestore={(filename, content) => {
+                      useProjectStore.getState().updateFile(filename, content);
+                      setShowVersionHistory(false);
+                    }}
+                  />
+                )}
+                {/* Search Panel */}
+                {showSearchPanel && (
+                  <SearchPanel
+                    onOpenFile={(path) => {
+                      setActiveFile(path);
+                      setActiveMode('reader');
+                      setShowSearchPanel(false);
+                    }}
+                    onClose={() => setShowSearchPanel(false)}
+                  />
+                )}
+                {/* Default Content: Section 1: Next Steps — dynamic based on phase progress */}
+                {!showVersionHistory && !showSearchPanel && (
+                  <>
                 <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
                   Next Steps
                 </h4>
@@ -6495,6 +6602,8 @@ export default function WorkspaceScreen() {
                   <Lightbulb size={13} color="var(--accent)" style={{ marginBottom: 4 }} />
                   <p>Hallmarks are the physical texture of your world. The reader won't remember your theme statement — they'll remember the prayer cap, the gas lamp, the county line. Make them specific enough to photograph.</p>
                 </Card>
+                  </>
+                )}
               </div>
             </>
           )}
