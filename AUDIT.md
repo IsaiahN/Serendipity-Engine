@@ -9,8 +9,8 @@
 ## Summary
 
 **Total features tested:** 35+
-**Issues found:** 14 (5 P1, 4 P2, 5 P3)
-**Issues fixed this session:** 14 (all resolved)
+**Issues found:** 16 (5 P1, 4 P2, 7 P3)
+**Issues fixed this session:** 16 (all resolved)
 
 ---
 
@@ -89,6 +89,16 @@
 - **Problem:** Replace feature showed a preview of changes but had no "Apply" button to execute replacements.
 - **Fix:** Added `handleApplyReplace()` function that iterates through preview changes and calls `updateFile()` for each, then re-runs the search to refresh results. Added styled "Apply All Replacements" button below the preview list.
 
+### 15. Reader settings gear button is a no-op (P3 — FIXED)
+- **File:** `screens/WorkspaceScreen.jsx` line ~1234
+- **Problem:** The Settings gear icon in Reader mode's toolbar had no `onClick` handler — clicking it did nothing. Found via systematic Chrome click-testing of every interactive element.
+- **Fix:** Added `showReaderSettings` toggle state and a full settings popover with: font family selector (Serif/Sans/Mono), font size +/- controls with visual progress bar, and line height selector (1.4–2.2). Wired the prose content `<div>` styles to use `readerFont`, `readerFontSize`, and `readerLineHeight` state instead of hardcoded values.
+
+### 16. History and Search panels don't close each other (P3 — FIXED)
+- **File:** `screens/WorkspaceScreen.jsx` lines ~6749, ~6760
+- **Problem:** The History button set `showVersionHistory(true)` but didn't close `showSearchPanel`, and the Search button called `setActiveMode('search')` instead of `setShowSearchPanel(true)` (meaning the right-panel SearchPanel was unreachable). Both panels could render simultaneously in the same right-panel area.
+- **Fix:** History button now also calls `setShowSearchPanel(false)`. Search button now calls `setShowSearchPanel(true)` and `setShowVersionHistory(false)`, making them mutually exclusive.
+
 ---
 
 ## FEATURES TESTED & WORKING
@@ -142,6 +152,8 @@
    - Removed native `window.confirm()` from character delete handler (#11)
    - Added `useEffect` to sync `activeMode` with URL searchParams changes (#12)
    - Replaced hardcoded `fileTree` with `buildProjectFileTree()` dynamic function (#13)
+   - Added Reader settings popover with font/size/line-height controls (#15)
+   - Fixed History/Search mutual exclusion in right panel (#16)
 
 2. **`ui-screens/src/components/CastRoster.jsx`**
    - Complete rewrite — replaced hardcoded character array with dynamic store reader

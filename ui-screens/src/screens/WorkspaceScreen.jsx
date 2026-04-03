@@ -1159,6 +1159,10 @@ function ReaderMode({ file, onEdit, editedContent }) {
   }
 
   const tts = useTTS();
+  const [showReaderSettings, setShowReaderSettings] = useState(false);
+  const [readerFontSize, setReaderFontSize] = useState(1.05);
+  const [readerLineHeight, setReaderLineHeight] = useState(2);
+  const [readerFont, setReaderFont] = useState('Georgia, serif');
   const fc = fileContents[file] || defaultFileContent(file || 'chapter-1.md');
   const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
@@ -1227,15 +1231,141 @@ function ReaderMode({ file, onEdit, editedContent }) {
               ■ Stop
             </button>
           )}
-          <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Settings size={16} /></button>
+          <button
+            onClick={() => setShowReaderSettings(!showReaderSettings)}
+            style={{
+              background: showReaderSettings ? 'var(--accent-glow)' : 'none',
+              border: showReaderSettings ? '1px solid var(--accent)' : 'none',
+              color: showReaderSettings ? 'var(--accent)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              borderRadius: 'var(--radius-sm)',
+              padding: '2px 6px',
+            }}
+            title="Reader settings"
+          >
+            <Settings size={16} />
+          </button>
         </div>
+
+        {/* Reader settings popover */}
+        {showReaderSettings && (
+          <div style={{
+            position: 'absolute',
+            right: 16,
+            top: 48,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md, 8px)',
+            padding: 16,
+            zIndex: 20,
+            minWidth: 220,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+          }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>
+              Reader Settings
+            </div>
+
+            {/* Font family */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>Font</div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[
+                  { label: 'Serif', value: 'Georgia, serif' },
+                  { label: 'Sans', value: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+                  { label: 'Mono', value: '"Fira Code", "Cascadia Code", monospace' },
+                ].map(f => (
+                  <button
+                    key={f.label}
+                    onClick={() => setReaderFont(f.value)}
+                    style={{
+                      flex: 1,
+                      padding: '4px 6px',
+                      fontSize: '0.7rem',
+                      fontFamily: f.value,
+                      background: readerFont === f.value ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+                      border: readerFont === f.value ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      color: readerFont === f.value ? 'var(--accent)' : 'var(--text-secondary)',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Font size */}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                Size: {readerFontSize.toFixed(2)}rem
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  onClick={() => setReaderFontSize(s => Math.max(0.75, s - 0.05))}
+                  style={{
+                    width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)', cursor: 'pointer', fontSize: '1rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >−</button>
+                <div style={{
+                  flex: 1, height: 4, background: 'var(--bg-tertiary)', borderRadius: 2, position: 'relative',
+                }}>
+                  <div style={{
+                    position: 'absolute', left: 0, top: 0, height: '100%',
+                    width: `${((readerFontSize - 0.75) / (1.6 - 0.75)) * 100}%`,
+                    background: 'var(--accent)', borderRadius: 2,
+                  }} />
+                </div>
+                <button
+                  onClick={() => setReaderFontSize(s => Math.min(1.6, s + 0.05))}
+                  style={{
+                    width: 28, height: 28, borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)', cursor: 'pointer', fontSize: '1rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >+</button>
+              </div>
+            </div>
+
+            {/* Line height */}
+            <div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                Line Height: {readerLineHeight.toFixed(1)}
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[1.4, 1.6, 1.8, 2.0, 2.2].map(lh => (
+                  <button
+                    key={lh}
+                    onClick={() => setReaderLineHeight(lh)}
+                    style={{
+                      flex: 1,
+                      padding: '4px 2px',
+                      fontSize: '0.65rem',
+                      background: readerLineHeight === lh ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+                      border: readerLineHeight === lh ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      color: readerLineHeight === lh ? 'var(--accent)' : 'var(--text-secondary)',
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {lh.toFixed(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Prose content */}
       <div style={{
-        fontFamily: 'Georgia, serif',
-        fontSize: '1.05rem',
-        lineHeight: 2,
+        fontFamily: readerFont,
+        fontSize: `${readerFontSize}rem`,
+        lineHeight: readerLineHeight,
         color: 'var(--text-primary)',
       }}>
         {isMarkdown ? (
@@ -6742,7 +6872,7 @@ export default function WorkspaceScreen() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px 0', borderBottom: '1px solid var(--border)', paddingBottom: 4 }}>
                 <div style={{ display: 'flex', gap: 4 }}>
                   <button
-                    onClick={() => setShowVersionHistory(true)}
+                    onClick={() => { setShowVersionHistory(true); setShowSearchPanel(false); }}
                     style={{
                       border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer',
                       color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
@@ -6753,7 +6883,7 @@ export default function WorkspaceScreen() {
                     <Clock size={11} /> History
                   </button>
                   <button
-                    onClick={() => setActiveMode('search')}
+                    onClick={() => { setShowSearchPanel(true); setShowVersionHistory(false); }}
                     style={{
                       border: '1px solid var(--border)', background: 'var(--bg-card)', cursor: 'pointer',
                       color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
