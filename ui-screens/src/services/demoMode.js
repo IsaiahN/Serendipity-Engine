@@ -153,6 +153,63 @@ Priya carries guilt about leaving. She sometimes romanticizes the community she 
 Intuitive, emotionally intelligent, adaptable. She reads situations quickly and responds with warmth, though she lacks Elena's patience for nuance.
 `,
 
+    'characters/david-yoder.md': `# David Yoder (Supporting)
+
+## Profile
+Age 54. Elena's father and assistant minister. A quiet, methodical man who has served the community faithfully for thirty years. He built his reputation on steadiness and discretion. Widowed since his wife's death when Elena was sixteen.
+
+## Role in Story
+David represents institutional loyalty in conflict with paternal love. When Elena brings evidence of Marcus's financial misconduct, David is forced to choose between his daughter and the community structure that has defined his entire life. He chooses the institution.
+
+## Wound
+His wife's death left him unable to cope with emotional vulnerability. He retreated into duty and structure, treating obedience as a substitute for intimacy.
+
+## Flaw
+He conflates stability with righteousness. He cannot conceive that the system he's devoted his life to could be fundamentally unjust.
+
+## MBTI: ISTJ
+Loyal, responsible, methodical. He experiences Elena's truth-telling as an attack on everything he's built.
+`,
+
+    'characters/bishop-lapp.md': `# Bishop Ezra Lapp (Authority / Minor Antagonist)
+
+## Profile
+Age 63. The presiding bishop of the Lancaster settlement. Father of Marcus Beiler (different surname due to maternal lineage tradition in this community). He has held the bishop's seat for eighteen years and views himself as the guardian of Ordnung and community survival.
+
+## Role in Story
+Bishop Lapp is the institutional force behind Elena's shunning. He doesn't act out of personal malice but from a deep conviction that community cohesion requires the suppression of dissent. He frames Elena as a troublemaker not because he believes it but because maintaining the narrative is more important than the truth.
+
+## Complexity
+He genuinely believes he's protecting the community. His authority is not tyrannical—it's paternalistic. He sees shunning as medicine, not punishment.
+
+## MBTI: ESTJ
+Organized, traditional, decisive. He views challenges to authority as threats to the community's survival.
+`,
+
+    'characters/ruth-yoder.md': `# Ruth Yoder (Minor)
+
+## Profile
+Age 22. Elena's younger sister. Still living at home with their father David. Ruth is quieter than Elena, more compliant, and more afraid of social disapproval. She watches Elena's shunning unfold with growing horror but cannot bring herself to speak up.
+
+## Role in Story
+Ruth embodies the cost of silence. She loves Elena but chooses self-preservation. Her inability to support her sister publicly illustrates how the community's enforcement mechanisms work—through fear, not just authority.
+
+## Complexity
+Ruth isn't a coward. She's making the same calculations Elena made for twenty-six years before the ledger changed everything. Ruth represents who Elena was before she chose truth.
+`,
+
+    'characters/thomas-beiler.md': `# Thomas Beiler (Minor)
+
+## Profile
+Age 24. Marcus's younger brother. Unlike Marcus, Thomas is earnest and devout. He works the family farm with genuine dedication and has a quiet, almost shy demeanor that contrasts with Marcus's charisma.
+
+## Role in Story
+Thomas represents the collateral damage of institutional corruption. He suspects his brother's misconduct but lacks the moral courage or social standing to intervene. He becomes an inadvertent witness to Marcus's manipulation of Elena.
+
+## Complexity
+Thomas respects Elena and feels guilty about his brother's behavior, but family loyalty and fear of his father's disappointment keep him silent. He's a mirror of David Yoder—both men choosing silence over truth.
+`,
+
     'relationships/questions-answered.md': `# Relationship Dynamics
 
 ## Elena ↔ Marcus

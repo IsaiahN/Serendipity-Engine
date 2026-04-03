@@ -10,7 +10,7 @@
 
 **Total features tested:** 35+
 **Issues found:** 14 (5 P1, 4 P2, 5 P3)
-**Issues fixed this session:** 4
+**Issues fixed this session:** 14 (all resolved)
 
 ---
 
@@ -38,64 +38,56 @@
 
 ---
 
-## OPEN ISSUES
+## FIXED THIS SESSION (continued)
 
-### P1 — Critical / Blocks Core Functionality
+### 5. Demo project character files are incomplete (P1 — FIXED)
+- **File:** `services/demoMode.js`
+- **Problem:** Demo project only had 3 character files (elena, marcus, priya) but story references 7 characters.
+- **Fix:** Added 4 missing character files: `david-yoder.md` (Supporting), `bishop-lapp.md` (Authority/Minor Antagonist), `ruth-yoder.md` (Minor), `thomas-beiler.md` (Minor). All with proper role, wound, flaw, MBTI, and story role descriptions.
 
-#### 5. Demo project character files are incomplete
-- **Where:** IndexedDB project data
-- **Problem:** The demo project only has 4 character `.md` files (elena, priya, marcus, and one test character we added), but the old hardcoded CastRoster showed 6. Characters like Thomas, Ruth, and Bishop Lapp existed in the hardcoded array but may not have actual files in IndexedDB. The Full Cast page (`FullCastMode`) separately parses characters from `buildTimelineData()` and may show different characters than the sidebar.
-- **Impact:** Character counts may be inconsistent between Cast sidebar, Full Cast page, and Timeline.
-- **Fix needed:** Ensure all demo project characters have corresponding `characters/*.md` files, or unify how character lists are derived across all components.
+### 6. Wizard Retell/Spinoff/Sequel/Prequel handlers lack error handling (P1 — FIXED)
+- **File:** `screens/WizardScreen.jsx` lines 272-330
+- **Problem:** Four wizard flow handlers had no try/catch — unhandled errors if project creation failed.
+- **Fix:** Wrapped all four handlers in try/catch with `console.error()` logging, `setIsProcessing(false)` reset, and user-facing alert messages.
 
-#### 6. Wizard Retell/Spinoff/Sequel/Prequel handlers lack error handling
-- **Where:** `WizardScreen.jsx` lines 272-330
-- **Problem:** The wizard flow handlers for these modes don't wrap operations in try/catch. If the LLM call or file creation fails, the user gets an unhandled error.
-- **Fix needed:** Add try/catch with user-facing error messages.
+### 7. Phase gates not disabled for decomposed projects (P1 — ALREADY IMPLEMENTED)
+- **File:** `components/PhaseProgress.jsx` + `screens/WorkspaceScreen.jsx`
+- **Problem:** Originally noted as TODO, but on review the implementation was already complete: `allPrereqsComplete()` accepts `isDecomposed` param (returns true immediately), WorkspaceScreen computes `isDecomposed` from project metadata (`mode === 'decompose'`), and passes it to PhaseProgress.
+- **Status:** No code change needed — the TODO comment was stale.
 
-#### 7. Phase gates not disabled for decomposed projects
-- **Where:** `PhaseProgress.jsx` (has a TODO comment)
-- **Problem:** Projects created by decomposing an existing book should bypass the phase-gating system since they already have content, but the TODO was never implemented.
-- **Fix needed:** Check project metadata for `isDecomposed` flag and skip gate checks.
+### 8. Hub project card shows wrong phase info (P2 — FIXED)
+- **File:** `stores/projectStore.js` — `loadProjectFiles()`
+- **Problem:** `project.currentPhase` was set at creation (defaults to 1) and never updated as the user progressed.
+- **Fix:** `loadProjectFiles()` now computes the current phase (first incomplete phase from progress array) and persists it to project metadata in IndexedDB. Hub cards now display accurate phase info.
 
-### P2 — Important / Degraded Experience
+### 9. Privacy & Data "Total Words" always shows 0 (P2 — FIXED)
+- **Files:** `stores/projectStore.js` + `screens/SettingsScreen.jsx`
+- **Problem:** `project.wordCount` was initialized to 0 and never updated. Settings read from stale metadata.
+- **Fix:** (1) `loadProjectFiles()` now computes word count from all file contents and persists to project metadata. (2) SettingsScreen now reads all file contents directly from IndexedDB to compute accurate total words across all projects, with fallback to metadata.
 
-#### 8. Hub project card shows wrong phase info
-- **Where:** `HubScreen.jsx` project card
-- **Problem:** The project card shows "Phase1 — Author" and "0/5" health score, while the workspace status bar shows "Phase 3 — World" and "1/5". The Hub appears to read from stale project metadata rather than computing live progress.
-- **Fix needed:** Sync phase display with live computed progress, or update project metadata when phases advance.
+### 10. Character dropdown in StoryAssistant only shows 3 characters (P2 — FIXED)
+- **Root cause:** Same as #5 — demo project only had 3 character files. The dropdown already reads from `characters/*.md` files dynamically.
+- **Fix:** Resolved by adding the 4 missing character files in #5.
 
-#### 9. Privacy & Data "Total Words" always shows 0
-- **Where:** `SettingsScreen.jsx` PrivacySettings component, line ~1135
-- **Problem:** Reads `p.wordCount` from project metadata which is initialized to 0 and never updated. The actual word count (735) is computed live in the workspace status bar from file contents.
-- **Fix needed:** Either compute total words from all project files, or update `project.wordCount` whenever files change.
+### 11. Delete character uses native `confirm()` dialog (P2 — FIXED)
+- **File:** `screens/WorkspaceScreen.jsx` line ~6437
+- **Problem:** `window.confirm()` blocked browser automation and was inconsistent with app design.
+- **Fix:** Removed `window.confirm()` call. CastRoster already has built-in inline Delete/Cancel confirmation UI (red Delete button + Cancel button that appears on trash icon click), so the native dialog was redundant.
 
-#### 10. Character dropdown in StoryAssistant only shows 3 characters
-- **Where:** `WorkspaceScreen.jsx` ChatMode character dropdown
-- **Problem:** The "Character" dropdown only lists elena, marcus, priya — appears to be pulling from either a limited hardcoded list or only from character files with `characters/*.md` that contain specific keywords. Minor characters (Thomas, Ruth, Bishop Lapp) are excluded.
-- **Fix needed:** Derive character list from all `characters/*.md` files consistently.
+### 12. "Show Full Picture" opens Guide mode instead of Reader mode (P3 — FIXED)
+- **File:** `screens/WorkspaceScreen.jsx`
+- **Problem:** `useState(initialMode)` only read searchParams on first render. URL changes within the same mount were ignored.
+- **Fix:** Added `useEffect` that watches `searchParams` and syncs `activeMode` when the `mode` param changes.
 
-#### 11. Delete character uses native `confirm()` dialog
-- **Where:** `WorkspaceScreen.jsx` line ~6437
-- **Problem:** `window.confirm()` creates a blocking native dialog that freezes browser automation and provides a jarring UX inconsistent with the app's custom modal design.
-- **Fix needed:** Replace with a custom confirmation modal matching the app's design system.
+### 13. File tree doesn't show dynamically created files (P3 — FIXED)
+- **File:** `screens/WorkspaceScreen.jsx`
+- **Problem:** File tree was a hardcoded static array with wrong filenames (referenced characters that didn't exist in the demo project).
+- **Fix:** Replaced hardcoded `fileTree` with `buildProjectFileTree(projectFiles)` function that dynamically builds the tree from the Zustand store's `files` object. Root-level files and folders with children are derived from actual file paths. Engine reference files remain as a separate static array.
 
-### P3 — Minor / Polish
-
-#### 12. "Show Full Picture" opens Guide mode instead of Reader mode
-- **Where:** Hub → "Show Full Picture" button
-- **Problem:** Despite the URL query `?mode=reader`, the workspace opens in Guide mode. This may be because `initialMode` defaults to 'guided' and the component doesn't re-read search params on subsequent navigations within the same mount.
-- **Fix needed:** Use `useEffect` to sync `activeMode` with search params changes, or ensure the component remounts on navigation.
-
-#### 13. File tree doesn't show dynamically created files
-- **Where:** Files sidebar in workspace
-- **Problem:** Files created via `updateFile()` (like new character files) don't appear in the file tree sidebar until a full page refresh. The file tree appears to be built from a static template structure.
-- **Fix needed:** File tree should reactively read from the Zustand store's `files` object.
-
-#### 14. Search Replace button UI exists but functionality unclear
-- **Where:** Search panel — "Replace" toggle button
-- **Problem:** The Replace button is visible but clicking it may not have full find-and-replace functionality implemented. Needs verification.
-- **Fix needed:** Verify replace works or hide the button if not implemented.
+### 14. Search Replace button UI exists but functionality incomplete (P3 — FIXED)
+- **File:** `components/SearchPanel.jsx`
+- **Problem:** Replace feature showed a preview of changes but had no "Apply" button to execute replacements.
+- **Fix:** Added `handleApplyReplace()` function that iterates through preview changes and calls `updateFile()` for each, then re-runs the search to refresh results. Added styled "Apply All Replacements" button below the preview list.
 
 ---
 
@@ -147,6 +139,9 @@
 1. **`ui-screens/src/screens/WorkspaceScreen.jsx`**
    - Fixed Add Character handler (line ~7148) — now persists via `updateFile()`
    - Fixed chat suggestions TypeError (line ~1649) — added type coercion for `resp`
+   - Removed native `window.confirm()` from character delete handler (#11)
+   - Added `useEffect` to sync `activeMode` with URL searchParams changes (#12)
+   - Replaced hardcoded `fileTree` with `buildProjectFileTree()` dynamic function (#13)
 
 2. **`ui-screens/src/components/CastRoster.jsx`**
    - Complete rewrite — replaced hardcoded character array with dynamic store reader
@@ -154,3 +149,18 @@
 
 3. **`ui-screens/src/screens/HubScreen.jsx`**
    - Fixed "Show Full Picture" and "Open Story Timeline" buttons — removed double-navigate race condition
+
+4. **`ui-screens/src/screens/WizardScreen.jsx`**
+   - Added try/catch error handling to handleRetell, handleSpinoff, handleSequel, handlePrequel (#6)
+
+5. **`ui-screens/src/stores/projectStore.js`**
+   - `loadProjectFiles()` now computes and persists `currentPhase` and `wordCount` to project metadata (#8, #9)
+
+6. **`ui-screens/src/services/demoMode.js`**
+   - Added 4 missing character files: david-yoder.md, bishop-lapp.md, ruth-yoder.md, thomas-beiler.md (#5, #10)
+
+7. **`ui-screens/src/screens/SettingsScreen.jsx`**
+   - Privacy "Total Words" now reads all file contents from IndexedDB instead of stale metadata (#9)
+
+8. **`ui-screens/src/components/SearchPanel.jsx`**
+   - Added `handleApplyReplace()` function and "Apply All Replacements" button (#14)

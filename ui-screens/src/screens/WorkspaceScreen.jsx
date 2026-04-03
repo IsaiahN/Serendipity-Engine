@@ -82,28 +82,8 @@ const centerStageModes = [
   { key: 'search', icon: Search, label: 'Search' },
 ];
 
-const fileTree = [
-  // Story project files (from Creations)
-  { name: 'author.md', exists: true },
-  { name: 'narrator.md', exists: true },
-  { name: 'abstract.md', exists: true },
-  { name: 'outline.md', exists: true },
-  { name: 'dry-run-audit.md', exists: true },
-  { name: 'characters/', exists: true, children: [
-    'maren-yoder.md', 'ruth-yoder.md', 'bishop-ezra-eicher.md',
-    'esther-flint.md', 'jean-luc-dupree.md', 'clara-penner-thumbnail.md',
-    'questions-answered.md',
-  ]},
-  { name: 'relationships/', exists: true, children: ['questions-answered.md'] },
-  { name: 'world/', exists: true, children: ['world-building.md', 'questions-answered.md'] },
-  { name: 'story/', exists: true, children: [
-    'arc.md', 'chapter-1.md', 'chapter-1-notes.md',
-    'chapter-checklist.md', 'metafiles-review.md', 'questions-answered.md',
-  ]},
-  { name: 'feedback/', exists: true, children: ['editor-v1.md'] },
-  { name: 'drawing-board/', exists: true, children: ['notes.md'] },
-  { name: 'media/', exists: true, children: ['characters/', 'hallmarks/', 'locations/'] },
-  // Engine reference files (Quality Control / MetaFiles)
+// Engine reference files (static — these are template/reference files that don't change per-project)
+const engineFileTree = [
   { name: 'quality-control/', exists: true, section: 'engine', children: [
     'Master-Story-Checklist.md', 'seven-story-deaths.md', 'story-consciousness-theory.md',
     'story-network-theory.md', 'tonal-control.md', 'writing-prose-styles.md',
@@ -123,6 +103,38 @@ const fileTree = [
     'questions.md',
   ]},
 ];
+
+/**
+ * Build project file tree dynamically from store files object.
+ * Groups files into folders (characters/, story/, world/, etc.) and lists root-level files.
+ */
+function buildProjectFileTree(files) {
+  const folders = {};
+  const rootFiles = [];
+
+  Object.keys(files).sort().forEach(path => {
+    const slashIdx = path.indexOf('/');
+    if (slashIdx === -1) {
+      // Root-level file
+      rootFiles.push({ name: path, exists: true });
+    } else {
+      const folder = path.substring(0, slashIdx + 1); // e.g. "characters/"
+      const child = path.substring(slashIdx + 1);       // e.g. "elena.md"
+      if (!folders[folder]) folders[folder] = [];
+      if (child) folders[folder].push(child);
+    }
+  });
+
+  const tree = [];
+  // Root files first
+  rootFiles.forEach(f => tree.push(f));
+  // Then folders with their children
+  Object.keys(folders).sort().forEach(folder => {
+    tree.push({ name: folder, exists: true, children: folders[folder].sort() });
+  });
+
+  return tree;
+}
 
 // Health dimensions are now computed dynamically — see useHealthDimensions() in the workspace component
 // Fallback static data used only until the store hydrates
@@ -5857,6 +5869,14 @@ export default function WorkspaceScreen() {
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [pendingSwitchId, setPendingSwitchId] = useState(null);
 
+  // Sync activeMode when URL search params change (e.g., navigating from Hub with ?mode=reader)
+  useEffect(() => {
+    const modeParam = searchParams.get('mode');
+    if (modeParam && modeParam !== activeMode) {
+      setActiveMode(modeParam);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const hasDirtyState = () => {
     if (Object.keys(editedFiles).length > 0) return true;
     if (newChar.name || newChar.bio) return true;
@@ -6435,7 +6455,7 @@ export default function WorkspaceScreen() {
                     onViewFullCast={() => setActiveMode('full-cast')}
                     onCharacterChat={(name) => { setSelectedCharacter(name); setActiveMode('chat'); }}
                     onCharacterDelete={async (name) => {
-                      if (!confirm(`Delete character "${name}"? This will remove their file and cannot be undone.`)) return;
+                      // CastRoster already shows inline Delete/Cancel confirmation UI
                       const path = `characters/${name.toLowerCase().replace(/\s+/g, '-')}.md`;
                       const { updateFile, loadProjectFiles, activeProjectId } = useProjectStore.getState();
                       // Remove from IndexedDB via projectFiles table
@@ -6470,7 +6490,7 @@ export default function WorkspaceScreen() {
                       {projectFilesOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                       Project Files
                     </div>
-                    {projectFilesOpen && fileTree.filter(f => !f.section).map((f) => (
+                    {projectFilesOpen && buildProjectFileTree(projectFiles).map((f) => (
                       <div key={f.name}>
                         <div
                           onClick={() => !f.children && f.name.endsWith('.md') ? openFile(f.name, null) : null}
@@ -6525,7 +6545,7 @@ export default function WorkspaceScreen() {
                       {engineRefOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
                       Engine Reference
                     </div>
-                    {engineRefOpen && fileTree.filter(f => f.section === 'engine').map((f) => (
+                    {engineRefOpen && engineFileTree.map((f) => (
                       <div key={f.name}>
                         <div
                           onClick={() => !f.children && f.name.endsWith('.md') ? openFile(f.name, null) : null}

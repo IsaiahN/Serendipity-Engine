@@ -81,6 +81,21 @@ export default function SearchPanel({ onOpenFile, onClose }) {
     setReplacePreview(changes);
   }, [files, query, replaceQuery]);
 
+  // Apply replacements
+  const handleApplyReplace = useCallback(async () => {
+    if (!replacePreview || replacePreview.length === 0) return;
+    const { updateFile } = useProjectStore.getState();
+    for (const change of replacePreview) {
+      await updateFile(change.path, change.newContent);
+    }
+    setReplacePreview(null);
+    // Re-run search to update results
+    if (query) {
+      const newResults = searchFiles(useProjectStore.getState().files, query, { category: selectedCategory === 'All' ? null : selectedCategory });
+      setResults(newResults);
+    }
+  }, [replacePreview, query, selectedCategory]);
+
   const totalMatches = useMemo(() => {
     return results.reduce((sum, r) => sum + r.matchCount, 0);
   }, [results]);
@@ -387,6 +402,22 @@ export default function SearchPanel({ onOpenFile, onClose }) {
                 </span>
               </div>
             ))}
+            <button
+              onClick={handleApplyReplace}
+              style={{
+                marginTop: 8,
+                padding: '6px 16px',
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Apply All Replacements
+            </button>
           </div>
         )}
       </div>

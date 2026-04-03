@@ -197,7 +197,27 @@ export const useProjectStore = create((set, get) => ({
       const project = get().activeProject;
       const progress = computePhaseProgress(files, project?.phaseAnswers);
 
+      // Compute current phase (first incomplete phase) and sync to project metadata
+      const currentPhase = progress.find(p => p.progress < 100)?.num || progress[progress.length - 1]?.num || 1;
+      const wordCount = Object.values(files).reduce((sum, content) => {
+        if (typeof content === 'string') {
+          return sum + content.split(/\s+/).filter(Boolean).length;
+        }
+        return sum;
+      }, 0);
+
       set({ files, phaseProgress: progress });
+
+      // Persist computed phase and word count to project metadata so Hub cards stay in sync
+      if (project && (project.currentPhase !== currentPhase || project.wordCount !== wordCount)) {
+        await db.projects.update(projectId, { currentPhase, wordCount, updatedAt: Date.now() });
+        set(state => ({
+          activeProject: { ...state.activeProject, currentPhase, wordCount },
+          projects: state.projects.map(p =>
+            p.id === projectId ? { ...p, currentPhase, wordCount } : p
+          ),
+        }));
+      }
     } catch (err) {
       console.warn('Failed to load project files:', err);
     }

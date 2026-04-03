@@ -271,62 +271,86 @@ export default function WizardScreen() {
 
   const handleRetell = async () => {
     setIsProcessing(true);
-    const seed = generateSeed();
-    await createProject({
-      title: formData.title || 'Retold Story',
-      medium: formData.medium || 'novel',
-      seed,
-      metadata: {
-        mode: 'retell',
-        originalMaterial: formData.materialContent,
-      },
-    });
-    navigate('/workspace');
+    try {
+      const seed = generateSeed();
+      await createProject({
+        title: formData.title || 'Retold Story',
+        medium: formData.medium || 'novel',
+        seed,
+        metadata: {
+          mode: 'retell',
+          originalMaterial: formData.materialContent,
+        },
+      });
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Retell project creation failed:', err);
+      setIsProcessing(false);
+      alert('Failed to create retold story. Please try again.');
+    }
   };
 
   const handleSpinoff = async () => {
     setIsProcessing(true);
-    const seed = generateSeed();
-    await createProject({
-      title: formData.title || 'Spinoff',
-      medium: formData.medium || 'novel',
-      seed,
-      metadata: {
-        mode: 'spinoff',
-        baseMaterial: formData.materialContent,
-      },
-    });
-    navigate('/workspace');
+    try {
+      const seed = generateSeed();
+      await createProject({
+        title: formData.title || 'Spinoff',
+        medium: formData.medium || 'novel',
+        seed,
+        metadata: {
+          mode: 'spinoff',
+          baseMaterial: formData.materialContent,
+        },
+      });
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Spinoff project creation failed:', err);
+      setIsProcessing(false);
+      alert('Failed to create spinoff. Please try again.');
+    }
   };
 
   const handleSequel = async () => {
     setIsProcessing(true);
-    const seed = generateSeed();
-    await createProject({
-      title: formData.title || 'Sequel',
-      medium: formData.medium || 'novel',
-      seed,
-      metadata: {
-        mode: 'sequel',
-        baseMaterial: formData.materialContent,
-      },
-    });
-    navigate('/workspace');
+    try {
+      const seed = generateSeed();
+      await createProject({
+        title: formData.title || 'Sequel',
+        medium: formData.medium || 'novel',
+        seed,
+        metadata: {
+          mode: 'sequel',
+          baseMaterial: formData.materialContent,
+        },
+      });
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Sequel project creation failed:', err);
+      setIsProcessing(false);
+      alert('Failed to create sequel. Please try again.');
+    }
   };
 
   const handlePrequel = async () => {
     setIsProcessing(true);
-    const seed = generateSeed();
-    await createProject({
-      title: formData.title || 'Prequel',
-      medium: formData.medium || 'novel',
-      seed,
-      metadata: {
-        mode: 'prequel',
-        baseMaterial: formData.materialContent,
-      },
-    });
-    navigate('/workspace');
+    try {
+      const seed = generateSeed();
+      await createProject({
+        title: formData.title || 'Prequel',
+        medium: formData.medium || 'novel',
+        seed,
+        metadata: {
+          mode: 'prequel',
+          baseMaterial: formData.materialContent,
+        },
+      });
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Prequel project creation failed:', err);
+      setIsProcessing(false);
+      alert('Failed to create prequel. Please try again.');
+    }
   };
 
   // New story flow

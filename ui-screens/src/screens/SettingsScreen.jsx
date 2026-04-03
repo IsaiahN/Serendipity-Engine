@@ -1130,9 +1130,20 @@ function PrivacySettings({ navigate, onSettingChange }) {
       if (!allProjects.length) {
         allProjects = await store.loadProjects();
       }
-      // Count total words across all projects
+      // Count total words across all projects by reading actual file contents from IndexedDB
       let totalWords = 0;
-      allProjects.forEach(p => { totalWords += p.wordCount || 0; });
+      try {
+        const db = (await import('../lib/db')).default;
+        const allFiles = await db.projectFiles.toArray();
+        allFiles.forEach(f => {
+          if (typeof f.content === 'string') {
+            totalWords += f.content.split(/\s+/).filter(Boolean).length;
+          }
+        });
+      } catch {
+        // Fallback to metadata-based word count
+        allProjects.forEach(p => { totalWords += p.wordCount || 0; });
+      }
 
       // Estimate IndexedDB storage
       let storageUsed = 'Unknown';
