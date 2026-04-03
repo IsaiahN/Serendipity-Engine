@@ -30,8 +30,9 @@ function buildCastFromFiles(files) {
       else if (lower.includes('minor') || lower.includes('authority')) role = 'Minor';
 
       // Derive tier
-      const isMain = lower.includes('protagonist') || lower.includes('deuteragonist') || lower.includes('main character') || lower.includes('main protagonist') || lower.includes('supporting') || lower.includes('confidante') || lower.includes('antihero');
-      const tier = isMain ? 'main' : 'minor';
+      const isMain = lower.includes('protagonist') || lower.includes('deuteragonist') || lower.includes('main character') || lower.includes('main protagonist') || lower.includes('supporting') || lower.includes('confidante') || lower.includes('antihero') || lower.includes('antagonist');
+      const isMinor = lower.includes('minor') && !lower.includes('minor antagonist');
+      const tier = isMinor ? 'minor' : (isMain ? 'main' : 'minor');
 
       return {
         name,

@@ -1602,6 +1602,8 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
 
 /* ─── Full Cast Mode ─── */
 function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
+  const fcFiles = useProjectStore(s => s.files);
+  const characterProfiles = buildCharacterProfiles(fcFiles);
   const allChars = Object.entries(characterProfiles);
   const mainChars = allChars.filter(([, c]) => c.tier !== 'minor');
   const minorChars = allChars.filter(([, c]) => c.tier === 'minor');
@@ -4547,7 +4549,119 @@ function WorldBuildingMode() {
 }
 
 /* ─── Character Profile ─── */
-const characterProfiles = {
+/* ─── Dynamic Character Profile Builder ─── */
+const profileGradients = [
+  'linear-gradient(135deg, #2dd4bf, #f472b6)',
+  'linear-gradient(135deg, #818cf8, #f97316)',
+  'linear-gradient(135deg, #fbbf24, #a78bfa)',
+  'linear-gradient(135deg, #6ee7b7, #60a5fa)',
+  'linear-gradient(135deg, #f9a8d4, #818cf8)',
+  'linear-gradient(135deg, #94a3b8, #475569)',
+  'linear-gradient(135deg, #f87171, #fbbf24)',
+  'linear-gradient(135deg, #34d399, #818cf8)',
+];
+const profileColors = ['#2dd4bf', '#818cf8', '#a78bfa', '#60a5fa', '#f9a8d4', '#94a3b8', '#f87171', '#34d399'];
+
+function buildCharacterProfiles(files) {
+  const entries = Object.entries(files)
+    .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'));
+
+  const profiles = {};
+  entries.forEach(([path, content], idx) => {
+    if (!content) return;
+    const slug = path.replace('characters/', '').replace('.md', '');
+    const lines = content.split('\n');
+
+    // Parse name + role from first heading: "# Elena Yoder (Protagonist)"
+    const h1 = lines.find(l => l.startsWith('# '));
+    let fullName = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    let role = 'Supporting';
+    let type = '';
+    if (h1) {
+      const hMatch = h1.match(/^#\s+(.+?)(?:\s*\(([^)]+)\))?\s*$/);
+      if (hMatch) {
+        fullName = hMatch[1].trim();
+        const roleStr = (hMatch[2] || '').trim();
+        if (roleStr) {
+          type = roleStr;
+          const rl = roleStr.toLowerCase();
+          if (rl.includes('protagonist') && !rl.includes('antagonist')) role = 'Protagonist';
+          else if (rl.includes('deuteragonist') || rl.includes('antihero')) role = 'Deuteragonist';
+          else if (rl.includes('antagonist')) role = 'Antagonist';
+          else if (rl.includes('confidante') || rl.includes('foil')) role = 'Supporting';
+          else if (rl.includes('supporting')) role = 'Supporting';
+          else if (rl.includes('minor') || rl.includes('authority')) role = 'Minor';
+          else role = roleStr;
+        }
+      }
+    }
+
+    // Determine tier
+    const lower = content.toLowerCase();
+    const isMinor = lower.includes('minor') && !lower.includes('minor antagonist');
+    const isMain = ['protagonist', 'deuteragonist', 'main character', 'supporting', 'confidante', 'foil', 'antihero', 'antagonist']
+      .some(k => lower.includes(k)) || ['Protagonist', 'Deuteragonist', 'Supporting', 'Antagonist'].includes(role);
+    const tier = isMinor ? 'minor' : (isMain ? 'main' : 'minor');
+
+    // Parse sections by heading
+    const sections = {};
+    let currentSection = '';
+    for (const line of lines) {
+      if (line.startsWith('## ')) {
+        currentSection = line.replace('## ', '').trim().toLowerCase();
+        sections[currentSection] = '';
+      } else if (currentSection) {
+        sections[currentSection] += (sections[currentSection] ? '\n' : '') + line;
+      }
+    }
+
+    // Extract MBTI from content
+    const mbtiMatch = content.match(/MBTI[:\s]*([A-Z]{4}(?:-[A-Z])?)/i);
+    const mbti = mbtiMatch ? mbtiMatch[1].toUpperCase() : null;
+
+    // Extract age from profile section
+    const ageMatch = (sections['profile'] || '').match(/Age\s+(\d+)/i);
+    const age = ageMatch ? ageMatch[1] : null;
+
+    // Clean section text — strip markdown bold/italic markers
+    const clean = (s) => (s || '').trim().replace(/^\n+|\n+$/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/__([^_]+)__/g, '$1').replace(/\*([^*]+)\*/g, '$1');
+
+    // Get a short summary for the card (first 2 sentences of profile, filtering out metadata lines)
+    const profileText = clean(sections['profile']) || '';
+    const profileLines = profileText.split('\n').filter(l => !l.match(/^(Role|Tier|Type):/i) && l.trim());
+    const profileNarrative = profileLines.join(' ').trim();
+    const profileSummary = profileNarrative ? profileNarrative.split('.').slice(0, 2).join('.').trim() : '';
+
+    // Build the key name — use slug-derived name to match CastRoster
+    const shortName = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+
+    profiles[shortName] = {
+      name: fullName,
+      role,
+      type: type || role,
+      tier,
+      color: profileColors[idx % profileColors.length],
+      gradient: profileGradients[idx % profileGradients.length],
+      age: age || null,
+      physicalDescription: profileSummary || null,
+      backstory: profileNarrative || null,
+      wound: clean(sections['wound']) || null,
+      flaw: clean(sections['flaw']) || null,
+      virtue: clean(sections['virtue']) || null,
+      mbti: mbti || null,
+      voice: sections['voice'] ? { summary: clean(sections['voice']) } : null,
+      somaticSignature: clean(sections['somatic signature']) || null,
+      complexity: clean(sections['complexity']) || null,
+      roleInStory: clean(sections['role in story']) || null,
+      relationshipToNarrator: clean(sections['relationship to narrator']) || null,
+    };
+  });
+
+  return profiles;
+}
+
+// Legacy fallback — kept as static reference (no longer primary source)
+const characterProfiles_LEGACY = {
   Elena: {
     name: 'Elena Vasquez', role: 'Protagonist', type: 'Main protagonist', tier: 'main',
     color: '#2dd4bf', gradient: 'linear-gradient(135deg, #2dd4bf, #f472b6)',
@@ -4785,6 +4899,9 @@ const characterProfiles = {
 };
 
 function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationships }) {
+  // Build dynamic profiles from store files, merge with legacy for any extra fields
+  const cpProfileFiles = useProjectStore(s => s.files);
+  const characterProfiles = buildCharacterProfiles(cpProfileFiles);
   const [activeTab, setActiveTab] = useState('overview');
   const [zoomedChart, setZoomedChart] = useState(null); // { data, labels, colors, title }
 
@@ -5074,6 +5191,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             </Card>
 
             {/* SWOT */}
+            {char.swot && (
             <div style={{ marginTop: 16 }}>
               <h3 style={labelStyle}>SWOT Analysis</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
@@ -5085,7 +5203,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 ].map(s => (
                   <Card key={s.key} style={{ padding: 12, background: s.bg, border: `1px solid ${s.color}20` }}>
                     <div style={{ fontSize: '0.65rem', fontWeight: 700, color: s.color, marginBottom: 6, textTransform: 'uppercase' }}>{s.label}</div>
-                    {char.swot[s.key].map((item, i) => (
+                    {(char.swot[s.key] || []).map((item, i) => (
                       <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 3, paddingLeft: 8, borderLeft: `2px solid ${s.color}30` }}>
                         {item}
                       </div>
@@ -5094,6 +5212,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 ))}
               </div>
             </div>
+            )}
           </div>
 
           {/* Right column: Radar charts */}
@@ -5209,6 +5328,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
       {activeTab === 'personality' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           {/* MBTI Card */}
+          {char.mbti ? (
           <Card style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: `${char.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -5239,8 +5359,15 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               Variant: <span style={{ color: char.mbti.includes('-T') ? '#fbbf24' : '#10b981', fontWeight: 600 }}>{char.mbti.includes('-T') ? 'Turbulent' : 'Assertive'}</span>
             </div>
           </Card>
+          ) : (
+          <Card style={{ padding: 20, textAlign: 'center' }}>
+            <Brain size={22} color="var(--text-muted)" />
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>MBTI not defined for this character.</p>
+          </Card>
+          )}
 
           {/* Enneagram Card */}
+          {char.enneagramWing ? (
           <Card style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fbbf2420', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -5274,6 +5401,11 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               })}
             </svg>
           </Card>
+          ) : (
+          <Card style={{ padding: 20, textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Enneagram not defined for this character.</p>
+          </Card>
+          )}
 
           {/* Alignment Card */}
           <Card style={{ padding: 16 }}>
@@ -5350,16 +5482,19 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             {attrCard('Story Role', `${char.role} — ${char.type}`)}
           </div>
 
+          {(char.arcStart || char.arcEnd) && (
           <Card style={{ padding: 16, marginBottom: 16 }}>
             <h3 style={labelStyle}>Arc Journey</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>{char.arcStart}</div>
+              <div style={{ padding: '6px 10px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem' }}>{char.arcStart || '—'}</div>
               <div style={{ flex: 1, height: 2, background: `linear-gradient(90deg, var(--text-muted) 0%, ${char.color} 100%)` }} />
-              <div style={{ padding: '6px 10px', background: `${char.color}15`, borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: char.color, fontWeight: 600 }}>{char.arcEnd}</div>
+              <div style={{ padding: '6px 10px', background: `${char.color}15`, borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: char.color, fontWeight: 600 }}>{char.arcEnd || '—'}</div>
             </div>
           </Card>
+          )}
 
           {/* Beat-by-beat timeline */}
+          {char.beats && char.beats.length > 0 && (
           <Card style={{ padding: 16, marginBottom: 16 }}>
             <h3 style={labelStyle}>Chapter Beats</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -5379,8 +5514,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               })}
             </div>
           </Card>
+          )}
 
           {/* Relationships quick list */}
+          {char.relationships && char.relationships.length > 0 && (
           <Card style={{ padding: 16 }}>
             <h3 style={labelStyle}>Key Relationships</h3>
             {char.relationships.map((rel, i) => (
@@ -5399,6 +5536,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               </div>
             ))}
           </Card>
+          )}
         </div>
       )}
 
