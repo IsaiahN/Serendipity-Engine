@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
+import { useSettingsStore } from '../stores/settingsStore';
 
 export default function TermsScreen() {
   const [accepted, setAccepted] = useState(false);
   const navigate = useNavigate();
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+
+  const handleAccept = async () => {
+    // Mark terms as accepted but don't set onboarded yet (setup still needed)
+    await updateSettings({ termsAccepted: true });
+    navigate('/setup');
+  };
 
   return (
     <div style={{
@@ -108,7 +116,7 @@ export default function TermsScreen() {
                 variant="primary"
                 size="lg"
                 disabled={!accepted}
-                onClick={() => navigate('/setup')}
+                onClick={handleAccept}
               >
                 Accept and Continue
               </Button>

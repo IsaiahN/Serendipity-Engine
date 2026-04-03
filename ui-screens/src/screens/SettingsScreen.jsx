@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Button from '../components/Button';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
   ExternalLink, Trash2, Download, Heart, RefreshCw, Key, ArrowLeft,
+  Volume2, Zap, BarChart3, Eye, EyeOff,
 } from 'lucide-react';
 
-/* ─── Theme Presets (shared with WorkspaceScreen) ─── */
+// ─── Theme Presets (shared with WorkspaceScreen) ───
 const themePresets = {
   amber: {
     name: 'Amber', preview: '#0f1117',
@@ -61,26 +62,48 @@ const categories = [
   { key: 'about', icon: Info, label: 'About' },
 ];
 
+// ─── Toast Notification ───
+function Toast({ message, visible }) {
+  return (
+    <div
+      style={{
+        position: 'fixed', bottom: 20, right: 20,
+        background: 'var(--accent)', color: 'var(--accent-btn-text)',
+        padding: '12px 16px', borderRadius: 'var(--radius-sm)',
+        fontSize: '0.85rem', fontWeight: 500,
+        opacity: visible ? 1 : 0, transition: 'opacity 0.3s ease',
+        pointerEvents: visible ? 'auto' : 'none',
+        zIndex: 9999,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
+// ─── Setting Row Component ───
 function SettingRow({ label, desc, children }) {
   return (
     <div style={{
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
-      padding: '12px 0',
+      padding: '16px 0',
       borderBottom: '1px solid var(--border)',
+      gap: 16,
     }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{label}</div>
-        {desc && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{desc}</div>}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>{label}</div>
+        {desc && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>{desc}</div>}
       </div>
-      <div style={{ flexShrink: 0, marginLeft: 16 }}>
+      <div style={{ flexShrink: 0, minWidth: 'fit-content' }}>
         {children}
       </div>
     </div>
   );
 }
 
+// ─── Toggle Switch ───
 function Toggle({ checked, onChange }) {
   return (
     <div
@@ -89,26 +112,29 @@ function Toggle({ checked, onChange }) {
         width: 40, height: 22, borderRadius: 100, cursor: 'pointer',
         background: checked ? 'var(--accent)' : 'var(--bg-tertiary)',
         border: '1px solid var(--border)',
-        position: 'relative', transition: 'var(--transition)',
+        position: 'relative', transition: 'all 0.2s ease',
       }}
     >
       <div style={{
         width: 16, height: 16, borderRadius: '50%',
-        background: '#fff', position: 'absolute', top: 2,
-        left: checked ? 20 : 2, transition: 'left 0.2s ease',
+        background: '#fff', position: 'absolute', top: 3,
+        left: checked ? 21 : 2, transition: 'left 0.2s ease',
       }} />
     </div>
   );
 }
 
-function Select({ options, defaultValue }) {
+// ─── Select Dropdown ───
+function Select({ options, value, onChange }) {
   return (
     <select
-      defaultValue={defaultValue}
+      value={value}
+      onChange={(e) => onChange && onChange(e.target.value)}
       style={{
-        padding: '4px 8px', fontSize: '0.8rem', minWidth: 140,
+        padding: '6px 10px', fontSize: '0.8rem', minWidth: 140,
         background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+        cursor: 'pointer', fontFamily: 'inherit',
       }}
     >
       {options.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -116,19 +142,64 @@ function Select({ options, defaultValue }) {
   );
 }
 
-function GeneralSettings({ currentTheme, onThemeChange }) {
+// ─── General Settings ───
+function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
+  const [mode, setMode] = useState('advanced');
+  const [fontSize, setFontSize] = useState('medium');
+  const [editorFont, setEditorFont] = useState('JetBrains Mono');
+  const [language, setLanguage] = useState('English');
+  const [sidebarPos, setSidebarPos] = useState('Left');
+
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    onSettingChange('mode', newMode);
+  };
+
+  const handleFontSizeChange = (newSize) => {
+    setFontSize(newSize);
+    onSettingChange('fontSize', newSize);
+  };
+
+  const handleEditorFontChange = (newFont) => {
+    setEditorFont(newFont);
+    onSettingChange('editorFont', newFont);
+  };
+
+  const handleLanguageChange = (newLang) => {
+    setLanguage(newLang);
+    onSettingChange('language', newLang);
+  };
+
+  const handleSidebarChange = (newPos) => {
+    setSidebarPos(newPos);
+    onSettingChange('sidebarPosition', newPos);
+  };
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>General</h2>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>General</h2>
+
       <SettingRow label="Mode" desc="Controls complexity of the interface">
-        <Select options={['Advanced', 'Simple']} defaultValue="Advanced" />
+        <Select
+          options={['simple', 'advanced']}
+          value={mode}
+          onChange={handleModeChange}
+        />
+      </SettingRow>
+
+      <SettingRow label="Font Size" desc="Primary interface text size">
+        <Select
+          options={['small', 'medium', 'large']}
+          value={fontSize}
+          onChange={handleFontSizeChange}
+        />
       </SettingRow>
 
       {/* Theme swatches */}
       <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
-        <div style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: 2 }}>Appearance</div>
-        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 12 }}>Choose a color theme for the workspace</div>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: 4 }}>Appearance</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 14 }}>Choose a color theme for the workspace</div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {Object.entries(themePresets).map(([key, theme]) => {
             const isActive = currentTheme === key;
             return (
@@ -136,28 +207,27 @@ function GeneralSettings({ currentTheme, onThemeChange }) {
                 key={key}
                 onClick={() => onThemeChange(key)}
                 style={{
-                  cursor: 'pointer', textAlign: 'center', transition: 'var(--transition)',
+                  cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s ease',
                 }}
               >
                 <div style={{
-                  width: 56, height: 56, borderRadius: 'var(--radius-sm)',
+                  width: 48, height: 48, borderRadius: '6px',
                   background: theme.preview,
-                  border: isActive ? '2px solid var(--accent)' : '2px solid var(--border)',
+                  border: isActive ? '3px solid var(--accent)' : '2px solid var(--border)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  position: 'relative', marginBottom: 4,
-                  transition: 'var(--transition)',
+                  position: 'relative', marginBottom: 6,
+                  transition: 'all 0.2s ease',
+                  boxShadow: isActive ? '0 0 0 2px var(--bg-primary)' : 'none',
                 }}>
                   <div style={{
-                    width: 10, height: 10, borderRadius: '50%',
+                    width: 12, height: 12, borderRadius: '50%',
                     background: theme.vars['--accent'],
                   }} />
-                  {isActive && (
-                    <div style={{ position: 'absolute', top: 3, right: 3, width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} />
-                  )}
                 </div>
                 <span style={{
-                  fontSize: '0.65rem', fontWeight: isActive ? 600 : 400,
+                  fontSize: '0.7rem', fontWeight: isActive ? 600 : 400,
                   color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                  display: 'block',
                 }}>{theme.name}</span>
               </div>
             );
@@ -165,27 +235,69 @@ function GeneralSettings({ currentTheme, onThemeChange }) {
         </div>
       </div>
 
-      <SettingRow label="Font" desc="Primary typeface for the workspace">
-        <Select options={['Inter', 'System Default', 'JetBrains Mono', 'Lora (Serif)', 'Merriweather']} defaultValue="Inter" />
+      <SettingRow label="Editor Font" desc="Typeface for the text editor">
+        <Select
+          options={['JetBrains Mono', 'Fira Code', 'Courier New', 'Consolas']}
+          value={editorFont}
+          onChange={handleEditorFontChange}
+        />
       </SettingRow>
+
       <SettingRow label="Language" desc="Interface language">
-        <Select options={['English']} defaultValue="English" />
+        <Select
+          options={['English', 'Spanish', 'French', 'German']}
+          value={language}
+          onChange={handleLanguageChange}
+        />
       </SettingRow>
+
       <SettingRow label="Sidebar Position" desc="Which side the navigation panel appears on">
-        <Select options={['Left', 'Right']} defaultValue="Left" />
+        <Select
+          options={['Left', 'Right']}
+          value={sidebarPos}
+          onChange={handleSidebarChange}
+        />
       </SettingRow>
     </>
   );
 }
 
-function AISettings() {
+// ─── AI Models Settings ───
+function AISettings({ onSettingChange }) {
+  const [provider, setProvider] = useState('Anthropic (Claude)');
+  const [model, setModel] = useState('claude-sonnet-4');
+  const [roleMode, setRoleMode] = useState('standard');
   const [auditTrail, setAuditTrail] = useState(true);
   const [costTracking, setCostTracking] = useState(true);
+  const [ttsEngine, setTtsEngine] = useState('Piper TTS (local)');
+  const [voice, setVoice] = useState('Amy (US English)');
+  const [ttsSpeed, setTtsSpeed] = useState('1.0x');
+  const [autoRead, setAutoRead] = useState(false);
+
+  const handleRoleModeChange = (newMode) => {
+    setRoleMode(newMode);
+    onSettingChange('roleAssignmentMode', newMode);
+  };
+
+  const handleAuditTrail = (val) => {
+    setAuditTrail(val);
+    onSettingChange('auditTrail', val);
+  };
+
+  const handleCostTracking = (val) => {
+    setCostTracking(val);
+    onSettingChange('costTracking', val);
+  };
+
+  const handleAutoRead = (val) => {
+    setAutoRead(val);
+    onSettingChange('ttsAutoRead', val);
+  };
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>AI Models</h2>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>AI Models</h2>
 
-      {/* Current provider display */}
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>
         Active Provider
       </div>
@@ -193,337 +305,806 @@ function AISettings() {
         background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20,
       }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provider</span>
-            <Select options={['Anthropic (Claude)', 'DeepSeek', 'OpenAI', 'Google Gemini', 'Ollama (local)']} defaultValue="Anthropic (Claude)" />
+            <Select
+              options={['Anthropic (Claude)', 'DeepSeek', 'OpenAI', 'Google Gemini', 'Ollama (local)']}
+              value={provider}
+              onChange={setProvider}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Model</span>
-            <Select options={['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-3.5']} defaultValue="claude-sonnet-4" />
+            <Select
+              options={['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-3.5']}
+              value={model}
+              onChange={setModel}
+            />
           </div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>API Key</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>sk-...configured</span>
-              <Button size="sm" variant="secondary" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>
-                <Key size={11} style={{ marginRight: 3 }} /> Change
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>sk-...configured</span>
+              <Button size="sm" variant="secondary">
+                <Key size={12} style={{ marginRight: 3 }} /> Change
               </Button>
             </div>
           </div>
         </div>
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
           Recommended ranking: Claude &gt; DeepSeek &gt; OpenAI &gt; Ollama
         </div>
       </div>
 
       <SettingRow label="Role Assignment Mode" desc="How models are assigned to tasks">
-        <Select options={['Simple', 'Standard', 'Granular']} defaultValue="Standard" />
-      </SettingRow>
-      <SettingRow label="Model Audit Trail" desc="Track which model generated each piece of content">
-        <Toggle checked={auditTrail} onChange={setAuditTrail} />
-      </SettingRow>
-      <SettingRow label="Cost Tracking" desc="Show estimated token costs per operation">
-        <Toggle checked={costTracking} onChange={setCostTracking} />
+        <Select
+          options={['simple', 'standard', 'granular']}
+          value={roleMode}
+          onChange={handleRoleModeChange}
+        />
       </SettingRow>
 
-      {/* TTS section */}
+      <SettingRow label="Model Audit Trail" desc="Track which model generated each piece of content">
+        <Toggle checked={auditTrail} onChange={handleAuditTrail} />
+      </SettingRow>
+
+      <SettingRow label="Cost Tracking" desc="Show estimated token costs per operation">
+        <Toggle checked={costTracking} onChange={handleCostTracking} />
+      </SettingRow>
+
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginTop: 24, marginBottom: 10, fontWeight: 600 }}>
         Text-to-Speech
       </div>
+
       <SettingRow label="TTS Engine" desc="Voice synthesis provider">
-        <Select options={['Piper TTS (local)', 'ElevenLabs', 'OpenAI TTS', 'Browser Default', 'Off']} defaultValue="Piper TTS (local)" />
+        <Select
+          options={['Piper TTS (local)', 'ElevenLabs', 'OpenAI TTS', 'Browser Default', 'Off']}
+          value={ttsEngine}
+          onChange={setTtsEngine}
+        />
       </SettingRow>
+
       <SettingRow label="Voice" desc="Narrator voice for read-aloud">
-        <Select options={['Amy (US English)', 'Brian (UK English)', 'Emma (US English)', 'George (UK English)']} defaultValue="Amy (US English)" />
+        <Select
+          options={['Amy (US English)', 'Brian (UK English)', 'Emma (US English)', 'George (UK English)']}
+          value={voice}
+          onChange={setVoice}
+        />
       </SettingRow>
+
       <SettingRow label="Speed" desc="Playback rate for read-aloud">
-        <Select options={['0.75x', '1.0x', '1.25x', '1.5x', '2.0x']} defaultValue="1.0x" />
+        <Select
+          options={['0.75x', '1.0x', '1.25x', '1.5x', '2.0x']}
+          value={ttsSpeed}
+          onChange={setTtsSpeed}
+        />
       </SettingRow>
+
       <SettingRow label="Auto-Read New Content" desc="Automatically read aloud AI-generated text">
-        <Toggle checked={false} />
+        <Toggle checked={autoRead} onChange={handleAutoRead} />
       </SettingRow>
     </>
   );
 }
 
-function WorkspaceSettings() {
-  const [changelog, setChangelog] = useState(true);
+// ─── Workspace Settings ───
+function WorkspaceSettings({ onSettingChange }) {
+  const [autoSaveInterval, setAutoSaveInterval] = useState('Every 30 seconds');
+  const [crashRecovery, setCrashRecovery] = useState(true);
+  const [exportFormat, setExportFormat] = useState('DOCX');
+  const [backupReminder, setBackupReminder] = useState('Weekly');
   const [showWordCount, setShowWordCount] = useState(true);
+  const [defaultWordGoal, setDefaultWordGoal] = useState('70,000');
+
+  const handleAutoSaveChange = (newVal) => {
+    setAutoSaveInterval(newVal);
+    onSettingChange('autoSaveInterval', newVal);
+  };
+
+  const handleCrashRecovery = (val) => {
+    setCrashRecovery(val);
+    onSettingChange('crashRecovery', val);
+  };
+
+  const handleExportFormat = (newVal) => {
+    setExportFormat(newVal);
+    onSettingChange('defaultExportFormat', newVal);
+  };
+
+  const handleBackupReminder = (newVal) => {
+    setBackupReminder(newVal);
+    onSettingChange('backupReminder', newVal);
+  };
+
+  const handleShowWordCount = (val) => {
+    setShowWordCount(val);
+    onSettingChange('showWordCount', val);
+  };
+
+  const handleDefaultWordGoal = (newVal) => {
+    setDefaultWordGoal(newVal);
+    onSettingChange('defaultWordGoal', newVal);
+  };
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Workspace</h2>
-      <SettingRow label="Auto-Save" desc="Save changes automatically">
-        <Select options={['Every 30 seconds', 'Every minute', 'Every 5 minutes', 'Manual only']} defaultValue="Every 30 seconds" />
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>Workspace</h2>
+
+      <SettingRow label="Auto-Save Interval" desc="Save changes automatically at regular intervals">
+        <Select
+          options={['Every 30 seconds', 'Every minute', 'Every 5 minutes', 'Manual only']}
+          value={autoSaveInterval}
+          onChange={handleAutoSaveChange}
+        />
       </SettingRow>
-      <SettingRow label="Backup Reminders" desc="Prompt to download project backups">
-        <Select options={['Weekly', 'Monthly', 'Never']} defaultValue="Weekly" />
+
+      <SettingRow label="Crash Recovery" desc="Restore unsaved work if the app crashes">
+        <Toggle checked={crashRecovery} onChange={handleCrashRecovery} />
       </SettingRow>
-      <SettingRow label="Session Changelog" desc="Track and display what changed each session">
-        <Toggle checked={changelog} onChange={setChangelog} />
+
+      <SettingRow label="Default Export Format" desc="File format when exporting projects">
+        <Select
+          options={['DOCX', 'PDF', 'EPUB', 'MARKDOWN', 'TXT']}
+          value={exportFormat}
+          onChange={handleExportFormat}
+        />
       </SettingRow>
+
+      <SettingRow label="Backup Reminder" desc="Prompt to download project backups">
+        <Select
+          options={['Weekly', 'Monthly', 'Never']}
+          value={backupReminder}
+          onChange={handleBackupReminder}
+        />
+      </SettingRow>
+
       <SettingRow label="Show Word Count" desc="Display word count in the bottom status bar">
-        <Toggle checked={showWordCount} onChange={setShowWordCount} />
+        <Toggle checked={showWordCount} onChange={handleShowWordCount} />
       </SettingRow>
+
       <SettingRow label="Default Word Goal" desc="Target word count for new projects">
-        <Select options={['50,000', '60,000', '70,000', '80,000', '90,000', '100,000', 'Custom']} defaultValue="70,000" />
-      </SettingRow>
-      <SettingRow label="Submission Target" desc="Default formatting target for new projects">
-        <Select options={['Not Set', 'Publisher / Agent', 'Self-Publishing', 'Contest / Workshop', 'Personal']} defaultValue="Not Set" />
+        <Select
+          options={['50,000', '60,000', '70,000', '80,000', '90,000', '100,000', 'Custom']}
+          value={defaultWordGoal}
+          onChange={handleDefaultWordGoal}
+        />
       </SettingRow>
     </>
   );
 }
 
-function EditorSettings() {
+// ─── Writing Settings ───
+function WritingSettings({ onSettingChange }) {
+  const [teachingTips, setTeachingTips] = useState(true);
+  const [conversationalTeacher, setConversationalTeacher] = useState(true);
+  const [characterGuideMode, setCharacterGuideMode] = useState('interactive');
+  const [activeDeconstruction, setActiveDeconstruction] = useState(true);
+  const [emotionWheelDefault, setEmotionWheelDefault] = useState('active');
+  const [contentRating, setContentRating] = useState('All');
+  const [ttsHighlight, setTtsHighlight] = useState(true);
+
+  const handleTeachingTips = (val) => {
+    setTeachingTips(val);
+    onSettingChange('teachingTips', val);
+  };
+
+  const handleConversationalTeacher = (val) => {
+    setConversationalTeacher(val);
+    onSettingChange('conversationalTeacher', val);
+  };
+
+  const handleCharacterGuideMode = (newVal) => {
+    setCharacterGuideMode(newVal);
+    onSettingChange('characterGuideMode', newVal);
+  };
+
+  const handleActiveDeconstruction = (val) => {
+    setActiveDeconstruction(val);
+    onSettingChange('activeDeconstruction', val);
+  };
+
+  const handleEmotionWheel = (newVal) => {
+    setEmotionWheelDefault(newVal);
+    onSettingChange('emotionWheelDefault', newVal);
+  };
+
+  const handleContentRating = (newVal) => {
+    setContentRating(newVal);
+    onSettingChange('contentRating', newVal);
+  };
+
+  const handleTtsHighlight = (val) => {
+    setTtsHighlight(val);
+    onSettingChange('ttsHighlight', val);
+  };
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Editor</h2>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>Writing</h2>
+
+      <SettingRow label="Teaching Tips" desc="Show educational guidance while writing">
+        <Toggle checked={teachingTips} onChange={handleTeachingTips} />
+      </SettingRow>
+
+      <SettingRow label="Conversational Teacher" desc="Receive feedback in a conversational tone">
+        <Toggle checked={conversationalTeacher} onChange={handleConversationalTeacher} />
+      </SettingRow>
+
+      <SettingRow label="Character Guide Mode" desc="How character information is presented">
+        <Select
+          options={['interactive', 'list', 'card', 'timeline']}
+          value={characterGuideMode}
+          onChange={handleCharacterGuideMode}
+        />
+      </SettingRow>
+
+      <SettingRow label="Active Deconstruction" desc="Break down text analysis into layers">
+        <Toggle checked={activeDeconstruction} onChange={handleActiveDeconstruction} />
+      </SettingRow>
+
+      <SettingRow label="Emotion Wheel Default" desc="Default view for emotional analysis">
+        <Select
+          options={['active', 'muted', 'minimized']}
+          value={emotionWheelDefault}
+          onChange={handleEmotionWheel}
+        />
+      </SettingRow>
+
+      <SettingRow label="Content Rating Filter" desc="Show ratings appropriate for your content">
+        <Select
+          options={['All', 'General', 'Young Adult', 'Mature', 'Explicit']}
+          value={contentRating}
+          onChange={handleContentRating}
+        />
+      </SettingRow>
+
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginTop: 24, marginBottom: 10, fontWeight: 600 }}>
+        Text-to-Speech
+      </div>
+
+      <SettingRow label="Highlight While Reading" desc="Highlight text as it is read aloud">
+        <Toggle checked={ttsHighlight} onChange={handleTtsHighlight} />
+      </SettingRow>
+    </>
+  );
+}
+
+// ─── Editor Settings ───
+function EditorSettings({ onSettingChange }) {
+  const [approvalMode, setApprovalMode] = useState('Per Chapter');
+  const [maxPasses, setMaxPasses] = useState('3');
+  const [qualityThreshold, setQualityThreshold] = useState('Strong');
+  const [personaCount, setPersonaCount] = useState('3');
+  const [severityDisplay, setSeverityDisplay] = useState('colored');
+  const [autoGenerateFeedback, setAutoGenerateFeedback] = useState(true);
+  const [recurringFlagDetection, setRecurringFlagDetection] = useState(true);
+
+  const handleApprovalMode = (newVal) => {
+    setApprovalMode(newVal);
+    onSettingChange('defaultApprovalMode', newVal);
+  };
+
+  const handleMaxPasses = (newVal) => {
+    setMaxPasses(newVal);
+    onSettingChange('maxEditorPasses', newVal);
+  };
+
+  const handleQualityThreshold = (newVal) => {
+    setQualityThreshold(newVal);
+    onSettingChange('qualityThreshold', newVal);
+  };
+
+  const handlePersonaCount = (newVal) => {
+    setPersonaCount(newVal);
+    onSettingChange('editorPersonaCount', newVal);
+  };
+
+  const handleSeverityDisplay = (newVal) => {
+    setSeverityDisplay(newVal);
+    onSettingChange('severityDisplay', newVal);
+  };
+
+  const handleAutoGenerateFeedback = (val) => {
+    setAutoGenerateFeedback(val);
+    onSettingChange('autoGenerateFeedback', val);
+  };
+
+  const handleRecurringFlagDetection = (val) => {
+    setRecurringFlagDetection(val);
+    onSettingChange('recurringFlagDetection', val);
+  };
+
+  return (
+    <>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>Editor</h2>
+
       <SettingRow label="Default Approval Mode" desc="How Editor feedback is presented">
-        <Select options={['Auto-Approve', 'Per Chapter', 'Per Arc', 'Multi-Pass']} defaultValue="Per Chapter" />
+        <Select
+          options={['Auto-Approve', 'Per Chapter', 'Per Arc', 'Multi-Pass']}
+          value={approvalMode}
+          onChange={handleApprovalMode}
+        />
       </SettingRow>
+
       <SettingRow label="Max Editor Passes" desc="Maximum rounds for Multi-Pass mode">
-        <Select options={['1', '2', '3', '4', '5', '6']} defaultValue="3" />
+        <Select
+          options={['1', '2', '3', '4', '5', '6']}
+          value={maxPasses}
+          onChange={handleMaxPasses}
+        />
       </SettingRow>
+
       <SettingRow label="Quality Threshold" desc="Auto-stops Multi-Pass when this rating is reached">
-        <Select options={['Exceptional', 'Strong', 'Good', 'Developing', 'Off']} defaultValue="Strong" />
+        <Select
+          options={['Exceptional', 'Strong', 'Good', 'Developing', 'Off']}
+          value={qualityThreshold}
+          onChange={handleQualityThreshold}
+        />
       </SettingRow>
+
       <SettingRow label="Editor Persona Count" desc="How many audience-based personas to generate">
-        <Select options={['0', '1', '2', '3', '4', '5']} defaultValue="3" />
+        <Select
+          options={['0', '1', '2', '3', '4', '5']}
+          value={personaCount}
+          onChange={handlePersonaCount}
+        />
+      </SettingRow>
+
+      <SettingRow label="Severity Display" desc="How editing severity indicators appear">
+        <Select
+          options={['colored', 'icons', 'text', 'minimal']}
+          value={severityDisplay}
+          onChange={handleSeverityDisplay}
+        />
+      </SettingRow>
+
+      <SettingRow label="Auto-Generate Feedback" desc="Automatically create summaries of edits">
+        <Toggle checked={autoGenerateFeedback} onChange={handleAutoGenerateFeedback} />
+      </SettingRow>
+
+      <SettingRow label="Recurring Flag Detection" desc="Identify patterns in repeated editor flags">
+        <Toggle checked={recurringFlagDetection} onChange={handleRecurringFlagDetection} />
       </SettingRow>
     </>
   );
 }
 
-function WritingSettings() {
-  const [readabilityScore, setReadabilityScore] = useState(true);
-  return (
-    <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Writing</h2>
-      <SettingRow label="Default POV" desc="Perspective for new writing">
-        <Select options={['First Person', 'Second Person', 'Third Limited', 'Third Omniscient', 'Multiple']} defaultValue="Third Limited" />
-      </SettingRow>
-      <SettingRow label="Default Tense" desc="Time frame for narrative">
-        <Select options={['Past', 'Present']} defaultValue="Past" />
-      </SettingRow>
-      <SettingRow label="Chapter Naming" desc="How chapters are identified">
-        <Select options={['Numbered', 'Named', 'Both']} defaultValue="Numbered" />
-      </SettingRow>
-      <SettingRow label="Scene Break Style" desc="Visual separator between scenes">
-        <Select options={['* * *', '---', 'Blank line', '#']} defaultValue="* * *" />
-      </SettingRow>
-      <SettingRow label="Show Readability Score" desc="Display reading ease metrics">
-        <Toggle checked={readabilityScore} onChange={setReadabilityScore} />
-      </SettingRow>
-      <SettingRow label="Target Reading Level" desc="Audience comprehension baseline">
-        <Select options={['General', 'Literary', 'Academic', 'Young Adult', 'Middle Grade']} defaultValue="General" />
-      </SettingRow>
-      <SettingRow label="Dialogue Style" desc="Quotation marks and emphasis">
-        <Select options={['American "double quotes"', "British 'single quotes'", 'Em-dash style']} defaultValue='American "double quotes"' />
-      </SettingRow>
-    </>
-  );
-}
+// ─── Privacy & Data Settings ───
+function PrivacySettings({ navigate, onSettingChange }) {
+  const [showKeys, setShowKeys] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [storageLocation] = useState('Local (IndexedDB)');
+  const [projectStats] = useState({ count: 12, totalWords: 245000, storageUsed: '2.3 GB' });
 
-function PrivacySettings({ navigate }) {
-  const [storeLocally, setStoreLocally] = useState(true);
-  const [shareUsage, setShareUsage] = useState(false);
-  const [aiOptOut, setAiOptOut] = useState(true);
+  const handleShowKeys = (val) => {
+    setShowKeys(val);
+    onSettingChange('showKeys', val);
+  };
+
+  const handleExportAllData = () => {
+    onSettingChange('exportData', true);
+  };
+
+  const handleDeleteAllData = () => {
+    if (!deleteConfirm) {
+      setDeleteConfirm(true);
+      return;
+    }
+    onSettingChange('deleteAllData', true);
+    setDeleteConfirm(false);
+  };
+
+  const handleResetSetup = () => {
+    navigate('/terms');
+  };
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Privacy & Data</h2>
-      <SettingRow label="Store Projects Locally" desc="Keep project files on this device">
-        <Toggle checked={storeLocally} onChange={setStoreLocally} />
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>Privacy & Data</h2>
+
+      <SettingRow label="Storage Location" desc="Where your project data is stored">
+        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{storageLocation}</span>
       </SettingRow>
-      <SettingRow label="Share Anonymous Usage Data" desc="Help improve the app with usage analytics">
-        <Toggle checked={shareUsage} onChange={setShareUsage} />
+
+      <div style={{ padding: '16px 0', borderBottom: '1px solid var(--border)' }}>
+        <div style={{ fontSize: '0.85rem', fontWeight: 500, marginBottom: 8 }}>Project Data Statistics</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>Projects</div>
+            <div style={{ fontSize: '1rem', fontWeight: 600 }}>{projectStats.count}</div>
+          </div>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '10px 12px', borderRadius: 'var(--radius-sm)' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>Total Words</div>
+            <div style={{ fontSize: '1rem', fontWeight: 600 }}>{projectStats.totalWords.toLocaleString()}</div>
+          </div>
+          <div style={{ background: 'var(--bg-tertiary)', padding: '10px 12px', borderRadius: 'var(--radius-sm)', gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>Storage Used</div>
+            <div style={{ fontSize: '1rem', fontWeight: 600 }}>{projectStats.storageUsed}</div>
+          </div>
+        </div>
+      </div>
+
+      <SettingRow label="Show Keys" desc="Display API keys and sensitive identifiers">
+        <Toggle checked={showKeys} onChange={handleShowKeys} />
       </SettingRow>
-      <SettingRow label="AI Training Opt-Out" desc="Prevent your writing from being used to train AI models">
-        <Toggle checked={aiOptOut} onChange={setAiOptOut} />
-      </SettingRow>
-      <SettingRow label="Auto-Delete Sessions" desc="Automatically remove old session data">
-        <Select options={['Never', 'After 30 days', 'After 90 days', 'After 1 year']} defaultValue="Never" />
-      </SettingRow>
-      <SettingRow label="Export All Data" desc="Download all your projects and settings">
-        <Button size="sm" variant="secondary" style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Download size={14} />
+
+      <SettingRow label="Export All Data" desc="Download all your projects and settings as ZIP">
+        <Button size="sm" variant="secondary" onClick={handleExportAllData}>
+          <Download size={14} style={{ marginRight: 4 }} />
           Export →
         </Button>
       </SettingRow>
 
-      {/* Danger zone */}
-      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginTop: 24, marginBottom: 10, fontWeight: 600 }}>
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#dc2626', marginTop: 24, marginBottom: 10, fontWeight: 600 }}>
         Danger Zone
       </div>
+
       <SettingRow label="Re-run Setup" desc="Go back through Terms of Use and LLM configuration">
-        <Button size="sm" variant="secondary" onClick={() => navigate('/terms')} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <RefreshCw size={14} />
+        <Button size="sm" variant="secondary" onClick={handleResetSetup}>
+          <RefreshCw size={14} style={{ marginRight: 4 }} />
           Re-run →
         </Button>
       </SettingRow>
+
       <SettingRow label="Delete All Data" desc="Permanently remove all projects, settings, and session data">
-        <Button size="sm" style={{ background: '#dc2626', color: '#fff', border: 'none' }}>
+        <Button
+          size="sm"
+          onClick={handleDeleteAllData}
+          style={{
+            background: deleteConfirm ? '#b91c1c' : '#dc2626',
+            color: '#fff',
+            border: 'none',
+            padding: '6px 12px',
+            borderRadius: 'var(--radius-sm)',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            fontWeight: 500,
+          }}
+        >
           <Trash2 size={14} style={{ marginRight: 4 }} />
-          Delete Everything
+          {deleteConfirm ? 'Click again to confirm' : 'Delete Everything'}
         </Button>
       </SettingRow>
     </>
   );
 }
 
-function WritingProfileSettings() {
-  const [penName, setPenName] = useState('');
-  const [bio, setBio] = useState('');
+// ─── Writing Profile Settings ───
+function WritingProfileSettings({ onSettingChange }) {
+  const [silentAssessment, setSilentAssessment] = useState(false);
+  const [trackAcrossProjects, setTrackAcrossProjects] = useState(true);
+
+  const handleSilentAssessment = (val) => {
+    setSilentAssessment(val);
+    onSettingChange('silentAssessment', val);
+  };
+
+  const handleTrackAcrossProjects = (val) => {
+    setTrackAcrossProjects(val);
+    onSettingChange('trackAcrossProjects', val);
+  };
+
+  const handleViewProfile = () => {
+    onSettingChange('viewProfile', true);
+  };
+
+  const handleResetJourney = () => {
+    onSettingChange('resetJourney', true);
+  };
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>Writing Profile</h2>
-      <SettingRow label="Pen Name" desc="Your author identity">
-        <input
-          type="text"
-          value={penName}
-          onChange={(e) => setPenName(e.target.value)}
-          placeholder="Enter pen name"
-          style={{
-            padding: '4px 8px', fontSize: '0.8rem', minWidth: 140,
-            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
-          }}
-        />
-      </SettingRow>
-      <SettingRow label="Bio" desc="Short author biography">
-        <textarea
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          placeholder="Tell us about yourself..."
-          rows="3"
-          style={{
-            padding: '6px 8px', fontSize: '0.8rem', minWidth: 280,
-            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
-            fontFamily: 'inherit', resize: 'none',
-          }}
-        />
-      </SettingRow>
-      <SettingRow label="Writing Experience" desc="Your skill level">
-        <Select options={['Beginner', 'Intermediate', 'Advanced', 'Professional']} defaultValue="Intermediate" />
-      </SettingRow>
-      <SettingRow label="Favorite Genres" desc="Your preferred categories">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            Literary Fiction, Thriller
-          </span>
-          <Button size="sm" variant="secondary" style={{ fontSize: '0.75rem' }}>Edit</Button>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>Writing Profile</h2>
+
+      <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div>
+            <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Your Writing Profile</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>View your growth and achievements</div>
+          </div>
+          <Button size="sm" variant="secondary" onClick={handleViewProfile}>
+            View Profile →
+          </Button>
         </div>
+      </div>
+
+      <SettingRow label="Silent Assessment" desc="Receive feedback without interruptions">
+        <Toggle checked={silentAssessment} onChange={handleSilentAssessment} />
       </SettingRow>
-      <SettingRow label="Writing Goals" desc="What you're working towards">
-        <Select options={['Finish first draft', 'Get published', 'Improve craft', 'Fun/hobby']} defaultValue="Finish first draft" />
+
+      <SettingRow label="Track Across Projects" desc="Maintain writing statistics across all projects">
+        <Toggle checked={trackAcrossProjects} onChange={handleTrackAcrossProjects} />
       </SettingRow>
-      <SettingRow label="Daily Word Target" desc="Your writing goal">
-        <Select options={['250', '500', '1000', '1500', '2000', 'Custom']} defaultValue="1000" />
+
+      <SettingRow label="Reset Your Journey" desc="Clear all profile data and start fresh">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={handleResetJourney}
+          style={{ color: '#f97316' }}
+        >
+          Reset Journey
+        </Button>
       </SettingRow>
     </>
   );
 }
 
+// ─── About Settings ───
 function AboutSettings() {
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+
+  const keyboardShortcuts = [
+    { keys: 'Ctrl/Cmd + S', action: 'Save current project' },
+    { keys: 'Ctrl/Cmd + N', action: 'Create new project' },
+    { keys: 'Ctrl/Cmd + Shift + E', action: 'Open editor' },
+    { keys: 'Ctrl/Cmd + Shift + H', action: 'Toggle help panel' },
+    { keys: 'Ctrl/Cmd + ,', action: 'Open settings' },
+    { keys: 'Cmd + Option + I / Ctrl + Shift + I', action: 'Toggle DevTools' },
+    { keys: 'F1', action: 'Show keyboard shortcuts' },
+    { keys: 'Escape', action: 'Close modal or panel' },
+  ];
+
   return (
     <>
-      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 20 }}>
+      <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>
         <span>✦ About Serendipity Engine</span>
       </h2>
+
       <SettingRow label="Version" desc="">
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>v0.1.0-alpha</span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>v0.1.0-alpha</span>
       </SettingRow>
+
       <SettingRow label="Build Info" desc="">
         <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Development Build</span>
       </SettingRow>
+
+      <SettingRow label="Keyboard Shortcuts" desc="">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setShowKeyboardShortcuts(!showKeyboardShortcuts)}
+        >
+          {showKeyboardShortcuts ? 'Hide' : 'View'} Shortcuts
+        </Button>
+      </SettingRow>
+
+      {showKeyboardShortcuts && (
+        <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 20, marginTop: -8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: 12 }}>
+            {keyboardShortcuts.map((shortcut, idx) => (
+              <div key={idx} style={{ display: 'contents' }}>
+                <div style={{ fontSize: '0.75rem', fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>
+                  {shortcut.keys}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  {shortcut.action}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div style={{ marginTop: 24 }}>
         <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: 12, fontWeight: 600 }}>
           Resources
         </div>
         {[
-          { label: 'Documentation', href: '#' },
-          { label: 'GitHub', href: '#' },
-          { label: 'Report a Bug', href: '#' },
-          { label: 'Feature Request', href: '#' },
+          { label: 'Documentation', href: 'https://docs.serendipity.ai' },
+          { label: 'GitHub Repository', href: 'https://github.com/serendipity-engine' },
+          { label: 'Report a Bug', href: 'https://github.com/serendipity-engine/issues' },
+          { label: 'Feature Request', href: 'https://github.com/serendipity-engine/discussions' },
+          { label: 'Terms of Use', href: '/terms' },
         ].map((link) => (
           <div key={link.label} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '12px 0', borderBottom: '1px solid var(--border)',
             cursor: 'pointer',
-          }}>
+          }}
+          onClick={() => window.open(link.href, '_blank')}
+          >
             <span style={{ fontSize: '0.85rem' }}>{link.label}</span>
             <ExternalLink size={14} color="var(--text-muted)" />
           </div>
         ))}
       </div>
+
       <div style={{ marginTop: 24, paddingTop: 24, borderTop: '1px solid var(--border)' }}>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
           <Heart size={12} style={{ display: 'inline-block', marginRight: 4, verticalAlign: 'middle' }} />
-          Built by Isaiah
+          Built with passion by the Serendipity team
         </p>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          MIT License
+          MIT License · Copyright 2024-2025
         </p>
       </div>
     </>
   );
 }
 
+// ─── Main Settings Screen Component ───
 export default function SettingsScreen() {
   const navigate = useNavigate();
   const [activeCategory, setActiveCategory] = useState('general');
   const [currentTheme, setCurrentTheme] = useState(detectCurrentTheme);
+  const [toastMessage, setToastMessage] = useState('');
+  const [showToast, setShowToast] = useState(false);
 
   const handleThemeChange = (key) => {
     applyTheme(key);
     setCurrentTheme(key);
+    showToastMessage(`Theme changed to ${themePresets[key].name}`);
+  };
+
+  const showToastMessage = (message) => {
+    setToastMessage(message);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 2500);
+  };
+
+  const handleSettingChange = (key, value) => {
+    let message = '';
+
+    switch (key) {
+      case 'mode':
+        message = `Mode set to ${value}`;
+        break;
+      case 'fontSize':
+        message = `Font size set to ${value}`;
+        break;
+      case 'editorFont':
+        message = `Editor font changed to ${value}`;
+        break;
+      case 'language':
+        message = `Language changed to ${value}`;
+        break;
+      case 'sidebarPosition':
+        message = `Sidebar moved to ${value}`;
+        break;
+      case 'roleAssignmentMode':
+        message = `Role assignment mode set to ${value}`;
+        break;
+      case 'auditTrail':
+        message = `Audit trail ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'costTracking':
+        message = `Cost tracking ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'autoSaveInterval':
+        message = `Auto-save interval updated`;
+        break;
+      case 'crashRecovery':
+        message = `Crash recovery ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'defaultExportFormat':
+        message = `Default export format set to ${value}`;
+        break;
+      case 'backupReminder':
+        message = `Backup reminder set to ${value}`;
+        break;
+      case 'showWordCount':
+        message = `Word count display ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'defaultWordGoal':
+        message = `Default word goal set to ${value}`;
+        break;
+      case 'teachingTips':
+        message = `Teaching tips ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'conversationalTeacher':
+        message = `Conversational teacher ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'characterGuideMode':
+        message = `Character guide mode set to ${value}`;
+        break;
+      case 'defaultApprovalMode':
+        message = `Default approval mode set to ${value}`;
+        break;
+      case 'maxEditorPasses':
+        message = `Max editor passes set to ${value}`;
+        break;
+      case 'qualityThreshold':
+        message = `Quality threshold set to ${value}`;
+        break;
+      case 'editorPersonaCount':
+        message = `Editor persona count set to ${value}`;
+        break;
+      case 'exportData':
+        message = 'Exporting data...';
+        break;
+      case 'deleteAllData':
+        message = 'All data has been deleted';
+        break;
+      case 'silentAssessment':
+        message = `Silent assessment ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'trackAcrossProjects':
+        message = `Project tracking ${value ? 'enabled' : 'disabled'}`;
+        break;
+      case 'resetJourney':
+        message = 'Your journey has been reset';
+        break;
+      case 'viewProfile':
+        message = 'Opening your writing profile...';
+        break;
+      default:
+        message = 'Setting updated';
+    }
+
+    if (message) {
+      showToastMessage(message);
+    }
   };
 
   const renderContent = () => {
     switch (activeCategory) {
-      case 'general': return <GeneralSettings currentTheme={currentTheme} onThemeChange={handleThemeChange} />;
-      case 'ai': return <AISettings />;
-      case 'workspace': return <WorkspaceSettings />;
-      case 'editor': return <EditorSettings />;
-      case 'writing': return <WritingSettings />;
-      case 'privacy': return <PrivacySettings navigate={navigate} />;
-      case 'profile': return <WritingProfileSettings />;
-      case 'about': return <AboutSettings />;
-      default: return <GeneralSettings currentTheme={currentTheme} onThemeChange={handleThemeChange} />;
+      case 'general':
+        return <GeneralSettings currentTheme={currentTheme} onThemeChange={handleThemeChange} onSettingChange={handleSettingChange} />;
+      case 'ai':
+        return <AISettings onSettingChange={handleSettingChange} />;
+      case 'workspace':
+        return <WorkspaceSettings onSettingChange={handleSettingChange} />;
+      case 'writing':
+        return <WritingSettings onSettingChange={handleSettingChange} />;
+      case 'editor':
+        return <EditorSettings onSettingChange={handleSettingChange} />;
+      case 'privacy':
+        return <PrivacySettings navigate={navigate} onSettingChange={handleSettingChange} />;
+      case 'profile':
+        return <WritingProfileSettings onSettingChange={handleSettingChange} />;
+      case 'about':
+        return <AboutSettings />;
+      default:
+        return <GeneralSettings currentTheme={currentTheme} onThemeChange={handleThemeChange} onSettingChange={handleSettingChange} />;
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-primary)' }}>
       <TopBar showHealth={false} />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* Sidebar */}
+        {/* Left Sidebar Navigation */}
         <div style={{
           width: 220,
           background: 'var(--bg-secondary)',
           borderRight: '1px solid var(--border)',
           padding: '16px 8px',
+          overflowY: 'auto',
+          flexShrink: 0,
         }}>
+          {/* Back Button */}
           <button
             onClick={() => navigate('/hub')}
             style={{
-              display: 'flex', alignItems: 'center', gap: 6, width: '100%',
-              padding: '8px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
+              display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+              padding: '10px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
               fontSize: '0.8rem', cursor: 'pointer', textAlign: 'left',
-              background: 'none', color: 'var(--text-muted)',
-              marginBottom: 12, transition: 'var(--transition)',
+              background: 'transparent', color: 'var(--text-secondary)',
+              marginBottom: 14, transition: 'all 0.2s ease',
+              fontWeight: 500,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'var(--bg-tertiary)';
+              e.currentTarget.style.color = 'var(--accent)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.color = 'var(--text-secondary)';
+            }}
           >
-            <ArrowLeft size={14} />
-            Back to Dashboard
+            <ArrowLeft size={16} />
+            Back to Hub
           </button>
-          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '0 12px 12px' }}>
+
+          {/* Settings Label */}
+          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', padding: '8px 12px 12px', fontWeight: 600 }}>
             Settings
           </div>
+
+          {/* Category Buttons */}
           {categories.map((c) => {
             const Icon = c.icon;
             const isActive = activeCategory === c.key;
@@ -533,26 +1114,48 @@ export default function SettingsScreen() {
                 onClick={() => setActiveCategory(c.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                  padding: '8px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
+                  padding: '10px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
                   fontSize: '0.85rem', cursor: 'pointer', textAlign: 'left',
                   background: isActive ? 'var(--accent-glow)' : 'transparent',
                   color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
                   fontWeight: isActive ? 600 : 400,
-                  marginBottom: 2,
+                  marginBottom: 4,
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'var(--bg-tertiary)';
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = 'transparent';
+                    e.currentTarget.style.color = 'var(--text-secondary)';
+                  }
                 }}
               >
-                <Icon size={15} />
-                {c.label}
+                <Icon size={16} />
+                <span style={{ flex: 1 }}>{c.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px 40px', maxWidth: 700 }}>
+        {/* Right Content Panel */}
+        <div style={{
+          flex: 1,
+          overflowY: 'auto',
+          padding: '32px 48px',
+          maxWidth: 800,
+          color: 'var(--text-primary)',
+        }}>
           {renderContent()}
         </div>
       </div>
+
+      {/* Toast Notification */}
+      <Toast message={toastMessage} visible={showToast} />
     </div>
   );
 }

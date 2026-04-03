@@ -13,8 +13,12 @@ import {
   Compass, Edit3, BookOpen, GitCompare, Network, MessageSquare,
   Clock, Palette, Settings, Download, Volume2, Search,
   Lightbulb, AlertTriangle, Pencil, ChevronUp, Send, SendHorizontal, ChevronsLeft, ChevronsRight, Globe,
-  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft,
+  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X,
 } from 'lucide-react';
+import { useProjectStore } from '../stores/projectStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useLlmStore } from '../stores/llmStore';
+import { removeEmdashes } from '../lib/randomEngine';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
 /* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
@@ -166,13 +170,65 @@ const phaseQuestions = {
 
 function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
   const [currentQ, setCurrentQ] = useState(0);
+  const [aiResponse, setAiResponse] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
   const questions = phaseQuestions[phase] || [];
   const phaseAnswerMap = answers[phase] || {};
   const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Quality Control', '⟡': 'Bridge', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
+  const sendMessage = useLlmStore.getState().sendMessage;
+  const activeProviders = useLlmStore(s => s.activeProviders);
 
   // Count how many questions are answered
   const answeredCount = Object.keys(phaseAnswerMap).filter(k => phaseAnswerMap[k]?.trim()).length;
   const isComplete = answeredCount === questions.length && questions.length > 0;
+
+  // Clear AI response when switching questions
+  useEffect(() => { setAiResponse(''); setAiError(null); }, [currentQ, phase]);
+
+  const handleAskAI = async () => {
+    if (activeProviders.length === 0) {
+      setAiError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setAiLoading(true);
+    setAiError(null);
+    setAiResponse('');
+
+    const q = questions[currentQ] || questions[0];
+    const existingAnswers = Object.entries(phaseAnswerMap)
+      .filter(([_, v]) => v?.trim())
+      .map(([id, v]) => {
+        const qDef = questions.find(qq => qq.id === parseInt(id));
+        return qDef ? `Q: ${qDef.q}\nA: ${v}` : '';
+      })
+      .filter(Boolean)
+      .join('\n\n');
+
+    const result = await sendMessage({
+      messages: [
+        { role: 'system', content: `You are the Serendipity Engine Story Assistant helping an author build their story. You are currently in Phase ${phase} (${phaseName}). Help the author answer this question thoughtfully. Push back on vague answers. Give concrete, specific suggestions that demonstrate depth. Never use emdashes.` },
+        ...(existingAnswers ? [{ role: 'user', content: `Here are the author's answers so far in this phase:\n\n${existingAnswers}` }, { role: 'assistant', content: 'Got it. I have context from your previous answers. How can I help with the current question?' }] : []),
+        { role: 'user', content: `Help me answer this question: "${q.q}"\n\n${q.desc || ''}\n\n${q.hint ? `Hint: ${q.hint}` : ''}\n\nGenerate a thoughtful, detailed answer I can use as a starting point. Be specific and creative.` },
+      ],
+      role: 'generator',
+      maxTokens: 1024,
+    });
+
+    setAiLoading(false);
+    if (result.success) {
+      const cleaned = removeEmdashes(result.content);
+      setAiResponse(cleaned);
+    } else {
+      setAiError(result.error || 'Failed to get AI response.');
+    }
+  };
+
+  const handleUseAiResponse = () => {
+    const q = questions[currentQ] || questions[0];
+    onAnswer(phase, q.id, aiResponse);
+    setAiResponse('');
+  };
 
   if (questions.length === 0) {
     return (
@@ -256,13 +312,48 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
         </div>
       )}
 
+      {/* AI Response panel */}
+      {aiLoading && (
+        <div style={{
+          marginTop: 16, padding: 16, background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', fontSize: '0.85rem', color: 'var(--text-muted)',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <Sparkles size={14} style={{ animation: 'spin 1.5s linear infinite' }} /> Thinking...
+          <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+      {aiError && (
+        <div style={{
+          marginTop: 16, padding: 12, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#f87171',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <AlertTriangle size={14} /> {aiError}
+        </div>
+      )}
+      {aiResponse && (
+        <div style={{
+          marginTop: 16, padding: 16, background: 'var(--accent-subtle)', border: '1px solid var(--accent-border)',
+          borderRadius: 'var(--radius-md)',
+        }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>AI Suggestion</div>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>{aiResponse}</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <Button variant="primary" onClick={handleUseAiResponse} style={{ fontSize: '0.78rem' }}>Use This Answer</Button>
+            <Button variant="ghost" onClick={handleAskAI} style={{ fontSize: '0.78rem' }}>Regenerate</Button>
+            <Button variant="ghost" onClick={() => setAiResponse('')} style={{ fontSize: '0.78rem' }}>Dismiss</Button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
         <Button variant="ghost" onClick={() => {
           if (currentQ > 0) setCurrentQ(currentQ - 1);
           else if (onPrevPhase) onPrevPhase();
         }}>← Previous</Button>
         <div style={{ display: 'flex', gap: 8 }}>
-          <RollButton onClick={() => {}} />
+          <RollButton label={aiLoading ? 'Thinking...' : 'Ask AI'} onClick={handleAskAI} />
           <Button variant="primary" onClick={() => {
             if (currentQ < questions.length - 1) setCurrentQ(currentQ + 1);
             else if (onNextPhase) onNextPhase();
@@ -275,21 +366,90 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
   );
 }
 
-function EditorMode() {
+function EditorMode({ file }) {
   const [editorFilter, setEditorFilter] = useState('all'); // 'all' | 'issues' | 'suggestions' | 'strengths'
+  const [editorItems, setEditorItems] = useState([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [hasRun, setHasRun] = useState(false);
+  const [error, setError] = useState(null);
+  const [passNumber, setPassNumber] = useState(1);
 
-  const editorItems = [
-    { type: 'issue', color: '#f97316', label: 'Issue', text: "Marcus's dialogue in the confrontation scene (lines 34-41) sounds too formal for someone in emotional crisis. His register should drop — shorter sentences, fragments, raw vocabulary." },
-    { type: 'issue', color: '#f97316', label: 'Issue', text: "The transition between the kitchen scene and the church meeting (lines 78-82) is abrupt. A brief bridging sentence showing Elena's internal state would smooth it." },
-    { type: 'issue', color: '#f97316', label: 'Issue', text: "Bishop Lapp's dialogue on line 112 inadvertently echoes Marcus's phrasing from Chapter 3. Either differentiate or make it an intentional callback." },
-    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "The physical description of the hallway before Elena opens the door is doing important tension work. Consider extending it — the reader needs to feel her hesitation before the reveal." },
-    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "Priya's reaction in the aftermath could carry more weight if you plant a small foreshadowing detail earlier — even a throwaway line about her own family history." },
-    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "The chapter title 'Unraveling' is functional but generic. Consider something that mirrors the Mennonite community language." },
-    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "Consider ending the chapter one paragraph earlier — the current final line explains what the silence already conveyed." },
-    { type: 'suggestion', color: '#fbbf24', label: 'Suggestion', text: "Ruth's body language during the confrontation is understated in a way that works, but one precise physical detail would anchor her presence more." },
-    { type: 'strength', color: '#4ade80', label: 'Strength', text: "The emotional trajectory from dread → shock → fury → quiet grief is perfectly paced. The fury is brief and cathartic — the grief that replaces it is the real payload. Don't change this." },
-    { type: 'strength', color: '#4ade80', label: 'Strength', text: "The dialogue rhythm in the confrontation scene is excellent — the pauses (marked by action beats) feel natural and let the tension breathe." },
-  ];
+  const files = useProjectStore(s => s.files);
+  const project = useProjectStore(s => s.activeProject);
+
+  // Determine which chapter we're editing
+  const chapterMatch = file?.match(/chapter-(\d+)\.md$/);
+  const chapterNum = chapterMatch ? parseInt(chapterMatch[1]) : null;
+  const fileTitle = chapterNum ? `Chapter ${chapterNum}` : (file || 'Current File');
+
+  const runEditorReview = async () => {
+    setIsRunning(true);
+    setError(null);
+
+    try {
+      const fileContent = files?.[file] || '';
+      if (!fileContent.trim()) {
+        setError('No content to review. Write or generate content first.');
+        setIsRunning(false);
+        return;
+      }
+
+      const systemPrompt = `You are the Editor persona for the Serendipity Engine. You provide constructive, specific feedback on prose quality, structural integrity, and craft. You are supportive but rigorous.
+
+## GOLDEN RULES (Non-Negotiable)
+1. **No Emdashes**: Never use emdashes (the long dash character or en-dash) in any output. Use commas, periods, semicolons, or parentheses instead.
+
+## Your Task
+Review the following content and provide feedback as a JSON array of items. Each item must have:
+- "type": one of "issue", "suggestion", or "strength"
+- "text": your specific, actionable feedback (1-3 sentences)
+
+Aim for 3-4 issues, 4-5 suggestions, and 2-3 strengths. Be specific about line references or passages. Focus on: dialogue authenticity, pacing, transitions, character voice consistency, emotional beats, prose rhythm, and structural choices.
+
+Respond ONLY with the JSON array, no other text.`;
+
+      const result = await useLlmStore.getState().sendMessage({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `## File: ${file}\n\n${fileContent}` },
+        ],
+        role: 'editor',
+        maxTokens: 3000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Editor review failed');
+        setIsRunning(false);
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+
+      // Parse JSON from response
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const items = JSON.parse(jsonMatch[0]);
+        const colorMap = { issue: '#f97316', suggestion: '#fbbf24', strength: '#4ade80' };
+        const labelMap = { issue: 'Issue', suggestion: 'Suggestion', strength: 'Strength' };
+        setEditorItems(items.map(item => ({
+          type: item.type,
+          color: colorMap[item.type] || '#fbbf24',
+          label: labelMap[item.type] || 'Note',
+          text: item.text,
+        })));
+        setHasRun(true);
+        setPassNumber(p => p + 1);
+      } else {
+        // Fallback: treat as plain text feedback
+        setEditorItems([{ type: 'suggestion', color: '#fbbf24', label: 'Feedback', text: cleaned }]);
+        setHasRun(true);
+      }
+    } catch (err) {
+      setError(err.message || 'Editor review failed');
+    } finally {
+      setIsRunning(false);
+    }
+  };
 
   const counts = {
     issues: editorItems.filter(i => i.type === 'issue').length,
@@ -310,51 +470,111 @@ function EditorMode() {
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Editor Review — Chapter 5</h2>
-        <Badge variant="accent">Pass 2</Badge>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Editor Review {chapterNum ? `\u2014 ${fileTitle}` : ''}</h2>
+        {hasRun && <Badge variant="accent">Pass {passNumber - 1}</Badge>}
       </div>
-      <div style={{
-        background: '#1a1410',
-        border: '1px solid #3d2e1a',
-        borderRadius: 'var(--radius-md)',
-        padding: 24,
-        minHeight: 300,
-      }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-          <Badge
-            onClick={() => setEditorFilter(editorFilter === 'issues' ? 'all' : 'issues')}
-            style={badgeStyle('issues', '#f9731622', '#f97316')}
-          >{counts.issues} Issues</Badge>
-          <Badge
-            onClick={() => setEditorFilter(editorFilter === 'suggestions' ? 'all' : 'suggestions')}
-            style={badgeStyle('suggestions', '#fbbf2422', '#fbbf24')}
-          >{counts.suggestions} Suggestions</Badge>
-          <Badge
-            onClick={() => setEditorFilter(editorFilter === 'strengths' ? 'all' : 'strengths')}
-            style={badgeStyle('strengths', '#4ade8022', '#4ade80')}
-          >{counts.strengths} Strengths</Badge>
-          {editorFilter !== 'all' && (
-            <span onClick={() => setEditorFilter('all')} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', alignSelf: 'center', marginLeft: 4 }}>
-              Clear filter ×
-            </span>
-          )}
+
+      {/* Not yet run state */}
+      {!hasRun && !isRunning && !error && (
+        <div style={{
+          background: '#1a1410', border: '1px solid #3d2e1a',
+          borderRadius: 'var(--radius-md)', padding: 40,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+          textAlign: 'center',
+        }}>
+          <Edit3 size={36} style={{ color: '#f97316', opacity: 0.5 }} />
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#d4a574' }}>
+            Ready to review {fileTitle}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: 400 }}>
+            The editor will analyze your prose for issues, offer suggestions for improvement, and highlight strengths worth preserving.
+          </div>
+          <Button variant="primary" onClick={runEditorReview} style={{ marginTop: 8 }}>
+            <Search size={13} style={{ marginRight: 6 }} /> Run Editor Review
+          </Button>
         </div>
-        <div style={{ fontSize: '0.85rem', color: '#d4a574', lineHeight: 1.8 }}>
-          {filtered.map((item, i) => (
-            <p key={i} style={{ marginBottom: 12 }}>
-              <strong style={{ color: item.color }}>{item.label}:</strong> {item.text}
-            </p>
-          ))}
-          {filtered.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No items match this filter.</p>
-          )}
+      )}
+
+      {/* Loading state */}
+      {isRunning && (
+        <div style={{
+          background: '#1a1410', border: '1px solid #3d2e1a',
+          borderRadius: 'var(--radius-md)', padding: 40,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+          textAlign: 'center',
+        }}>
+          <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
+            <Edit3 size={36} style={{ color: '#f97316' }} />
+          </div>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#d4a574' }}>
+            Reviewing your prose...
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Analyzing dialogue, pacing, transitions, and emotional beats
+          </div>
         </div>
-      </div>
-      <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-        <Button variant="primary">Accept All</Button>
-        <Button variant="secondary">Review One by One</Button>
-        <Button variant="ghost">Dismiss</Button>
-      </div>
+      )}
+
+      {/* Error state */}
+      {error && (
+        <div style={{
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 'var(--radius-md)', padding: 20,
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+        }}>
+          <AlertTriangle size={18} color="#ef4444" />
+          <div style={{ flex: 1, fontSize: '0.85rem', color: '#ef4444' }}>{error}</div>
+          <button onClick={() => setError(null)} style={{
+            background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem',
+          }}>Dismiss</button>
+        </div>
+      )}
+
+      {/* Results */}
+      {hasRun && !isRunning && (
+        <>
+          <div style={{
+            background: '#1a1410', border: '1px solid #3d2e1a',
+            borderRadius: 'var(--radius-md)', padding: 24, minHeight: 300,
+          }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              <Badge
+                onClick={() => setEditorFilter(editorFilter === 'issues' ? 'all' : 'issues')}
+                style={badgeStyle('issues', '#f9731622', '#f97316')}
+              >{counts.issues} Issues</Badge>
+              <Badge
+                onClick={() => setEditorFilter(editorFilter === 'suggestions' ? 'all' : 'suggestions')}
+                style={badgeStyle('suggestions', '#fbbf2422', '#fbbf24')}
+              >{counts.suggestions} Suggestions</Badge>
+              <Badge
+                onClick={() => setEditorFilter(editorFilter === 'strengths' ? 'all' : 'strengths')}
+                style={badgeStyle('strengths', '#4ade8022', '#4ade80')}
+              >{counts.strengths} Strengths</Badge>
+              {editorFilter !== 'all' && (
+                <span onClick={() => setEditorFilter('all')} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', alignSelf: 'center', marginLeft: 4 }}>
+                  Clear filter ×
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: '0.85rem', color: '#d4a574', lineHeight: 1.8 }}>
+              {filtered.map((item, i) => (
+                <p key={i} style={{ marginBottom: 12 }}>
+                  <strong style={{ color: item.color }}>{item.label}:</strong> {item.text}
+                </p>
+              ))}
+              {filtered.length === 0 && (
+                <p style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No items match this filter.</p>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <Button variant="primary" onClick={runEditorReview}>
+              Run Again (Pass {passNumber})
+            </Button>
+            <Button variant="ghost" onClick={() => { setEditorItems([]); setHasRun(false); }}>Clear</Button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -968,11 +1188,39 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
 
 function ChatMode({ phasePcts = {} }) {
   const [chatInput, setChatInput] = useState('');
-  const suggestionsRef = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [persona, setPersona] = useState('assistant'); // 'assistant' | 'editor' | 'character'
+  const [selectedCharacter, setSelectedCharacter] = useState(null);
+  const [showPersonaMenu, setShowPersonaMenu] = useState(false);
+  const messagesEndRef = useRef(null);
+  const pillsRef = useRef(null);
+
+  const files = useProjectStore(s => s.files);
+  const project = useProjectStore(s => s.activeProject);
 
   const gatedUnlocked = allPrereqsComplete(phasePcts);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading]);
+
+  // Persona labels and colors
+  const personaConfig = {
+    assistant: { label: 'Story Assistant', icon: Sparkles, color: 'var(--accent)' },
+    editor: { label: 'Editor', icon: Edit3, color: '#f97316' },
+    character: { label: selectedCharacter ? `Talk to ${selectedCharacter}` : 'Talk to Character', icon: Users, color: '#a78bfa' },
+  };
+
+  // Get character names from project files for Talk to Character
+  const characterNames = Object.keys(files || {})
+    .filter(p => p.startsWith('characters/') && p.endsWith('.md') && p !== 'characters/questions-answered.md')
+    .map(p => p.replace('characters/', '').replace('.md', ''));
+
   const suggestions = [
-    'Talk to a character',
+    ...(characterNames.length > 0 ? ['Talk to a character'] : []),
     ...(gatedUnlocked ? ['Talk to the editor'] : []),
     ...(gatedUnlocked ? ['Work on Chapter 5'] : []),
     'Brainstorm plot ideas',
@@ -986,76 +1234,278 @@ function ChatMode({ phasePcts = {} }) {
     'Build tension',
   ];
 
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const pillsRef = { current: null };
-
   const scrollPills = (dir) => {
     const el = pillsRef.current;
     if (!el) return;
-    const amount = 180;
-    el.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' });
+    el.scrollBy({ left: dir === 'left' ? -180 : 180, behavior: 'smooth' });
   };
 
   const handleSuggestionClick = (s) => {
+    if (s === 'Talk to a character') {
+      setShowPersonaMenu(true);
+      return;
+    }
+    if (s === 'Talk to the editor') {
+      setPersona('editor');
+      setMessages([]);
+      return;
+    }
     setChatInput(s);
   };
 
+  const switchPersona = (newPersona, charName = null) => {
+    setPersona(newPersona);
+    setSelectedCharacter(charName);
+    setMessages([]);
+    setError(null);
+    setShowPersonaMenu(false);
+  };
+
+  const handleSend = async () => {
+    const text = chatInput.trim();
+    if (!text || isLoading) return;
+
+    const userMsg = { role: 'user', content: text };
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
+    setChatInput('');
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const { buildChatContext } = await import('../services/contextBuilder.js');
+
+      // Build chat history in the format the context builder expects
+      const chatHistory = newMessages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
+        content: m.content,
+      }));
+
+      const ctx = buildChatContext(files || {}, chatHistory, {
+        persona,
+        characterName: selectedCharacter,
+        scope: 'full-project',
+      });
+
+      const result = await useLlmStore.getState().sendMessage({
+        messages: ctx.messages,
+        role: persona === 'editor' ? 'editor' : (persona === 'character' ? 'creative' : 'assistant'),
+        maxTokens: 2048,
+      });
+
+      if (result.success) {
+        const cleaned = removeEmdashes(result.content);
+        setMessages(prev => [...prev, { role: 'assistant', content: cleaned }]);
+      } else {
+        setError(result.error || 'Failed to get response');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to get response');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  const ActiveIcon = personaConfig[persona].icon;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 20, animation: 'fadeIn 0.3s ease' }}>
-      {/* Title */}
-      <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 16, letterSpacing: '-0.02em' }}>Story Assistant</h1>
+      {/* Title bar with persona switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <ActiveIcon size={20} style={{ color: personaConfig[persona].color }} />
+        <h1 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, letterSpacing: '-0.02em' }}>
+          {personaConfig[persona].label}
+        </h1>
+
+        {/* Persona pills */}
+        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+          {['assistant', 'editor'].map(p => (
+            <button
+              key={p}
+              onClick={() => switchPersona(p)}
+              style={{
+                padding: '4px 12px', fontSize: '0.72rem', borderRadius: 100,
+                border: `1px solid ${persona === p ? personaConfig[p].color : 'var(--border)'}`,
+                background: persona === p ? `${personaConfig[p].color}18` : 'transparent',
+                color: persona === p ? personaConfig[p].color : 'var(--text-muted)',
+                cursor: 'pointer', transition: 'var(--transition)',
+              }}
+            >
+              {p === 'assistant' ? 'Assistant' : 'Editor'}
+            </button>
+          ))}
+
+          {/* Character dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowPersonaMenu(!showPersonaMenu)}
+              style={{
+                padding: '4px 12px', fontSize: '0.72rem', borderRadius: 100,
+                border: `1px solid ${persona === 'character' ? personaConfig.character.color : 'var(--border)'}`,
+                background: persona === 'character' ? `${personaConfig.character.color}18` : 'transparent',
+                color: persona === 'character' ? personaConfig.character.color : 'var(--text-muted)',
+                cursor: 'pointer', transition: 'var(--transition)',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              Character <ChevronDown size={10} />
+            </button>
+
+            {showPersonaMenu && characterNames.length > 0 && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 4,
+                background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md)', padding: 4, zIndex: 100,
+                minWidth: 160, boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+              }}>
+                {characterNames.map(name => (
+                  <button
+                    key={name}
+                    onClick={() => switchPersona('character', name)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left',
+                      padding: '8px 12px', fontSize: '0.8rem', border: 'none',
+                      background: selectedCharacter === name ? 'var(--accent-glow)' : 'transparent',
+                      color: selectedCharacter === name ? 'var(--accent)' : 'var(--text-secondary)',
+                      cursor: 'pointer', borderRadius: 'var(--radius-sm)',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = selectedCharacter === name ? 'var(--accent-glow)' : 'transparent'; }}
+                  >
+                    {name}
+                  </button>
+                ))}
+                {characterNames.length === 0 && (
+                  <div style={{ padding: '8px 12px', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    No characters yet
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Chat messages */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-        <div style={{ alignSelf: 'flex-end', maxWidth: '70%', background: 'var(--accent-glow)', border: '1px solid var(--border)', borderRadius: '16px 16px 4px 16px', padding: '10px 16px', fontSize: '0.85rem' }}>
-          What if Marcus knew the truth all along? How would that change the confrontation in Chapter 5?
-        </div>
-        <div style={{ alignSelf: 'flex-start', maxWidth: '70%', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px 16px 16px 4px', padding: '10px 16px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          That's a fascinating what-if. If Marcus already knew, the confrontation shifts from revelation to reckoning — Elena isn't delivering news, she's forcing him to stop pretending. His emotional arc in that scene would change from shock → anger to quiet admission → shame. The wound dynamics would be completely different...
-        </div>
+        {messages.length === 0 && !isLoading && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            flex: 1, gap: 12, color: 'var(--text-muted)', textAlign: 'center', padding: 40,
+          }}>
+            <ActiveIcon size={40} style={{ opacity: 0.3, color: personaConfig[persona].color }} />
+            <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+              {persona === 'assistant' && 'Ask me anything about your story'}
+              {persona === 'editor' && 'I\'ll review your prose with a critical but supportive eye'}
+              {persona === 'character' && selectedCharacter && `You\'re now talking to ${selectedCharacter}. Ask them anything.`}
+              {persona === 'character' && !selectedCharacter && 'Select a character to talk to'}
+            </div>
+            <div style={{ fontSize: '0.78rem', maxWidth: 400 }}>
+              {persona === 'assistant' && 'Brainstorm ideas, explore what-ifs, fix plot holes, or develop backstories. I have full context of your project.'}
+              {persona === 'editor' && 'Paste a chapter or scene and I\'ll give you constructive feedback on prose quality, pacing, and structure.'}
+              {persona === 'character' && 'Characters respond in their voice and know only what they would know. They can reflect on their role in the story.'}
+            </div>
+          </div>
+        )}
+
+        {messages.map((msg, i) => (
+          <div key={i} style={{
+            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+            maxWidth: '75%',
+            background: msg.role === 'user' ? 'var(--accent-glow)' : 'var(--bg-card)',
+            border: `1px solid ${msg.role === 'user' ? 'var(--accent)' + '30' : 'var(--border)'}`,
+            borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+            padding: '10px 16px', fontSize: '0.85rem',
+            color: msg.role === 'user' ? 'var(--text-primary)' : 'var(--text-secondary)',
+            lineHeight: 1.6, whiteSpace: 'pre-wrap',
+          }}>
+            {msg.content}
+          </div>
+        ))}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <div style={{
+            alignSelf: 'flex-start', maxWidth: '75%',
+            background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: '16px 16px 16px 4px', padding: '10px 16px',
+            fontSize: '0.85rem', color: 'var(--text-muted)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>Thinking</span>
+            <span style={{ display: 'inline-flex', gap: 3 }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: personaConfig[persona].color, animation: 'pulse 1.2s ease-in-out infinite', animationDelay: '0s' }} />
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: personaConfig[persona].color, animation: 'pulse 1.2s ease-in-out infinite', animationDelay: '0.2s' }} />
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: personaConfig[persona].color, animation: 'pulse 1.2s ease-in-out infinite', animationDelay: '0.4s' }} />
+            </span>
+          </div>
+        )}
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            alignSelf: 'center', padding: '8px 16px', fontSize: '0.8rem',
+            color: '#ef4444', background: 'rgba(239,68,68,0.08)',
+            border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-md)',
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <AlertTriangle size={14} /> {error}
+            <button onClick={() => setError(null)} style={{
+              background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.8rem',
+            }}>Dismiss</button>
+          </div>
+        )}
+
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Suggestion pills — horizontally scrollable with arrow buttons */}
-      <div style={{ position: 'relative', marginBottom: 8 }}>
-        {/* Left scroll button */}
-        <button onClick={() => scrollPills('left')} style={{
-          position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 28, height: 28, borderRadius: '50%',
-          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-          color: 'var(--text-muted)', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem',
-        }}>‹</button>
+      {messages.length === 0 && (
+        <div style={{ position: 'relative', marginBottom: 8 }}>
+          <button onClick={() => scrollPills('left')} style={{
+            position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)',
+            zIndex: 2, width: 28, height: 28, borderRadius: '50%',
+            border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+            color: 'var(--text-muted)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem',
+          }}>‹</button>
 
-        {/* Scrollable container */}
-        <div
-          ref={(el) => { pillsRef.current = el; }}
-          style={{
-            display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none',
-            padding: '4px 36px', msOverflowStyle: 'none',
-          }}
-        >
-          {suggestions.map(s => (
-            <button key={s} onClick={() => handleSuggestionClick(s)} style={{
-              padding: '5px 14px', fontSize: '0.75rem', borderRadius: 100, cursor: 'pointer',
-              border: '1px solid var(--border)', background: 'var(--bg-card)',
-              color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0,
-              transition: 'var(--transition)',
+          <div
+            ref={pillsRef}
+            style={{
+              display: 'flex', gap: 6, overflowX: 'auto', scrollbarWidth: 'none',
+              padding: '4px 36px', msOverflowStyle: 'none',
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-glow)'; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
-            >{s}</button>
-          ))}
-        </div>
+          >
+            {suggestions.map(s => (
+              <button key={s} onClick={() => handleSuggestionClick(s)} style={{
+                padding: '5px 14px', fontSize: '0.75rem', borderRadius: 100, cursor: 'pointer',
+                border: '1px solid var(--border)', background: 'var(--bg-card)',
+                color: 'var(--text-secondary)', whiteSpace: 'nowrap', flexShrink: 0,
+                transition: 'var(--transition)',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.background = 'var(--accent-glow)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.background = 'var(--bg-card)'; }}
+              >{s}</button>
+            ))}
+          </div>
 
-        {/* Right scroll button */}
-        <button onClick={() => scrollPills('right')} style={{
-          position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
-          zIndex: 2, width: 28, height: 28, borderRadius: '50%',
-          border: '1px solid var(--border)', background: 'var(--bg-secondary)',
-          color: 'var(--text-muted)', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem',
-        }}>›</button>
-      </div>
+          <button onClick={() => scrollPills('right')} style={{
+            position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)',
+            zIndex: 2, width: 28, height: 28, borderRadius: '50%',
+            border: '1px solid var(--border)', background: 'var(--bg-secondary)',
+            color: 'var(--text-muted)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem',
+          }}>›</button>
+        </div>
+      )}
 
       {/* Chat input */}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -1063,15 +1513,29 @@ function ChatMode({ phasePcts = {} }) {
           type="text"
           value={chatInput}
           onChange={(e) => setChatInput(e.target.value)}
-          placeholder="Ask about your story, brainstorm ideas, or request changes..."
+          onKeyDown={handleKeyDown}
+          placeholder={
+            persona === 'assistant' ? 'Ask about your story, brainstorm ideas, or request changes...' :
+            persona === 'editor' ? 'Paste a scene or ask for feedback on your prose...' :
+            selectedCharacter ? `Say something to ${selectedCharacter}...` : 'Select a character first...'
+          }
+          disabled={persona === 'character' && !selectedCharacter}
           style={{
             flex: 1, padding: '10px 16px',
             background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
             borderRadius: 'var(--radius-md)', color: 'var(--text-primary)',
             fontFamily: 'var(--font-sans)', fontSize: '0.85rem',
+            opacity: (persona === 'character' && !selectedCharacter) ? 0.5 : 1,
           }}
         />
-        <Button variant="primary">Send</Button>
+        <Button
+          variant="primary"
+          onClick={handleSend}
+          disabled={isLoading || !chatInput.trim() || (persona === 'character' && !selectedCharacter)}
+          style={{ opacity: (isLoading || !chatInput.trim()) ? 0.5 : 1 }}
+        >
+          {isLoading ? '...' : 'Send'}
+        </Button>
       </div>
     </div>
   );
@@ -3586,6 +4050,16 @@ const characterProfiles = {
 
 function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationships }) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [zoomedChart, setZoomedChart] = useState(null); // { data, labels, colors, title }
+
+  // ESC key to close zoom modal
+  useEffect(() => {
+    if (!zoomedChart) return;
+    const handleEsc = (e) => { if (e.key === 'Escape') setZoomedChart(null); };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [zoomedChart]);
+
   const char = characterProfiles[characterName];
   if (!char) return <div style={{ padding: 40, textAlign: 'center' }}><p style={{ color: 'var(--text-muted)' }}>Character profile not found.</p></div>;
 
@@ -3598,9 +4072,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
     { key: 'radar', label: 'Analysis' },
   ];
 
-  // Radar chart renderer
-  const renderRadar = (data, labels, colors, title, size = 220) => {
-    const cx = size / 2, cy = size / 2, r = size / 2 - 30;
+  // Radar chart SVG renderer (reusable for inline + zoom modal)
+  const renderRadarSvg = (data, labels, colors, size) => {
+    const margin = size >= 400 ? 45 : 30;
+    const cx = size / 2, cy = size / 2, r = size / 2 - margin;
     const keys = Object.keys(data);
     const n = keys.length;
     if (n < 3) return null;
@@ -3610,40 +4085,77 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
       return { x: cx + (val / maxVal) * r * Math.cos(angle), y: cy + (val / maxVal) * r * Math.sin(angle) };
     };
     const rings = [0.25, 0.5, 0.75, 1];
+    const fontSize = size >= 400 ? 14 : 8;
+    const labelOffset = size >= 400 ? 28 : 18;
+    const dotR = size >= 400 ? 5 : 3;
+    const strokeW = size >= 400 ? 2 : 1.5;
+    const scoreFontSize = size >= 400 ? 13 : 0;
     return (
-      <div>
-        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8, textAlign: 'center' }}>{title}</h4>
-        <svg width="100%" viewBox={`0 0 ${size} ${size}`} style={{ maxHeight: size }}>
-          {rings.map(pct => {
-            const pts = keys.map((_, i) => {
-              const angle = (i * angleStep) - Math.PI / 2;
-              return `${cx + r * pct * Math.cos(angle)},${cy + r * pct * Math.sin(angle)}`;
-            });
-            return <polygon key={pct} points={pts.join(' ')} fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />;
-          })}
-          {keys.map((k, i) => {
+      <svg width="100%" viewBox={`0 0 ${size} ${size}`} style={{ maxHeight: size }}>
+        {rings.map(pct => {
+          const pts = keys.map((_, i) => {
             const angle = (i * angleStep) - Math.PI / 2;
-            const lx = cx + r * Math.cos(angle);
-            const ly = cy + r * Math.sin(angle);
-            const labelX = cx + (r + 16) * Math.cos(angle);
-            const labelY = cy + (r + 16) * Math.sin(angle);
-            return (
-              <g key={k}>
-                <line x1={cx} y1={cy} x2={lx} y2={ly} stroke="var(--border)" strokeWidth={0.5} opacity={0.3} />
-                <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle"
-                  fill={colors || char.color} fontSize={6.5} fontWeight={500}>{labels?.[k] || k}</text>
-              </g>
-            );
-          })}
-          <polygon
-            points={keys.map((k, i) => { const p = getPoint(i, data[k]); return `${p.x},${p.y}`; }).join(' ')}
-            fill={char.color} fillOpacity={0.2} stroke={char.color} strokeWidth={1.5}
-          />
-          {keys.map((k, i) => {
-            const p = getPoint(i, data[k]);
-            return <circle key={k} cx={p.x} cy={p.y} r={3} fill={char.color} />;
-          })}
-        </svg>
+            return `${cx + r * pct * Math.cos(angle)},${cy + r * pct * Math.sin(angle)}`;
+          });
+          return <polygon key={pct} points={pts.join(' ')} fill="none" stroke="var(--border)" strokeWidth={0.5} opacity={0.4} />;
+        })}
+        {keys.map((k, i) => {
+          const angle = (i * angleStep) - Math.PI / 2;
+          const lx = cx + r * Math.cos(angle);
+          const ly = cy + r * Math.sin(angle);
+          const labelX = cx + (r + labelOffset) * Math.cos(angle);
+          const labelY = cy + (r + labelOffset) * Math.sin(angle);
+          return (
+            <g key={k}>
+              <line x1={cx} y1={cy} x2={lx} y2={ly} stroke="var(--border)" strokeWidth={0.5} opacity={0.3} />
+              <text x={labelX} y={labelY} textAnchor="middle" dominantBaseline="middle"
+                fill={colors || char.color} fontSize={fontSize} fontWeight={500}>{labels?.[k] || k}</text>
+            </g>
+          );
+        })}
+        <polygon
+          points={keys.map((k, i) => { const p = getPoint(i, data[k]); return `${p.x},${p.y}`; }).join(' ')}
+          fill={char.color} fillOpacity={0.2} stroke={char.color} strokeWidth={strokeW}
+        />
+        {keys.map((k, i) => {
+          const p = getPoint(i, data[k]);
+          return <circle key={k} cx={p.x} cy={p.y} r={dotR} fill={char.color} />;
+        })}
+        {/* Score labels on dots (zoomed only) */}
+        {size >= 400 && keys.map((k, i) => {
+          const p = getPoint(i, data[k]);
+          return <text key={`v-${k}`} x={p.x} y={p.y - 12} textAnchor="middle" fill={char.color} fontSize={scoreFontSize} fontWeight={700}>{data[k]}</text>;
+        })}
+      </svg>
+    );
+  };
+
+  // Inline radar with zoom button
+  const renderRadar = (data, labels, colors, title, size = 220) => {
+    const keys = Object.keys(data);
+    if (keys.length < 3) return null;
+    return (
+      <div style={{ position: 'relative' }}>
+        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8, textAlign: 'center' }}>{title}</h4>
+        {/* Zoom button */}
+        <button
+          onClick={() => setZoomedChart({ data, labels, colors, title })}
+          title="Expand chart"
+          style={{
+            position: 'absolute', top: 0, right: 0,
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)',
+            cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: 3,
+            fontSize: '0.65rem', transition: 'var(--transition)', zIndex: 1,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+        >
+          <Eye size={12} /> Zoom
+        </button>
+        <div style={{ cursor: 'pointer' }} onClick={() => setZoomedChart({ data, labels, colors, title })}>
+          {renderRadarSvg(data, labels, colors, size)}
+        </div>
       </div>
     );
   };
@@ -3661,6 +4173,80 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
+      {/* ── Zoom Modal Overlay ── */}
+      {zoomedChart && (
+        <div
+          onClick={() => setZoomedChart(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(6px)',
+            overflowY: 'auto',
+            padding: '24px 16px',
+            animation: 'fadeIn 0.2s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: 32,
+              width: '90vw', maxWidth: 520, animation: 'fadeIn 0.25s ease',
+              position: 'relative',
+              margin: '0 auto',
+            }}
+          >
+            {/* Top bar: Title + Close X */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{
+                fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+                color: 'var(--text-muted)', flex: 1, textAlign: 'center',
+              }}>
+                {zoomedChart.title}
+              </h3>
+              <button
+                onClick={() => setZoomedChart(null)}
+                title="Close"
+                style={{
+                  position: 'absolute', top: 12, right: 12,
+                  background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: '50%', color: 'var(--text-muted)',
+                  cursor: 'pointer', width: 32, height: 32,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'var(--transition)', flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Zoomed chart — responsive size */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              {renderRadarSvg(zoomedChart.data, zoomedChart.labels, zoomedChart.colors, 420)}
+            </div>
+
+            {/* Score breakdown */}
+            <div style={{
+              display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center',
+              marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)',
+            }}>
+              {Object.entries(zoomedChart.data).map(([k, v]) => (
+                <div key={k} style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '4px 10px', borderRadius: 100,
+                  background: 'var(--bg-tertiary)', fontSize: '0.75rem',
+                }}>
+                  <span style={{ color: 'var(--text-muted)' }}>{zoomedChart.labels?.[k] || k}</span>
+                  <span style={{ fontWeight: 700, color: char.color }}>{v}/10</span>
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
         <button onClick={onBack} style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
@@ -4612,6 +5198,20 @@ export default function WorkspaceScreen() {
     4: {}, 5: {}, 6: {}, 7: {}, '⟡': {}, 8: {}, 9: {},
   });
 
+  // Hydrate phaseAnswers from active project in the store (if available)
+  const activeProject = useProjectStore(s => s.activeProject);
+  useEffect(() => {
+    if (activeProject?.phaseAnswers && Object.keys(activeProject.phaseAnswers).length > 0) {
+      setPhaseAnswers(prev => {
+        const merged = { ...prev };
+        for (const [key, answers] of Object.entries(activeProject.phaseAnswers)) {
+          merged[key] = { ...(merged[key] || {}), ...answers };
+        }
+        return merged;
+      });
+    }
+  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Compute phase percentages dynamically from answers vs questions
   const phasePcts = {};
   phases.forEach(p => {
@@ -4704,8 +5304,34 @@ export default function WorkspaceScreen() {
       case 'guided': return <GuidedFlow
             phase={activePhase}
             answers={phaseAnswers}
-            onAnswer={(phase, qId, value) => setPhaseAnswers(prev => ({ ...prev, [phase]: { ...prev[phase], [qId]: value } }))}
+            onAnswer={(phase, qId, value) => {
+              setPhaseAnswers(prev => ({ ...prev, [phase]: { ...prev[phase], [qId]: value } }));
+              // Persist to project store (debounced by nature of user typing)
+              useProjectStore.getState().updatePhaseAnswers(phase, { [qId]: value });
+            }}
             onNextPhase={() => {
+              // Compile current phase answers into the corresponding project file
+              const phaseFileMap = {
+                1: 'author.md', 2: 'narrator.md', 3: 'world/world-building.md',
+                6: 'outline.md', 7: 'story/arc.md',
+              };
+              const targetFile = phaseFileMap[activePhase];
+              if (targetFile) {
+                const pQuestions = phaseQuestions[activePhase] || [];
+                const pAnswers = phaseAnswers[activePhase] || {};
+                const phaseName = { 1: 'Author Profile', 2: 'Narrator', 3: 'World Building', 6: 'Story Foundation', 7: 'Quality Control' }[activePhase] || '';
+                let md = `# ${phaseName}\n\n`;
+                for (const q of pQuestions) {
+                  const answer = pAnswers[q.id];
+                  if (answer?.trim()) {
+                    md += `## ${q.q}\n\n${answer.trim()}\n\n`;
+                  }
+                }
+                if (md.trim().split('\n').length > 2) {
+                  useProjectStore.getState().updateFile(targetFile, md);
+                }
+              }
+
               const phaseOrder = phases.map(p => p.num);
               const idx = phaseOrder.indexOf(activePhase);
               if (idx < phaseOrder.length - 1) {
@@ -4732,7 +5358,11 @@ export default function WorkspaceScreen() {
         onEditorReview={() => setActiveMode('editor')}
         editedContent={editedFiles[activeFile]}
         onContentChange={(text) => setEditedFiles(prev => ({ ...prev, [activeFile]: text }))}
-        onSave={(text) => setEditedFiles(prev => ({ ...prev, [activeFile]: text }))}
+        onSave={(text) => {
+          setEditedFiles(prev => ({ ...prev, [activeFile]: text }));
+          // Persist to project store (IndexedDB)
+          if (activeFile) useProjectStore.getState().updateFile(activeFile, text);
+        }}
       />;
       case 'full-cast': return <FullCastMode
         onAddCharacter={() => setShowAddCharModal(true)}

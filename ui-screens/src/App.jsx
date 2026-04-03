@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import TermsScreen from './screens/TermsScreen'
 import SetupScreen from './screens/SetupScreen'
@@ -5,53 +6,49 @@ import HubScreen from './screens/HubScreen'
 import WizardScreen from './screens/WizardScreen'
 import WorkspaceScreen from './screens/WorkspaceScreen'
 import SettingsScreen from './screens/SettingsScreen'
+import { useSettingsStore } from './stores/settingsStore'
+import { useProjectStore } from './stores/projectStore'
+import { useLlmStore } from './stores/llmStore'
 
-/*
- * ──────────────────────────────────────────────────────────
- *  ACTION PLAN — Index Route & First-Time vs Returning Flow
- * ──────────────────────────────────────────────────────────
+/**
+ * SmartRedirect — routes based on onboarding state
  *
- *  REMOVED: ScreenIndex (developer screen map) is no longer the
- *  index route. The "/" route now redirects based on onboarding state.
- *
- *  FLOW LOGIC:
- *
- *  1. FIRST-TIME USER (no localStorage flag "se_onboarded"):
- *     "/" → Navigate to /terms
- *     /terms → user accepts Terms of Use → navigate to /setup
- *     /setup → user configures LLM provider & API key → navigate to /hub
- *     On completing /setup, set localStorage "se_onboarded" = "true"
- *
- *  2. RETURNING USER (localStorage "se_onboarded" === "true"):
- *     "/" → Navigate directly to /hub (the dashboard)
- *     The user never sees /terms or /setup again unless they
- *     navigate there manually or reset via Settings.
- *
- *  3. SETTINGS RESET:
- *     /settings should include an option to "Re-run Setup" which
- *     clears the "se_onboarded" flag and redirects to /terms.
- *
- *  4. GUARD ROUTES:
- *     /workspace and /wizard should check if the user has at least
- *     one project. If not, redirect to /hub which will show an
- *     empty state prompting them to create their first story.
- *
- *  TODO: Replace the simple Navigate below with a SmartRedirect
- *  component that reads localStorage and routes accordingly.
- *  For now, "/" goes straight to /hub (assuming onboarded).
- * ──────────────────────────────────────────────────────────
+ * First-time user: "/" → /terms → /setup → /hub
+ * Returning user: "/" → /hub
  */
-
 function SmartRedirect() {
-  // TODO: When persistence layer is ready, check localStorage:
-  // const onboarded = localStorage.getItem('se_onboarded') === 'true';
-  // return <Navigate to={onboarded ? '/hub' : '/terms'} replace />;
-  //
-  // For now, default to /hub (the prototype assumes an existing user):
-  return <Navigate to="/hub" replace />;
+  const onboarded = useSettingsStore(s => s.onboarded);
+  const loaded = useSettingsStore(s => s._loaded);
+
+  if (!loaded) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--bg-primary)', color: 'var(--text-muted)', fontSize: '0.9rem',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '2rem', marginBottom: 12 }}>✦</div>
+          <div>Loading Serendipity Engine...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return <Navigate to={onboarded ? '/hub' : '/terms'} replace />;
 }
 
 export default function App() {
+  const loadSettings = useSettingsStore(s => s.loadSettings);
+  const loadProjects = useProjectStore(s => s.loadProjects);
+  const loadProviders = useLlmStore(s => s.loadProviders);
+
+  useEffect(() => {
+    // Initialize all stores from IndexedDB on app start
+    loadSettings();
+    loadProjects();
+    loadProviders();
+  }, []);
+
   return (
     <Routes>
       <Route path="/" element={<SmartRedirect />} />
