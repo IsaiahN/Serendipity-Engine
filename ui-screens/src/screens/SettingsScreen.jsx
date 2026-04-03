@@ -9,7 +9,7 @@ import { LLM_PROVIDERS } from '../lib/constants';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
   ExternalLink, Trash2, Download, Heart, RefreshCw, Key, ArrowLeft,
-  Volume2, Zap, BarChart3, Eye, EyeOff,
+  Volume2, Zap, BarChart3, Eye, EyeOff, LogIn, Loader, Check, AlertTriangle,
 } from 'lucide-react';
 
 // ─── Theme Presets (shared with WorkspaceScreen) ───
@@ -276,6 +276,10 @@ function AISettings({ onSettingChange }) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [connectionMethod, setConnectionMethod] = useState('api'); // 'api' | 'oauth'
+  const [oauthProvider, setOauthProvider] = useState('google');
+  const [oauthClientId, setOauthClientId] = useState('');
+  const [oauthStatus, setOauthStatus] = useState(null); // null | 'pending' | 'success' | 'error'
   const [roleMode, setRoleMode] = useState('standard');
   const [auditTrail, setAuditTrail] = useState(true);
   const [costTracking, setCostTracking] = useState(true);
@@ -304,6 +308,47 @@ function AISettings({ onSettingChange }) {
     setTestResult(null);
     setShowApiKey(false);
   }, [selectedProvider, providers]);
+
+  const OAUTH_PROVIDERS = [
+    { key: 'google', label: 'Google (Gemini)', status: 'available', color: '#4285f4',
+      description: 'Sign in with Google to use Gemini models via OAuth.',
+      authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+      scopes: 'https://www.googleapis.com/auth/generative-language' },
+    { key: 'openai', label: 'OpenAI', status: 'planned', color: '#10a37f',
+      description: 'OpenAI does not currently offer OAuth for API access.' },
+    { key: 'anthropic', label: 'Anthropic (Claude)', status: 'planned', color: '#d4a574',
+      description: 'Anthropic does not currently offer OAuth for API access.' },
+  ];
+
+  const handleOAuthSignIn = (providerKey) => {
+    const op = OAUTH_PROVIDERS.find(p => p.key === providerKey);
+    if (!op || op.status !== 'available' || !oauthClientId.trim()) {
+      setOauthStatus('error');
+      return;
+    }
+    setOauthStatus('pending');
+    const redirectUri = window.location.origin + '/oauth/callback';
+    const state = crypto.randomUUID();
+    sessionStorage.setItem('oauth_state', state);
+    sessionStorage.setItem('oauth_provider', providerKey);
+    const params = new URLSearchParams({
+      client_id: oauthClientId.trim(), redirect_uri: redirectUri,
+      response_type: 'code', scope: op.scopes, state, access_type: 'offline', prompt: 'consent',
+    });
+    const w = 500, h = 600;
+    const left = (window.screen.width - w) / 2, top = (window.screen.height - h) / 2;
+    window.open(`${op.authUrl}?${params.toString()}`, 'oauth_popup',
+      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`);
+    const onMessage = (event) => {
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type === 'oauth_callback') {
+        window.removeEventListener('message', onMessage);
+        setOauthStatus(event.data.code ? 'success' : 'error');
+      }
+    };
+    window.addEventListener('message', onMessage);
+    setTimeout(() => { if (oauthStatus === 'pending') setOauthStatus(null); }, 120000);
+  };
 
   const providerDef = LLM_PROVIDERS.find(p => p.key === selectedProvider);
   const isConnected = activeProviders.includes(selectedProvider);
@@ -412,6 +457,175 @@ function AISettings({ onSettingChange }) {
         </div>
       )}
 
+      <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>
+        Connection Method
+      </div>
+
+      {/* Connection Method Toggle */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        <button
+          onClick={() => setConnectionMethod('api')}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
+            background: connectionMethod === 'api' ? 'var(--accent-subtle)' : 'var(--bg-tertiary)',
+            border: `1px solid ${connectionMethod === 'api' ? 'var(--accent-border)' : 'var(--border)'}`,
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.2s ease',
+          }}
+        >
+          <Key size={16} color={connectionMethod === 'api' ? 'var(--accent)' : 'var(--text-muted)'} />
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: connectionMethod === 'api' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>API Key</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Paste your key directly</div>
+          </div>
+        </button>
+        <button
+          onClick={() => setConnectionMethod('oauth')}
+          style={{
+            flex: 1, display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px',
+            background: connectionMethod === 'oauth' ? 'var(--accent-subtle)' : 'var(--bg-tertiary)',
+            border: `1px solid ${connectionMethod === 'oauth' ? 'var(--accent-border)' : 'var(--border)'}`,
+            borderRadius: 'var(--radius-sm)', cursor: 'pointer', transition: 'all 0.2s ease',
+          }}
+        >
+          <LogIn size={16} color={connectionMethod === 'oauth' ? 'var(--accent)' : 'var(--text-muted)'} />
+          <div style={{ textAlign: 'left' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: connectionMethod === 'oauth' ? 'var(--text-primary)' : 'var(--text-secondary)' }}>OAuth / SSO</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Sign in with provider</div>
+          </div>
+        </button>
+      </div>
+
+      {/* OAuth / SSO Panel */}
+      {connectionMethod === 'oauth' && (
+        <div style={{
+          background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20,
+        }}>
+          <div style={{
+            background: 'var(--accent-subtle)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', padding: 10, marginBottom: 16,
+            display: 'flex', gap: 8, alignItems: 'flex-start',
+          }}>
+            <Info size={14} color="var(--accent)" style={{ flexShrink: 0, marginTop: 1 }} />
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              OAuth lets you authenticate with your provider account instead of pasting an API key. Your access token stays on-device.
+            </span>
+          </div>
+
+          {/* OAuth provider cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+            {OAUTH_PROVIDERS.map((op) => {
+              const isAvailable = op.status === 'available';
+              const isSelected = oauthProvider === op.key;
+              return (
+                <div
+                  key={op.key}
+                  onClick={() => isAvailable && setOauthProvider(op.key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                    background: isSelected && isAvailable ? `${op.color}10` : 'var(--bg-primary)',
+                    border: `1px solid ${isSelected && isAvailable ? op.color + '40' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    cursor: isAvailable ? 'pointer' : 'default',
+                    opacity: isAvailable ? 1 : 0.55,
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', background: op.color + '20',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  }}>
+                    <LogIn size={14} color={op.color} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {op.label}
+                      {isAvailable ? (
+                        <span style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: 100, background: 'rgba(34,197,94,0.15)', color: '#22c55e', fontWeight: 500 }}>Available</span>
+                      ) : (
+                        <span style={{ fontSize: '0.6rem', padding: '1px 5px', borderRadius: 100, background: 'var(--bg-tertiary)', color: 'var(--text-muted)', fontWeight: 500 }}>API Key Only</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 1 }}>{op.description}</div>
+                  </div>
+                  {isAvailable && isSelected && <Check size={14} color={op.color} />}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Google OAuth config */}
+          {oauthProvider === 'google' && (
+            <div>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
+                Google Cloud OAuth Client ID
+              </label>
+              <input
+                type="text"
+                value={oauthClientId}
+                onChange={(e) => { setOauthClientId(e.target.value); setOauthStatus(null); }}
+                placeholder="123456789.apps.googleusercontent.com"
+                style={{
+                  width: '100%', padding: '8px 10px', fontSize: '0.8rem',
+                  background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                  fontFamily: 'monospace', marginBottom: 6,
+                }}
+              />
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+                Create at{' '}
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer"
+                  style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                  Google Cloud Console
+                </a>
+                {' '}&rarr; Credentials &rarr; OAuth 2.0 Client ID. Set redirect URI to{' '}
+                <code style={{ background: 'var(--bg-primary)', padding: '1px 4px', borderRadius: 3, fontSize: '0.65rem' }}>
+                  {typeof window !== 'undefined' ? window.location.origin : ''}/oauth/callback
+                </code>
+              </div>
+
+              {oauthStatus === 'error' && !oauthClientId.trim() && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.1)', marginBottom: 10, fontSize: '0.75rem', color: '#ef4444' }}>
+                  <AlertTriangle size={12} /> Enter your OAuth Client ID first
+                </div>
+              )}
+
+              {oauthStatus === 'success' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 'var(--radius-sm)', background: 'rgba(34,197,94,0.1)', marginBottom: 10, fontSize: '0.75rem', color: '#22c55e' }}>
+                  <Check size={12} /> Authenticated successfully
+                </div>
+              )}
+
+              <button
+                onClick={() => handleOAuthSignIn('google')}
+                disabled={oauthStatus === 'pending'}
+                style={{
+                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  padding: '8px 16px', fontSize: '0.8rem', fontWeight: 600,
+                  background: 'var(--accent)', color: 'var(--accent-btn-text)',
+                  border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                }}
+              >
+                {oauthStatus === 'pending' ? (
+                  <><Loader size={14} style={{ animation: 'spin 1s linear infinite' }} /> Waiting for authorization...</>
+                ) : (
+                  <><ExternalLink size={14} /> Sign In with Google</>
+                )}
+              </button>
+            </div>
+          )}
+
+          <div style={{ textAlign: 'center', marginTop: 14, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Don't have OAuth credentials?{' '}
+            <span onClick={() => setConnectionMethod('api')} style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}>
+              Use an API key instead
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* API Key Configuration */}
+      {connectionMethod === 'api' && <>
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>
         Configure Provider
       </div>
@@ -562,9 +776,10 @@ function AISettings({ onSettingChange }) {
         </div>
 
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-          Recommended ranking: Claude &gt; DeepSeek &gt; OpenAI &gt; Ollama. You can connect multiple providers and assign them to different roles below.
+          You can connect multiple providers and assign them to different roles below.
         </div>
       </div>
+      </>}
 
       <SettingRow label="Role Assignment Mode" desc="How models are assigned to tasks">
         <Select

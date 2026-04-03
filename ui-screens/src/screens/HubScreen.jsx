@@ -8,7 +8,7 @@ import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pe
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { PHASES } from '../lib/constants';
-import { activateDemoMode, isDemoActive } from '../services/demoMode';
+import { activateDemoMode, isDemoActive, getDemoProjectId } from '../services/demoMode';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #818cf8, #f97316)',
@@ -55,6 +55,7 @@ export default function HubScreen() {
   const [renamingId, setRenamingId] = useState(null);
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
+  const [demoLoading, setDemoLoading] = useState(false);
   const renameInputRef = useRef(null);
 
   const selectedProject = projects[selectedIdx] || null;
@@ -151,19 +152,42 @@ export default function HubScreen() {
         {/* Demo Mode Button */}
         <div style={{ padding: '0 16px 12px' }}>
           <Button
-            variant="ghost"
-            style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+            variant="secondary"
+            disabled={demoLoading}
+            style={{
+              width: '100%', justifyContent: 'center', fontSize: '0.8rem',
+              color: 'var(--text-secondary)', gap: 6,
+              border: '1px dashed var(--border)',
+              background: 'var(--bg-secondary)',
+            }}
             onClick={async () => {
-              if (await isDemoActive()) return;
-              const store = useProjectStore.getState();
-              const demoProject = await activateDemoMode(store);
-              if (demoProject) {
-                await store.loadProjects();
-                navigate('/workspace');
+              setDemoLoading(true);
+              try {
+                // If demo already exists, just navigate to it
+                if (await isDemoActive()) {
+                  const demoId = getDemoProjectId();
+                  if (demoId) {
+                    const store = useProjectStore.getState();
+                    await store.setActiveProject(demoId);
+                    navigate('/workspace');
+                    return;
+                  }
+                }
+                // Otherwise create the demo project
+                const store = useProjectStore.getState();
+                const demoProject = await activateDemoMode(store);
+                if (demoProject) {
+                  await store.loadProjects();
+                  navigate('/workspace');
+                }
+              } catch (err) {
+                console.error('Demo activation failed:', err);
+              } finally {
+                setDemoLoading(false);
               }
             }}
           >
-            <BookOpen size={14} style={{ marginRight: 4 }} /> Try Demo Project
+            <BookOpen size={14} /> {demoLoading ? 'Loading Demo...' : 'Try Demo Project'}
           </Button>
         </div>
 

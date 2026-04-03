@@ -109,7 +109,105 @@ export default function TermsScreen() {
             </label>
 
             <div style={{ display: 'flex', gap: 12, justifyContent: 'space-between', alignItems: 'center' }}>
-              <a href="#" style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'underline' }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  // Generate a minimal PDF of the terms text
+                  const termsText = [
+                    'LICENSE — THE SERENDIPITY ENGINE',
+                    '',
+                    'The Serendipity Engine is free for personal creative use. Stories created',
+                    'using the engine belong entirely to you — the engine makes no ownership',
+                    'claims on your creative output.',
+                    '',
+                    'Commercial use of the engine itself (building products on top of it)',
+                    'requires a commercial license. Attribution is appreciated but not required',
+                    'for stories you produce.',
+                    '',
+                    '---',
+                    '',
+                    'TERMS OF USE — ACCEPTABLE USE POLICY',
+                    '',
+                    'This tool is designed for:',
+                    '  - Writers who want to improve their prose craft',
+                    '  - Authors working on novels, screenplays, short stories, and other creative works',
+                    '  - Storytellers who want to finally finish that project they have been sitting on',
+                    '  - Students of narrative who want to understand why great stories work',
+                    '  - Anyone who wants to learn the structural principles behind compelling fiction',
+                    '',
+                    'This tool is NOT for:',
+                    '  - Academic dishonesty — generating essays, homework, or assignments to',
+                    '    submit as your own schoolwork',
+                    '  - Plagiarism — passing off generated content as entirely human-written',
+                    '    where that distinction matters',
+                    '  - Any use that violates the content rating system\'s intent',
+                    '',
+                    'The principle: The Serendipity Engine is a creative partner, not a cheating',
+                    'tool. It\'s the difference between hiring an editor to improve your novel and',
+                    'hiring someone to write your term paper.',
+                  ];
+
+                  // Build a raw PDF (no dependencies)
+                  const lines = termsText;
+                  const fontSize = 11;
+                  const leading = 15;
+                  const marginX = 50;
+                  const pageH = 792;
+                  const pageW = 612;
+                  let y = pageH - 50;
+
+                  // Collect stream content
+                  let streamContent = `BT\n/F1 14 Tf\n${marginX} ${y} Td\n(Serendipity Engine — Terms & License) Tj\nET\n`;
+                  y -= 30;
+
+                  const escPdf = (s) => s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+
+                  for (const line of lines) {
+                    if (y < 50) { y = pageH - 50; } // simplified single page
+                    const isBold = line === line.toUpperCase() && line.trim().length > 3;
+                    const fs = isBold ? 12 : fontSize;
+                    streamContent += `BT\n/F1 ${fs} Tf\n${marginX} ${y} Td\n(${escPdf(line)}) Tj\nET\n`;
+                    y -= leading;
+                  }
+
+                  const stream = streamContent;
+                  const streamLen = stream.length;
+
+                  const pdf = `%PDF-1.4
+1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
+2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
+3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${pageW} ${pageH}]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
+4 0 obj<</Length ${streamLen}>>
+stream
+${stream}endstream
+endobj
+5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
+xref
+0 6
+0000000000 65535 f
+0000000009 00000 n
+0000000058 00000 n
+0000000115 00000 n
+0000000266 00000 n
+${String(280 + streamLen).padStart(10, '0')} 00000 n
+trailer<</Size 6/Root 1 0 R>>
+startxref
+${330 + streamLen}
+%%EOF`;
+
+                  const blob = new Blob([pdf], { type: 'application/pdf' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'Serendipity-Engine-Terms-and-License.pdf';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                }}
+                style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}
+              >
                 Download full legal text (PDF)
               </a>
               <Button

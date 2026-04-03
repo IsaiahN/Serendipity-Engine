@@ -2090,7 +2090,7 @@ function buildPath(points, width, height, maxVal = 10, smooth = true) {
 }
 
 /* ─── Interwoven Threads View (Overview) ─── */
-function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView }) {
+function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView, acts = [], plotSpine = [] }) {
   const W = 900, H = 300, PAD = { top: 30, bottom: 30, left: 10, right: 10 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
@@ -2279,7 +2279,7 @@ function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView }) 
 }
 
 /* ─── Single Character Arc Detail ─── */
-function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataView }) {
+function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataView, timelineCharacters = [] }) {
   const char = timelineCharacters.find(c => c.name === charName);
   if (!char) return null;
   const others = timelineCharacters.filter(c => c.name !== charName);
@@ -2567,7 +2567,7 @@ function TimelineMode() {
       </div>
 
       {view === 'overview' && (
-        <ThreadsOverview onSelectChar={handleSelectChar} journeyMode={journeyMode} visibleChars={visibleChars} dataView={dataView} />
+        <ThreadsOverview onSelectChar={handleSelectChar} journeyMode={journeyMode} visibleChars={visibleChars} dataView={dataView} acts={acts} plotSpine={plotSpine} />
       )}
       {view === 'character' && selectedChar && (
         <CharacterArcDetail
@@ -2576,6 +2576,7 @@ function TimelineMode() {
           onSelectChar={handleSelectChar}
           journeyMode={journeyMode}
           dataView={dataView}
+          timelineCharacters={timelineCharacters}
         />
       )}
 
@@ -4644,6 +4645,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const [activeTab, setActiveTab] = useState('overview');
   const [zoomedChart, setZoomedChart] = useState(null); // { data, labels, colors, title }
 
+  // Build timeline data for arc intensity lookup
+  const cpFiles = useProjectStore(s => s.files);
+  const { characters: cpTimelineCharacters } = buildTimelineData(cpFiles);
+
   // ESC key to close zoom modal
   useEffect(() => {
     if (!zoomedChart) return;
@@ -4666,7 +4671,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
   // Radar chart SVG renderer (reusable for inline + zoom modal)
   const renderRadarSvg = (data, labels, colors, size) => {
-    const margin = size >= 400 ? 45 : 30;
+    const margin = size >= 400 ? 50 : size >= 300 ? 42 : 30;
     const cx = size / 2, cy = size / 2, r = size / 2 - margin;
     const keys = Object.keys(data);
     const n = keys.length;
@@ -4677,9 +4682,9 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
       return { x: cx + (val / maxVal) * r * Math.cos(angle), y: cy + (val / maxVal) * r * Math.sin(angle) };
     };
     const rings = [0.25, 0.5, 0.75, 1];
-    const fontSize = size >= 400 ? 14 : 8;
-    const labelOffset = size >= 400 ? 28 : 18;
-    const dotR = size >= 400 ? 5 : 3;
+    const fontSize = size >= 400 ? 14 : size >= 300 ? 10 : 8;
+    const labelOffset = size >= 400 ? 28 : size >= 300 ? 22 : 18;
+    const dotR = size >= 400 ? 5 : size >= 300 ? 4 : 3;
     const strokeW = size >= 400 ? 2 : 1.5;
     const scoreFontSize = size >= 400 ? 13 : 0;
     return (
@@ -4727,25 +4732,25 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
     const keys = Object.keys(data);
     if (keys.length < 3) return null;
     return (
-      <div style={{ position: 'relative' }}>
-        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8, textAlign: 'center' }}>{title}</h4>
-        {/* Zoom button */}
-        <button
-          onClick={() => setZoomedChart({ data, labels, colors, title })}
-          title="Expand chart"
-          style={{
-            position: 'absolute', top: 0, right: 0,
-            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)',
-            cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: 3,
-            fontSize: '0.65rem', transition: 'var(--transition)', zIndex: 1,
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-        >
-          <Eye size={12} /> Zoom
-        </button>
-        <div style={{ cursor: 'pointer' }} onClick={() => setZoomedChart({ data, labels, colors, title })}>
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 8 }}>
+          <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</h4>
+          <button
+            onClick={() => setZoomedChart({ data, labels, colors, title })}
+            title="Expand chart"
+            style={{
+              background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)',
+              cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', gap: 3,
+              fontSize: '0.65rem', transition: 'var(--transition)', flexShrink: 0,
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            <Eye size={12} /> Zoom
+          </button>
+        </div>
+        <div style={{ cursor: 'pointer', display: 'flex', justifyContent: 'center' }} onClick={() => setZoomedChart({ data, labels, colors, title })}>
           {renderRadarSvg(data, labels, colors, size)}
         </div>
       </div>
@@ -4755,7 +4760,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const sectionStyle = { marginBottom: 20 };
   const labelStyle = { fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 };
   const valueStyle = { fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.6 };
-  const gridRowStyle = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 };
+  const gridRowStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 };
   const attrCard = (label, value, accent) => (
     <div style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
       <div style={labelStyle}>{label}</div>
@@ -4970,7 +4975,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Identity Tab ── */}
       {activeTab === 'identity' && (
-        <div style={{ maxWidth: 680 }}>
+        <div style={{ width: '100%' }}>
           <div style={gridRowStyle}>
             {attrCard('Gender', char.gender || '—')}
             {char.sexuality ? attrCard('Sexuality', char.sexuality) : attrCard('Emotional Register', char.emotionalRegister, char.color)}
@@ -5059,7 +5064,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Personality Tab ── */}
       {activeTab === 'personality' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           {/* MBTI Card */}
           <Card style={{ padding: 20 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -5160,13 +5165,13 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Voice Tab ── */}
       {activeTab === 'voice' && (
-        <div style={{ maxWidth: 680 }}>
+        <div style={{ width: '100%' }}>
           <Card style={{ padding: 20, marginBottom: 16, background: 'linear-gradient(135deg, var(--accent-glow) 0%, var(--bg-secondary) 100%)' }}>
             <h3 style={{ ...labelStyle, color: 'var(--accent)' }}>Voice Fingerprint</h3>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
               Derived from {char.mbti} + {char.enneagramWing} + wound ({char.wound?.split(' — ')[0] || char.wound})
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               {[
                 { label: 'Speech Rhythm', value: char.voice?.speechRhythm },
                 { label: 'Vocabulary Register', value: char.voice?.vocabularyRegister },
@@ -5196,7 +5201,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Arc & Role Tab ── */}
       {activeTab === 'arc' && (
-        <div style={{ maxWidth: 720 }}>
+        <div style={{ width: '100%' }}>
           <div style={gridRowStyle}>
             {attrCard('Arc Type', char.arcType, char.color)}
             {attrCard('Story Role', `${char.role} — ${char.type}`)}
@@ -5216,7 +5221,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             <h3 style={labelStyle}>Chapter Beats</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {char.beats.map((beat, i) => {
-                const tc = timelineCharacters.find(c => c.name === characterName);
+                const tc = cpTimelineCharacters.find(c => c.name === characterName);
                 const intensity = tc ? tc.arc[i] : 5;
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -5224,7 +5229,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                     <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
                       <div style={{ width: `${intensity * 10}%`, height: '100%', borderRadius: 3, background: char.color, opacity: 0.4 + (intensity / 10) * 0.6, transition: 'width 0.3s ease' }} />
                     </div>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', minWidth: 120 }}>{beat}</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', flex: '1 1 100px', minWidth: 0 }}>{beat}</span>
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', width: 20, textAlign: 'right' }}>{intensity}</span>
                   </div>
                 );
@@ -5236,15 +5241,15 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
           <Card style={{ padding: 16 }}>
             <h3 style={labelStyle}>Key Relationships</h3>
             {char.relationships.map((rel, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < char.relationships.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <div style={{ width: 28, height: 28, borderRadius: '50%', background: (characterProfiles[rel.name]?.gradient || 'var(--bg-tertiary)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#000' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: i < char.relationships.length - 1 ? '1px solid var(--border)' : 'none', flexWrap: 'wrap' }}>
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: (characterProfiles[rel.name]?.gradient || 'var(--bg-tertiary)'), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#000', flexShrink: 0 }}>
                   {rel.name[0]}
                 </div>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: '1 1 120px', minWidth: 0 }}>
                   <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{rel.name}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 6 }}>{rel.type}</span>
                 </div>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', flex: '0 1 auto' }}>
                   <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{rel.dynamic}</div>
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Attachment: {rel.attachment}</div>
                 </div>
@@ -5256,37 +5261,44 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Analysis Tab (Radar Charts) ── */}
       {activeTab === 'radar' && (
-        <div style={{ display: 'grid', gridTemplateColumns: char.temperament ? '1fr 1fr' : '1fr', gap: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Attribute Scores — top */}
           {char.strengths && (
             <Card style={{ padding: 20 }}>
-              {renderRadar(char.strengths, {
-                emotional: 'Emotional', analytical: 'Analytical', social: 'Social', physical: 'Physical',
-                creative: 'Creative', resilience: 'Resilience', intuition: 'Intuition', leadership: 'Leadership',
-              }, null, 'Strengths & Capabilities', 280)}
-            </Card>
-          )}
-          {char.temperament && (
-            <Card style={{ padding: 20 }}>
-              {renderRadar(char.temperament, {
-                openness: 'Openness', conscientiousness: 'Conscientiousness', extraversion: 'Extraversion',
-                agreeableness: 'Agreeableness', neuroticism: 'Neuroticism',
-              }, '#a78bfa', 'Big Five Temperament', 280)}
-            </Card>
-          )}
-          <Card style={{ padding: 20, gridColumn: '1 / -1' }}>
-            <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>Attribute Scores</h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-              {Object.entries(char.strengths).map(([k, v]) => (
-                <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', width: 70, textTransform: 'capitalize' }}>{k}</span>
-                  <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
-                    <div style={{ width: `${v * 10}%`, height: '100%', borderRadius: 4, background: char.color, transition: 'width 0.5s ease' }} />
+              <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>Attribute Scores</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+                {Object.entries(char.strengths).map(([k, v]) => (
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', width: 70, flexShrink: 0, textTransform: 'capitalize' }}>{k}</span>
+                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                      <div style={{ width: `${v * 10}%`, height: '100%', borderRadius: 4, background: char.color, transition: 'width 0.5s ease' }} />
+                    </div>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: char.color, width: 20 }}>{v}</span>
                   </div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: char.color, width: 20 }}>{v}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Radar charts — side by side, each 50% */}
+          <div style={{ display: 'grid', gridTemplateColumns: char.temperament ? '1fr 1fr' : '1fr', gap: 16 }}>
+            {char.strengths && (
+              <Card style={{ padding: 20 }}>
+                {renderRadar(char.strengths, {
+                  emotional: 'Emotional', analytical: 'Analytical', social: 'Social', physical: 'Physical',
+                  creative: 'Creative', resilience: 'Resilience', intuition: 'Intuition', leadership: 'Leadership',
+                }, null, 'Strengths & Capabilities', 340)}
+              </Card>
+            )}
+            {char.temperament && (
+              <Card style={{ padding: 20 }}>
+                {renderRadar(char.temperament, {
+                  openness: 'Openness', conscientiousness: 'Conscientiousness', extraversion: 'Extraversion',
+                  agreeableness: 'Agreeableness', neuroticism: 'Neuroticism',
+                }, '#a78bfa', 'Big Five Temperament', 340)}
+              </Card>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -5736,7 +5748,7 @@ function SettingsModal({ onClose, currentTheme, onThemeChange, onGoToFullSetting
           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '3px 8px', borderRadius: 'var(--radius-sm)' }}>sk-...configured</span>
         </div>
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.5, padding: '4px 0' }}>
-          Supported: Anthropic (Claude), DeepSeek, OpenAI, Google Gemini, Ollama (local). Recommended ranking: Claude &gt; DeepSeek &gt; OpenAI &gt; Ollama.
+          Supported: Anthropic (Claude), DeepSeek, OpenAI, Google Gemini, Ollama (local).
         </div>
       </div>
       {/* TTS section */}
@@ -6128,7 +6140,7 @@ export default function WorkspaceScreen() {
       case 'world': return <WorldBuildingMode />;
       case 'character-profile': return <CharacterProfile
         characterName={selectedCharacter}
-        onBack={() => setActiveMode('guided')}
+        onBack={() => setActiveMode('full-cast')}
         onViewArc={() => { setActiveMode('timeline'); }}
         onViewRelationships={() => { setActiveMode('graph'); }}
       />;
