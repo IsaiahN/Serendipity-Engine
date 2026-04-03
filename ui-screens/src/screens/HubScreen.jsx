@@ -154,7 +154,7 @@ export default function HubScreen() {
             variant="ghost"
             style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}
             onClick={async () => {
-              if (isDemoActive()) return;
+              if (await isDemoActive()) return;
               const store = useProjectStore.getState();
               const demoProject = await activateDemoMode(store);
               if (demoProject) {

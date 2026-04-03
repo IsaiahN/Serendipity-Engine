@@ -753,3 +753,68 @@ export const HEALTH_LABELS_EXPORT = HEALTH_LABELS;
 
 // Export constants for reference
 export { HEALTH_LABELS };
+
+// ============================================================================
+// LLM-POWERED HEALTH ASSESSMENT (optional enhancement)
+// ============================================================================
+
+/**
+ * Runs an LLM-powered writing health assessment using PROMPTS.WRITING_HEALTH.
+ * This supplements the heuristic scores above with nuanced AI feedback.
+ *
+ * @param {Object} files - Project files object
+ * @param {Function} sendMessage - LLM sendMessage function from llmStore
+ * @param {Object} options - { contentType, contentTitle }
+ * @returns {Object|null} LLM health assessment or null on failure
+ */
+export async function computeLLMHealth(files = {}, sendMessage, options = {}) {
+  if (!sendMessage) return null;
+
+  try {
+    const { PROMPTS } = await import('../lib/promptRegistry.js');
+
+    // Gather content to assess (prioritize chapters, fall back to all files)
+    const chapterFiles = Object.entries(files)
+      .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
+      .sort(([a], [b]) => parseInt(a.match(/\d+/)?.[0] || 0) - parseInt(b.match(/\d+/)?.[0] || 0));
+
+    let contentToAssess = '';
+    if (chapterFiles.length > 0) {
+      // Assess first 3 chapters (most representative sample)
+      contentToAssess = chapterFiles.slice(0, 3)
+        .map(([path, content]) => `--- ${path} ---\n${content}`)
+        .join('\n\n');
+    } else {
+      // Fall back to all .md files
+      contentToAssess = Object.entries(files)
+        .filter(([p]) => p.endsWith('.md') && (files[p] || '').trim().length > 50)
+        .slice(0, 5)
+        .map(([p, c]) => `--- ${p} ---\n${c}`)
+        .join('\n\n');
+    }
+
+    if (!contentToAssess.trim()) return null;
+
+    // Cap at 10k chars to avoid context overflow
+    contentToAssess = contentToAssess.slice(0, 10000);
+
+    const prompt = PROMPTS.WRITING_HEALTH.build({
+      contentType: options.contentType || (chapterFiles.length > 0 ? 'chapters' : 'project files'),
+      contentTitle: options.contentTitle || 'project',
+    });
+
+    const response = await sendMessage([
+      { role: 'system', content: prompt },
+      { role: 'user', content: contentToAssess },
+    ], 'analyst');
+
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      return JSON.parse(jsonMatch[0]);
+    }
+    return null;
+  } catch (err) {
+    console.warn('LLM health assessment failed:', err);
+    return null;
+  }
+}

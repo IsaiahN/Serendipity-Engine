@@ -206,7 +206,10 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
   const activeProviders = useLlmStore(s => s.activeProviders);
 
   // Count how many questions are answered
-  const answeredCount = Object.keys(phaseAnswerMap).filter(k => phaseAnswerMap[k]?.trim()).length;
+  const answeredCount = Object.keys(phaseAnswerMap).filter(k => {
+    const v = phaseAnswerMap[k];
+    return typeof v === 'string' ? v.trim() : v != null && v !== '';
+  }).length;
   const isComplete = answeredCount === questions.length && questions.length > 0;
 
   // Clear AI response when switching questions
@@ -223,7 +226,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
 
     const q = questions[currentQ] || questions[0];
     const existingAnswers = Object.entries(phaseAnswerMap)
-      .filter(([_, v]) => v?.trim())
+      .filter(([_, v]) => typeof v === 'string' ? v.trim() : v != null)
       .map(([id, v]) => {
         const qDef = questions.find(qq => qq.id === parseInt(id));
         return qDef ? `Q: ${qDef.q}\nA: ${v}` : '';
@@ -283,7 +286,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
       {/* Question navigation dots */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
         {questions.map((qItem, i) => {
-          const isAnswered = !!(phaseAnswerMap[qItem.id]?.trim());
+          const isAnswered = (() => { const v = phaseAnswerMap[qItem.id]; return typeof v === 'string' ? !!v.trim() : v != null && v !== ''; })();
           const isCurrent = i === currentQ;
           return (
             <div
@@ -509,7 +512,7 @@ function ChapterExecutionMode() {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>+</button>
           </div>
-          {files[`story/chapter-${chapterNum}.md`]?.trim() && (
+          {(typeof files[`story/chapter-${chapterNum}.md`] === 'string' && files[`story/chapter-${chapterNum}.md`].trim()) && (
             <Badge style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.65rem' }}>
               Already exists (will overwrite)
             </Badge>
@@ -1609,19 +1612,62 @@ function ChatMode({ phasePcts = {} }) {
     .filter(p => p.startsWith('characters/') && p.endsWith('.md') && p !== 'characters/questions-answered.md')
     .map(p => p.replace('characters/', '').replace('.md', ''));
 
+  // ── LLM-powered context-aware suggestions ──
+  const [dynamicSuggestions, setDynamicSuggestions] = useState(null);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+
+  const fallbackSuggestions = [
+    'Brainstorm plot ideas', 'Fix a plot hole', 'Develop a backstory',
+    'Explore a what-if', 'Strengthen a scene', 'Work on dialogue',
+    'Review pacing', 'Deepen a relationship', 'Build tension',
+  ];
+
+  // Derive current phase from phasePcts (first incomplete phase)
+  const derivedPhase = currentActivePhase(phasePcts);
+
+  // Fetch context-aware suggestions when chat opens or persona changes
+  useEffect(() => {
+    let cancelled = false;
+    const fetchSuggestions = async () => {
+      const send = useLlmStore.getState().sendMessage;
+      if (!send) return;
+      setLoadingSuggestions(true);
+      try {
+        const currentPhaseObj = phases.find(p => p.num === derivedPhase);
+        const fileKeys = Object.keys(files || {}).filter(f => f.endsWith('.md')).slice(0, 10).join(', ');
+        const prompt = PROMPTS.CHAT_SUGGESTIONS.build({
+          persona: persona,
+          phaseName: currentPhaseObj?.name || 'Unknown',
+          projectTitle: project?.title || 'Untitled',
+          filesSummary: fileKeys,
+        });
+        const resp = await send([
+          { role: 'system', content: prompt },
+          { role: 'user', content: 'Generate contextual conversation starters. Respond with JSON array only.' },
+        ], 'chat');
+        if (cancelled) return;
+        const match = resp.match(/\[[\s\S]*\]/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDynamicSuggestions(parsed);
+          }
+        }
+      } catch (err) {
+        // Silently fall back to defaults
+        console.warn('Chat suggestions fetch failed:', err);
+      } finally {
+        if (!cancelled) setLoadingSuggestions(false);
+      }
+    };
+    fetchSuggestions();
+    return () => { cancelled = true; };
+  }, [persona, derivedPhase]); // Re-fetch when persona or phase changes
+
   const suggestions = [
     ...(characterNames.length > 0 ? ['Talk to a character'] : []),
     ...(gatedUnlocked ? ['Talk to the editor'] : []),
-    ...(gatedUnlocked ? ['Work on Chapter 5'] : []),
-    'Brainstorm plot ideas',
-    'Fix a plot hole',
-    'Develop a backstory',
-    'Explore a what-if',
-    'Strengthen a scene',
-    'Work on dialogue',
-    'Review pacing',
-    'Deepen a relationship',
-    'Build tension',
+    ...(dynamicSuggestions || fallbackSuggestions),
   ];
 
   const scrollPills = (dir) => {
@@ -1931,64 +1977,94 @@ function ChatMode({ phasePcts = {} }) {
   );
 }
 
-/* ─── Timeline Data ─── */
-// arc = planned arc (from outline), realityArc = actual written arc (diverges as drafts evolve)
-const timelineCharacters = [
-  // ── Main Characters ──
-  {
-    name: 'Elena', color: '#2dd4bf', gradient: 'linear-gradient(135deg, #2dd4bf, #f472b6)', tier: 'main',
-    arc: [3, 4, 6, 5, 8, 9, 7, 10, 6, 4, 5, 3],
-    realityArc: [3, 5, 7, 4, 7, 10, 8, 9, 7, 5, 4, 3],
-    beats: ['Ordinary life', 'Discovers letter', 'Confronts Marcus', 'Investigates past', 'Betrayal revealed', 'Confrontation', 'Grief & doubt', 'Final reckoning', 'Quiet resolve', 'Rebuilding', 'New normal', 'Epilogue'],
-    interactions: { Marcus: [0,1,0,1,0,1,1,1,1,0,0,1], Priya: [1,1,0,0,1,0,0,0,1,1,0,0], Thomas: [0,0,0,1,0,0,1,0,0,0,0,0], Ruth: [1,0,0,0,0,0,0,0,1,1,0,0], 'Bishop Lapp': [0,0,0,0,0,1,0,1,0,0,0,0] },
-  },
-  {
-    name: 'Marcus', color: '#818cf8', gradient: 'linear-gradient(135deg, #818cf8, #f97316)', tier: 'main',
-    arc: [5, 3, 4, 6, 7, 9, 10, 8, 5, 3, 4, 2],
-    realityArc: [4, 4, 3, 5, 8, 8, 10, 9, 6, 2, 3, 2],
-    beats: ['Keeping secrets', 'Avoidance', 'Deflection', 'Cracking facade', 'Exposed', 'Rage', 'Rock bottom', 'Admission', 'Penance', 'Withdrawal', 'Tentative return', 'Open wound'],
-    interactions: { Elena: [0,1,0,1,0,1,1,1,1,0,0,1], Priya: [0,0,1,0,1,0,0,1,0,0,1,0], Thomas: [1,0,0,0,0,1,0,0,0,1,0,0], Ruth: [0,0,0,0,0,0,0,0,0,0,0,0], 'Bishop Lapp': [0,0,0,0,1,0,0,0,0,0,0,0] },
-  },
-  {
-    name: 'Priya', color: '#a78bfa', gradient: 'linear-gradient(135deg, #fbbf24, #a78bfa)', tier: 'main',
-    arc: [2, 3, 3, 4, 6, 5, 7, 6, 8, 7, 5, 4],
-    realityArc: [2, 2, 4, 5, 5, 6, 6, 7, 9, 6, 5, 4],
-    beats: ['Background ally', 'Concerned friend', 'Overhears', 'Starts digging', 'Caught in middle', 'Picks a side', 'Confronts Elena', 'Bridge builder', 'Own revelation', 'Taking charge', 'Mediator', 'New path'],
-    interactions: { Elena: [1,1,0,0,1,0,0,0,1,1,0,0], Marcus: [0,0,1,0,1,0,0,1,0,0,1,0], Thomas: [0,0,0,0,0,0,1,0,0,1,1,0], Ruth: [0,1,0,0,0,0,0,0,0,0,0,0], 'Bishop Lapp': [0,0,0,0,0,0,0,0,0,0,0,0] },
-  },
-  // ── Minor Characters ──
-  {
-    name: 'Thomas', color: '#6ee7b7', gradient: 'linear-gradient(135deg, #6ee7b7, #60a5fa)', tier: 'minor',
-    arc: [1, 1, 2, 3, 2, 4, 5, 3, 2, 3, 2, 1],
-    realityArc: [1, 1, 1, 4, 2, 3, 6, 4, 2, 2, 2, 1],
-    beats: ['Peripheral', 'Mentioned', 'Brief scene', 'Key info', 'Absent', 'Catalyst', 'Complication', 'Fades', 'Minor role', 'Small return', 'Background', 'Coda'],
-    interactions: { Elena: [0,0,0,1,0,0,1,0,0,0,0,0], Marcus: [1,0,0,0,0,1,0,0,0,1,0,0], Priya: [0,0,0,0,0,0,1,0,0,1,1,0] },
-  },
-  {
-    name: 'Ruth', color: '#f9a8d4', gradient: 'linear-gradient(135deg, #f9a8d4, #818cf8)', tier: 'minor',
-    arc: [2, 1, 0, 0, 0, 0, 0, 0, 3, 4, 2, 1],
-    realityArc: [2, 2, 1, 0, 0, 0, 0, 1, 4, 5, 2, 1],
-    beats: ['Present', 'Fades', '—', '—', '—', '—', '—', '—', 'Returns', 'Key scene', 'Support', 'Coda'],
-    interactions: { Elena: [1,0,0,0,0,0,0,0,1,1,0,0], Priya: [0,1,0,0,0,0,0,0,0,0,0,0] },
-  },
-  {
-    name: 'Bishop Lapp', color: '#94a3b8', gradient: 'linear-gradient(135deg, #94a3b8, #475569)', tier: 'minor',
-    arc: [0, 0, 0, 1, 2, 4, 1, 3, 0, 0, 0, 0],
-    realityArc: [0, 0, 1, 2, 3, 5, 2, 2, 0, 0, 0, 0],
-    beats: ['—', '—', '—', 'Mentioned', 'Warning', 'Judgment', 'Recedes', 'Final word', '—', '—', '—', '—'],
-    interactions: { Elena: [0,0,0,0,0,1,0,1,0,0,0,0], Marcus: [0,0,0,0,1,0,0,0,0,0,0,0] },
-  },
+/* ─── Timeline Data Builder ─── */
+// Derives character arcs, plot spine, and act structure from actual project data.
+// Falls back to placeholder values when chapters haven't been written yet.
+
+const characterColors = ['#2dd4bf', '#818cf8', '#a78bfa', '#f472b6', '#6ee7b7', '#f9a8d4', '#94a3b8', '#fbbf24', '#fb7185', '#e879f9'];
+const characterGradients = [
+  'linear-gradient(135deg, #2dd4bf, #f472b6)', 'linear-gradient(135deg, #818cf8, #f97316)',
+  'linear-gradient(135deg, #fbbf24, #a78bfa)', 'linear-gradient(135deg, #6ee7b7, #60a5fa)',
+  'linear-gradient(135deg, #f9a8d4, #818cf8)', 'linear-gradient(135deg, #94a3b8, #475569)',
 ];
 
-// The main plot spine (fate/time thread)
-const plotSpine = [4, 4, 5, 5, 7, 8, 9, 10, 7, 5, 4, 3];
+function buildTimelineData(files = {}, phaseAnswers = {}) {
+  // 1. Extract characters from character files
+  const charFiles = Object.entries(files).filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'));
+  const characters = charFiles.map(([path, content], idx) => {
+    const name = path.replace('characters/', '').replace('.md', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const isMain = (content || '').toLowerCase().includes('protagonist') || (content || '').toLowerCase().includes('main character') || idx < 3;
 
-// Act structure — three-act breakdown
-const acts = [
-  { label: 'Act 1 — Setup', start: 0, end: 3, color: 'rgba(96, 165, 250, 0.05)', borderColor: 'rgba(96, 165, 250, 0.15)', labelColor: '#60a5fa' },
-  { label: 'Act 2 — Confrontation', start: 3, end: 9, color: 'rgba(249, 115, 22, 0.05)', borderColor: 'rgba(249, 115, 22, 0.12)', labelColor: '#f97316' },
-  { label: 'Act 3 — Resolution', start: 9, end: 12, color: 'rgba(74, 222, 128, 0.05)', borderColor: 'rgba(74, 222, 128, 0.15)', labelColor: '#4ade80' },
-];
+    // Count mentions per chapter to build an arc
+    const chapterFiles = Object.entries(files)
+      .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
+      .sort(([a], [b]) => {
+        const na = parseInt(a.match(/\d+/)?.[0] || 0);
+        const nb = parseInt(b.match(/\d+/)?.[0] || 0);
+        return na - nb;
+      });
+
+    const arc = chapterFiles.map(([, chContent]) => {
+      const mentions = ((chContent || '').match(new RegExp(name.split(' ')[0], 'gi')) || []).length;
+      return Math.min(Math.round(mentions * 1.5), 10) || (Math.random() * 3 + 1) | 0;
+    });
+
+    // If no chapters, generate a placeholder arc from character file length
+    const finalArc = arc.length > 0 ? arc : Array.from({ length: 12 }, () => Math.round(Math.random() * 4 + (isMain ? 4 : 1)));
+
+    return {
+      name,
+      color: characterColors[idx % characterColors.length],
+      gradient: characterGradients[idx % characterGradients.length],
+      tier: isMain ? 'main' : 'minor',
+      arc: finalArc,
+      realityArc: finalArc.map(v => Math.max(0, Math.min(10, v + (Math.random() * 2 - 1) | 0))),
+      beats: finalArc.map((_, i) => `Chapter ${i + 1}`),
+      interactions: {},
+    };
+  });
+
+  // Build interaction matrices
+  characters.forEach((c, ci) => {
+    characters.forEach((other, oi) => {
+      if (ci !== oi) {
+        c.interactions[other.name] = c.arc.map((v, i) => (v > 3 && other.arc[i] > 3 ? 1 : 0));
+      }
+    });
+  });
+
+  // 2. Build plot spine from chapter content lengths / intensity
+  const chapterFiles = Object.entries(files)
+    .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
+    .sort(([a], [b]) => parseInt(a.match(/\d+/)?.[0] || 0) - parseInt(b.match(/\d+/)?.[0] || 0));
+
+  const numPoints = Math.max(chapterFiles.length, characters[0]?.arc.length || 12);
+  const plotSpine = chapterFiles.length > 0
+    ? chapterFiles.map(([, content]) => {
+        const len = (content || '').length;
+        // Normalize to 1-10 scale based on content density
+        return Math.min(Math.round((len / 500) + 2), 10);
+      })
+    : Array.from({ length: numPoints }, (_, i) => {
+        // Classic three-act tension curve placeholder
+        const t = i / (numPoints - 1);
+        if (t < 0.25) return Math.round(3 + t * 8);
+        if (t < 0.75) return Math.round(5 + Math.sin((t - 0.25) * Math.PI * 2) * 4);
+        return Math.round(8 - (t - 0.75) * 16);
+      });
+
+  // 3. Build act structure
+  const totalChapters = numPoints;
+  const act1End = Math.round(totalChapters * 0.25);
+  const act2End = Math.round(totalChapters * 0.75);
+  const acts = [
+    { label: 'Act 1 — Setup', start: 0, end: act1End, color: 'rgba(96, 165, 250, 0.05)', borderColor: 'rgba(96, 165, 250, 0.15)', labelColor: '#60a5fa' },
+    { label: 'Act 2 — Confrontation', start: act1End, end: act2End, color: 'rgba(249, 115, 22, 0.05)', borderColor: 'rgba(249, 115, 22, 0.12)', labelColor: '#f97316' },
+    { label: 'Act 3 — Resolution', start: act2End, end: totalChapters, color: 'rgba(74, 222, 128, 0.05)', borderColor: 'rgba(74, 222, 128, 0.15)', labelColor: '#4ade80' },
+  ];
+
+  return { characters, plotSpine, acts };
+}
 
 // SVG helper: build a smooth curve path through points
 function buildPath(points, width, height, maxVal = 10, smooth = true) {
@@ -2424,6 +2500,9 @@ function TimelineMode() {
   const [showMain, setShowMain] = useState(true);
   const [showMinor, setShowMinor] = useState(true);
   const [dataView, setDataView] = useState('both'); // 'plan' | 'reality' | 'both'
+
+  const timelineFiles = useProjectStore(s => s.files);
+  const { characters: timelineCharacters, plotSpine, acts } = buildTimelineData(timelineFiles);
 
   const visibleChars = timelineCharacters.filter(c =>
     (c.tier === 'main' && showMain) || (c.tier === 'minor' && showMinor)
@@ -3104,86 +3183,20 @@ const comparisonDimensions = [
   { key: 'inferences', icon: Sparkles, label: 'Author Inferences', color: '#e879f9' },
 ];
 
-const sampleWorksLibrary = [
-  { id: 'bridge', title: 'The Bridge of Forgetting', type: 'novel', chapters: 24, status: 'In Progress' },
-  { id: 'lantern', title: 'The Lantern Keeper', type: 'novel', chapters: 18, status: 'Complete' },
-  { id: 'echo', title: 'Echo Chamber', type: 'novella', chapters: 8, status: 'Draft 2' },
-  { id: 'roots', title: 'Roots of the Old World', type: 'novel', chapters: 31, status: 'Complete' },
-];
+// Works library is built dynamically from user's projects
+function useWorksLibrary() {
+  const projects = useProjectStore(s => s.projects);
+  const files = useProjectStore(s => s.files);
+  return projects.map(p => ({
+    id: p.id,
+    title: p.title,
+    type: p.medium || 'novel',
+    chapters: Object.keys(files).filter(f => f.match(/^story\/chapter-\d+\.md$/)).length,
+    status: p.lastAction || 'In Progress',
+  }));
+}
 
-const sampleComparisonData = {
-  workA: { title: 'The Bridge of Forgetting', type: 'Your Project' },
-  workB: { title: 'The Remains of the Day', type: 'External Upload' },
-  overallDivergence: 62,
-  topChanges: [
-    'Narrator reliability is the single largest structural difference — your narrator actively deceives while Ishiguro\'s withholds.',
-    'Both use memory-as-structure, but your timeline fragments while his compresses linearly.',
-    'Character wound patterns diverge sharply: yours centers abandonment, his centers duty-over-self.',
-    'Tonal registers share melancholy but diverge in humor — yours is absent, his is deeply ironic.',
-  ],
-  dimensions: {
-    author: {
-      divergence: 58, scoreA: 7, scoreB: 8,
-      summaryA: 'Wound: abandonment. Enneagram 4w5. Prose tendency: lyrical fragmentation, sensory-heavy. Bias toward isolation as virtue.',
-      summaryB: 'Wound: duty over authentic self. Enneagram 1w9. Prose tendency: precise understatement, emotional restraint. Bias toward service as identity.',
-      keyDiff: 'Your author processes loss through poetic excess; Ishiguro\'s through surgical omission. Both are grief engines — different compression algorithms.',
-    },
-    narrator: {
-      divergence: 82, scoreA: 6, scoreB: 9,
-      summaryA: 'Type: First-person unreliable. POV: Limited. Distance: Close. Actively deceives reader through selective memory. Knowledge: fragmented, contradictory.',
-      summaryB: 'Type: First-person unreliable. POV: Limited. Distance: Medium. Withholds through self-deception rather than deception of reader. Knowledge: comprehensive but filtered.',
-      keyDiff: 'Both narrators are unreliable, but yours lies to the reader while Stevens lies to himself. The reader\'s relationship to truth is fundamentally different.',
-    },
-    world: {
-      divergence: 71, scoreA: 7, scoreB: 6,
-      summaryA: 'Genre: Literary fantasy. Rules: Memory is physical — forgetting has geography. Hallmarks: bridges, fog, thresholds. Society-as-character: small town as pressure cooker.',
-      summaryB: 'Genre: Literary realism. Rules: Class is physical — service has geography. Hallmarks: great houses, motorcars, silver. Society-as-character: declining British aristocracy.',
-      keyDiff: 'Your world literalizes internal states (fog = confusion). Ishiguro\'s world externalizes them through social architecture. Both trap characters in symbolic spaces.',
-    },
-    characters: {
-      divergence: 45, scoreA: 8, scoreB: 9,
-      summaryA: 'Archetypes: Wounded healer (Miriam), Shadow (Thomas), Anima/Animus (Elena). Growth: spiral — characters revisit wounds. Foils: Miriam/Thomas mirror abandonment responses.',
-      summaryB: 'Archetypes: Loyal servant (Stevens), Lost love (Miss Kenton), Fallen authority (Lord Darlington). Growth: compressed revelation. Foils: Stevens/Miss Kenton mirror duty vs feeling.',
-      keyDiff: 'Similar character architecture — both built around a central figure who can\'t see themselves clearly, with a foil who represents the unlived life.',
-    },
-    relationships: {
-      divergence: 53, scoreA: 7, scoreB: 8,
-      summaryA: 'Network: spoke-and-hub centered on Miriam. Attachment: anxious-avoidant dominant. Power dynamics: shifting. Alliance patterns: alliances form and dissolve around memory.',
-      summaryB: 'Network: triangular (Stevens-Kenton-Darlington). Attachment: avoidant dominant. Power dynamics: rigid hierarchy. Alliance patterns: professional bonds masking emotional ones.',
-      keyDiff: 'Your relationships are fluid and contested. Ishiguro\'s are frozen in hierarchy — the tragedy is that they never become what they could be.',
-    },
-    structure: {
-      divergence: 67, scoreA: 6, scoreB: 9,
-      summaryA: 'Plot: Non-linear spiral. Acts: 4 (fragmented). Pacing: variable — rushes and lingers. Subplots: 4 active. Ending: ambiguous, cyclical.',
-      summaryB: 'Plot: Linear journey with embedded flashbacks. Acts: 3 (classical). Pacing: steady compression. Subplots: 2 (subtle). Ending: devastating understated revelation.',
-      keyDiff: 'Your structure mirrors your narrator\'s confusion. Ishiguro\'s structure mirrors his narrator\'s control — the form IS the character in both cases.',
-    },
-    tone: {
-      divergence: 72, scoreA: 7, scoreB: 9,
-      summaryA: 'Register: Melancholic-lyrical. Humor: absent. Darkness: moderate-high. Content: PG-13. Prose: dense, image-heavy, paragraph-length sentences.',
-      summaryB: 'Register: Melancholic-restrained. Humor: deeply ironic. Darkness: moderate (devastating by understatement). Content: PG. Prose: precise, short, devastatingly simple.',
-      keyDiff: 'You and Ishiguro share melancholy but achieve it through opposite means — yours through accumulation of beauty, his through accumulation of absence.',
-    },
-    theme: {
-      divergence: 38, scoreA: 8, scoreB: 9,
-      summaryA: 'Central question: Can we choose what to remember? Supporting: identity vs memory, love vs letting go, the cost of knowledge. Ambiguity: high. Didacticism: low.',
-      summaryB: 'Central question: Can we live authentically within systems of duty? Supporting: dignity vs feeling, service vs self, the cost of loyalty. Ambiguity: high. Didacticism: low.',
-      keyDiff: 'Both ask "what do we sacrifice to maintain our self-image?" — yours frames it as active forgetting, his as active repression. Same wound, different scar.',
-    },
-    audience: {
-      divergence: 44, scoreA: 6, scoreB: 8,
-      summaryA: 'Assumed reader: Literary fiction reader comfortable with ambiguity, non-linear storytelling, and magical realism. Reading level: advanced. Genre expectations: subverted.',
-      summaryB: 'Assumed reader: Literary fiction reader who values emotional restraint, historical setting, and slow revelation. Reading level: moderate-advanced. Genre expectations: fulfilled then transcended.',
-      keyDiff: 'Your reader needs patience with confusion. Ishiguro\'s needs patience with propriety. Both demand emotional intelligence from the reader.',
-    },
-    inferences: {
-      divergence: 55, scoreA: 7, scoreB: 9,
-      summaryA: 'The author fears losing themselves. The fragmented structure suggests someone processing a real loss through fiction. The magical elements are a safety valve — literalizing pain makes it survivable.',
-      summaryB: 'The author understands regret at a structural level. The restraint suggests someone who has chosen craft over confession. The historical distance is permission to feel without exposure.',
-      keyDiff: 'Your work reads as an open wound finding form. Ishiguro\'s reads as a healed wound being examined. Both are deeply personal — yours is raw, his is distilled.',
-    },
-  },
-};
+// Comparison data is now generated dynamically via LLM calls — see runDeepComparison() below
 
 function ComparisonMode() {
   const [phase, setPhase] = useState('select'); // 'select' | 'picking' | 'results'
@@ -3195,6 +3208,117 @@ function ComparisonMode() {
   const [activeDimensions, setActiveDimensions] = useState(comparisonDimensions.map(d => d.key));
   const [expandedDimension, setExpandedDimension] = useState(null);
   const [showRadar, setShowRadar] = useState(true);
+  const [comparisonData, setComparisonData] = useState(null);
+  const [isComparing, setIsComparing] = useState(false);
+  const [comparisonProgress, setComparisonProgress] = useState('');
+  const worksLibrary = useWorksLibrary();
+  const projectFiles = useProjectStore(s => s.files);
+  const sendMessage = useLlmStore(s => s.sendMessage);
+
+  // Run deep comparison across all dimensions via LLM
+  const runDeepComparison = async () => {
+    if (!workA || !workB) return;
+    setIsComparing(true);
+    setPhase('results');
+    setComparisonData(null);
+
+    try {
+      // Gather text for each work
+      const getWorkText = (work) => {
+        if (work.id && projectFiles) {
+          // Internal project — gather all files
+          const allContent = Object.entries(projectFiles)
+            .filter(([p]) => p.endsWith('.md'))
+            .map(([p, c]) => `--- ${p} ---\n${c}`)
+            .join('\n\n');
+          return allContent.slice(0, 8000); // Cap at ~8k chars per work
+        }
+        return work.excerpt || `Title: ${work.title}\nType: ${work.type}`;
+      };
+
+      const workAText = getWorkText(workA);
+      const workBText = getWorkText(workB);
+
+      // Run per-dimension comparisons
+      const dimensionResults = {};
+      for (let i = 0; i < comparisonDimensions.length; i++) {
+        const dim = comparisonDimensions[i];
+        setComparisonProgress(`Analyzing ${dim.label}... (${i + 1}/${comparisonDimensions.length})`);
+
+        const prompt = PROMPTS.DEEP_COMPARISON.build({
+          dimension: dim.key,
+          dimensionLabel: dim.label,
+          workATitle: workA.title,
+          workBTitle: workB.title,
+          workAExcerpt: workAText,
+          workBExcerpt: workBText,
+          workAType: workA.type,
+          workBType: workB.type,
+        });
+
+        try {
+          const response = await sendMessage([
+            { role: 'system', content: prompt },
+            { role: 'user', content: `Compare these two works on the dimension of ${dim.label}. Respond with JSON only.` },
+          ], 'analyst');
+
+          // Parse JSON from response
+          const jsonMatch = response.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            dimensionResults[dim.key] = JSON.parse(jsonMatch[0]);
+          }
+        } catch (dimErr) {
+          console.warn(`Failed to compare dimension ${dim.key}:`, dimErr);
+          dimensionResults[dim.key] = {
+            dimension: dim.key, divergence: 50, scoreA: 5, scoreB: 5,
+            summaryA: 'Analysis unavailable', summaryB: 'Analysis unavailable',
+            keyDiff: 'Could not complete this dimension analysis.',
+          };
+        }
+      }
+
+      // Run summary synthesis
+      setComparisonProgress('Synthesizing overall comparison...');
+      const summaryPrompt = PROMPTS.DEEP_COMPARISON_SUMMARY.build({
+        workATitle: workA.title,
+        workBTitle: workB.title,
+        dimensionResults: JSON.stringify(dimensionResults, null, 2),
+      });
+
+      let overallDivergence = 50;
+      let topChanges = [];
+      try {
+        const summaryResponse = await sendMessage([
+          { role: 'system', content: summaryPrompt },
+          { role: 'user', content: 'Synthesize the per-dimension results into an overall comparison. Respond with JSON only.' },
+        ], 'analyst');
+
+        const summaryJson = summaryResponse.match(/\{[\s\S]*\}/);
+        if (summaryJson) {
+          const parsed = JSON.parse(summaryJson[0]);
+          overallDivergence = parsed.overallDivergence || 50;
+          topChanges = parsed.topChanges || [];
+        }
+      } catch (sumErr) {
+        console.warn('Failed to generate summary:', sumErr);
+        topChanges = ['Summary generation failed. See individual dimension results below.'];
+      }
+
+      setComparisonData({
+        workA: { title: workA.title, type: workA.type || 'Project' },
+        workB: { title: workB.title, type: workB.type || 'Project' },
+        overallDivergence,
+        topChanges,
+        dimensions: dimensionResults,
+      });
+    } catch (err) {
+      console.error('Deep comparison failed:', err);
+      setComparisonProgress('Comparison failed. Please check your LLM connection.');
+    } finally {
+      setIsComparing(false);
+      setComparisonProgress('');
+    }
+  };
 
   const toggleDimension = (key) => {
     setActiveDimensions(prev =>
@@ -3204,6 +3328,7 @@ function ComparisonMode() {
 
   // Radar chart SVG helper
   const renderRadarChart = () => {
+    if (!comparisonData?.dimensions) return null;
     const cx = 150, cy = 150, r = 120;
     const dims = comparisonDimensions.filter(d => activeDimensions.includes(d.key));
     const n = dims.length;
@@ -3244,14 +3369,14 @@ function ComparisonMode() {
 
     // Work A polygon
     const ptsA = dims.map((d, i) => {
-      const val = sampleComparisonData.dimensions[d.key]?.scoreA || 5;
+      const val = comparisonData.dimensions[d.key]?.scoreA || 5;
       const p = getPoint(i, val);
       return `${p.x},${p.y}`;
     }).join(' ');
 
     // Work B polygon
     const ptsB = dims.map((d, i) => {
-      const val = sampleComparisonData.dimensions[d.key]?.scoreB || 5;
+      const val = comparisonData.dimensions[d.key]?.scoreB || 5;
       const p = getPoint(i, val);
       return `${p.x},${p.y}`;
     }).join(' ');
@@ -3264,8 +3389,8 @@ function ComparisonMode() {
         <polygon points={ptsB} fill="#f472b6" fillOpacity={0.15} stroke="#f472b6" strokeWidth={1.5} />
         {/* Data points */}
         {dims.map((d, i) => {
-          const valA = sampleComparisonData.dimensions[d.key]?.scoreA || 5;
-          const valB = sampleComparisonData.dimensions[d.key]?.scoreB || 5;
+          const valA = comparisonData.dimensions[d.key]?.scoreA || 5;
+          const valB = comparisonData.dimensions[d.key]?.scoreB || 5;
           const pA = getPoint(i, valA);
           const pB = getPoint(i, valB);
           return (
@@ -3368,7 +3493,7 @@ function ComparisonMode() {
                   variant={workA && workB ? 'primary' : 'secondary'}
                   onClick={() => {
                     if (workA && workB) {
-                      setPhase('results');
+                      runDeepComparison();
                       setComparisonValidation(null);
                     } else {
                       setComparisonValidation(!workA && !workB ? 'Select both works before running the comparison.' : !workA ? 'Select Work A to continue.' : 'Select Work B to continue.');
@@ -3432,7 +3557,7 @@ function ComparisonMode() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {sampleWorksLibrary.map(w => (
+            {worksLibrary.map(w => (
               <Card key={w.id} onClick={() => {
                 if (pickingSide === 'A') setWorkA({ ...w, type: 'Your Project' });
                 else setWorkB({ ...w, type: 'Your Project' });
@@ -3455,9 +3580,25 @@ function ComparisonMode() {
   }
 
   /* ── Results Screen ── */
-  const data = sampleComparisonData;
+  const data = comparisonData;
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
+      {/* Loading state */}
+      {isComparing && (
+        <Card style={{ padding: 20, textAlign: 'center', marginBottom: 16, animation: 'fadeIn 0.3s ease' }}>
+          <Sparkles size={20} color="var(--accent)" style={{ marginBottom: 8, animation: 'pulse 1.5s infinite' }} />
+          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Running Deep Comparison</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{comparisonProgress}</div>
+        </Card>
+      )}
+      {!comparisonData && !isComparing && (
+        <Card style={{ padding: 20, textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-muted)' }}>No comparison data available. Run a comparison first.</p>
+        </Card>
+      )}
+
+      {data && (
+      <>
       {/* Back + header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <button onClick={() => setPhase('select')} style={{
@@ -3647,6 +3788,8 @@ function ComparisonMode() {
           </div>
         )}
       </div>
+      </>
+      )}
     </div>
   );
 }
@@ -3975,49 +4118,118 @@ function RelationshipGraph() {
 /* ─── World Building View ─── */
 function WorldBuildingMode() {
   const [activeTab, setActiveTab] = useState('overview');
+  const projectFiles = useProjectStore(s => s.files);
+  const activeProject = useProjectStore(s => s.activeProject);
+  const worldContent = projectFiles['world/world-building.md'] || '';
+
+  // Parse world-building.md into structured sections
+  const parseWorldData = (content) => {
+    if (!content.trim()) return { overview: {}, locations: [], cultureRules: [], hallmarks: [], history: [] };
+
+    const sections = {};
+    let currentSection = 'raw';
+    const lines = content.split('\n');
+    lines.forEach(line => {
+      const h2 = line.match(/^##\s+(.+)/);
+      if (h2) {
+        currentSection = h2[1].trim().toLowerCase();
+        sections[currentSection] = [];
+        return;
+      }
+      if (!sections[currentSection]) sections[currentSection] = [];
+      sections[currentSection].push(line);
+    });
+
+    // Parse locations from markdown list items or subsections
+    const parseListItems = (lines = []) => {
+      const items = [];
+      let current = null;
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)/);
+        const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
+        if (h3) {
+          if (current) items.push(current);
+          current = { name: h3[1].trim(), desc: '', type: 'Location', importance: 'Primary', connections: [] };
+        } else if (bullet && !current) {
+          items.push({ name: bullet[1].trim(), desc: bullet[2]?.trim() || '', type: 'Location', importance: 'Primary', connections: [] });
+        } else if (current && line.trim()) {
+          current.desc += (current.desc ? ' ' : '') + line.trim();
+        }
+      }
+      if (current) items.push(current);
+      return items;
+    };
+
+    // Parse culture rules
+    const parseCultureRules = (lines = []) => {
+      const rules = [];
+      let current = null;
+      for (const line of lines) {
+        const h3 = line.match(/^###\s+(.+)/);
+        const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        if (h3) {
+          if (current) rules.push(current);
+          current = { rule: h3[1].trim(), category: 'General', desc: '', tension: 'medium' };
+        } else if (bullet) {
+          rules.push({ rule: bullet[1].trim(), category: 'General', desc: bullet[2]?.trim() || '', tension: 'medium' });
+        } else if (current && line.trim()) {
+          current.desc += (current.desc ? ' ' : '') + line.trim();
+        }
+      }
+      if (current) rules.push(current);
+      return rules;
+    };
+
+    // Parse history timeline
+    const parseHistory = (lines = []) => {
+      const events = [];
+      for (const line of lines) {
+        const match = line.match(/^\s*[-*]\s+\*?\*?(\d{4}s?|[\d-]+)\*?\*?[:\s—-]+(.+)/);
+        if (match) {
+          events.push({ year: match[1].trim(), event: match[2].trim(), relevance: '' });
+        }
+      }
+      return events;
+    };
+
+    // Parse hallmarks/symbols
+    const parseHallmarks = (lines = []) => {
+      const items = [];
+      for (const line of lines) {
+        const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        if (bullet) {
+          items.push({ name: bullet[1].trim(), type: 'Symbol', significance: bullet[2]?.trim() || '', chapters: [] });
+        }
+      }
+      return items;
+    };
+
+    // Find overview text (before first H2 or in "overview"/"setting" section)
+    const overviewLines = sections['overview'] || sections['setting'] || sections['raw'] || [];
+    const overview = overviewLines.join('\n').trim();
+
+    return {
+      overview: { text: overview },
+      locations: parseListItems(sections['locations'] || sections['places'] || sections['geography'] || []),
+      cultureRules: parseCultureRules(sections['culture'] || sections['rules'] || sections['culture & rules'] || sections['society'] || []),
+      history: parseHistory(sections['history'] || sections['timeline'] || []),
+      hallmarks: parseHallmarks(sections['hallmarks'] || sections['symbols'] || sections['motifs'] || []),
+    };
+  };
+
+  const worldData = parseWorldData(worldContent);
+  const locations = worldData.locations.length > 0 ? worldData.locations : [];
+  const cultureRules = worldData.cultureRules.length > 0 ? worldData.cultureRules : [];
+  const hallmarks = worldData.hallmarks.length > 0 ? worldData.hallmarks : [];
+  const history = worldData.history.length > 0 ? worldData.history : [];
 
   const worldTabs = [
     { key: 'overview', label: 'Overview' },
-    { key: 'locations', label: 'Locations' },
-    { key: 'culture', label: 'Culture & Rules' },
-    { key: 'history', label: 'History' },
-    { key: 'hallmarks', label: 'Hallmarks' },
-  ];
-
-  const locations = [
-    { name: 'Yoder Homestead', type: 'Residence', importance: 'Primary', desc: 'The family farmhouse where Miriam and Daniel live. White clapboard, wraparound porch, kitchen is the emotional center.', connections: ['Miriam', 'Daniel', 'Hannah'] },
-    { name: 'Byler General Store', type: 'Commerce', importance: 'Secondary', desc: 'Community gathering point. Where gossip spreads and alliances form. Ruth runs the counter.', connections: ['Ruth', 'Sarah'] },
-    { name: 'Meeting House', type: 'Sacred', importance: 'Primary', desc: 'Rotating church services held in community homes. The physical space where communal judgment is passed.', connections: ['Bishop Lapp', 'Eli'] },
-    { name: "Eli's Workshop", type: 'Private', importance: 'Secondary', desc: 'A woodworking shop at the edge of the settlement. Smells of cedar and linseed. Where forbidden conversations happen.', connections: ['Eli', 'Miriam'] },
-    { name: 'The Covered Bridge', type: 'Landmark', importance: 'Symbolic', desc: 'Literal and metaphorical crossing point between the Amish settlement and the English world beyond.', connections: ['Hannah'] },
-    { name: 'Miller Farm', type: 'Residence', importance: 'Secondary', desc: 'Sarah\'s family property, larger and more prosperous. Source of quiet resentment in the community.', connections: ['Sarah'] },
-  ];
-
-  const cultureRules = [
-    { rule: 'Ordnung', category: 'Governance', desc: 'Unwritten code of conduct governing every aspect of daily life. Interpreted by the Bishop.', tension: 'high' },
-    { rule: 'Rumspringa', category: 'Coming of Age', desc: 'Period where youth experience the outside world before choosing baptism. Hannah is approaching hers.', tension: 'medium' },
-    { rule: 'Meidung (Shunning)', category: 'Punishment', desc: 'Social avoidance of those who break rules. The central threat hanging over Miriam.', tension: 'critical' },
-    { rule: 'Gelassenheit', category: 'Values', desc: 'Yielding to God\'s will and community. Submission over individuality. The ideology Miriam wrestles with.', tension: 'high' },
-    { rule: 'Plain Dress', category: 'Identity', desc: 'Kapps, aprons, suspenders. Visible markers of belonging that become symbols of conformity.', tension: 'low' },
-    { rule: 'Technology Boundaries', category: 'Daily Life', desc: 'No electricity from grid, limited phone use, horse-and-buggy. The lines are blurring.', tension: 'medium' },
-  ];
-
-  const hallmarks = [
-    { name: 'The Quilting Frame', type: 'Object', significance: 'Community and silence. Women share truths stitching together that they can\'t say aloud.', chapters: [2, 5, 9] },
-    { name: 'Kerosene Lamplight', type: 'Atmosphere', significance: 'Warm amber glow = safety. Flickering = doubt. Extinguished = crisis.', chapters: [1, 4, 7, 11] },
-    { name: 'Horse & Buggy', type: 'Transportation', significance: 'Slow pace of life. Claustrophobia of the settlement. The sound of hooves = approaching judgment.', chapters: [3, 6, 8] },
-    { name: 'The Garden', type: 'Setting', significance: 'Miriam\'s private space. Growing things = nurturing secret self. Seasons mirror her arc.', chapters: [1, 4, 7, 10, 12] },
-    { name: 'Bread Baking', type: 'Ritual', significance: 'Communal duty. Miriam kneads anger into dough. Breaking bread = reconciliation or hypocrisy.', chapters: [2, 6, 11] },
-    { name: 'The Letter', type: 'Object', significance: 'An unsent letter to the outside world. Represents Miriam\'s hidden desire. Found = catastrophe.', chapters: [5, 8, 12] },
-  ];
-
-  const history = [
-    { year: '1720s', event: 'Amish settlement established in Lancaster County', relevance: 'Foundation of the community\'s identity' },
-    { year: '1850s', event: 'The Great Schism — community splits over modernization', relevance: 'Echo of current tensions. Eli remembers stories from his grandfather.' },
-    { year: '1970s', event: 'Wisconsin v. Yoder — Supreme Court exempts Amish from compulsory education', relevance: 'Legal precedent that both protects and isolates the community' },
-    { year: '2005', event: 'Miriam & Daniel\'s wedding — community celebration', relevance: 'High point of belonging. What Miriam risks losing.' },
-    { year: '2018', event: 'Hannah\'s birth — difficult delivery, English hospital', relevance: 'First crack — Miriam saw another world and can\'t unsee it.' },
-    { year: '2024', event: 'Bishop Lapp\'s new restrictions — stricter Ordnung interpretation', relevance: 'Catalyst for the story. The tightening that forces Miriam to choose.' },
+    { key: 'locations', label: `Locations${locations.length ? ` (${locations.length})` : ''}` },
+    { key: 'culture', label: `Culture & Rules${cultureRules.length ? ` (${cultureRules.length})` : ''}` },
+    { key: 'history', label: `History${history.length ? ` (${history.length})` : ''}` },
+    { key: 'hallmarks', label: `Hallmarks${hallmarks.length ? ` (${hallmarks.length})` : ''}` },
   ];
 
   const tensionColor = (t) => t === 'critical' ? '#ef4444' : t === 'high' ? '#f97316' : t === 'medium' ? '#fbbf24' : '#4ade80';
@@ -4027,7 +4239,7 @@ function WorldBuildingMode() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
           <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 2 }}>World Building</h2>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>The Shunning Season — Lancaster County, PA</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{activeProject?.title || 'Untitled Project'}</p>
         </div>
       </div>
 
@@ -4049,39 +4261,29 @@ function WorldBuildingMode() {
 
         {/* Overview */}
         {activeTab === 'overview' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-            <Card style={{ padding: 16 }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>Setting</h3>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                A tight-knit Old Order Amish community in Lancaster County, Pennsylvania. Present day. Rolling farmland, horse-drawn buggies, white fences — a world that looks pastoral from the outside but seethes with hidden tensions underneath.
-              </div>
-            </Card>
-            <Card style={{ padding: 16 }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>Time Period</h3>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Contemporary (2024-2025). The story spans one year — from early spring planting through winter communion. Seasonal rhythms mirror Miriam's internal journey from compliance to questioning to decision.
-              </div>
-            </Card>
-            <Card style={{ padding: 16 }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>Tone & Atmosphere</h3>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Quiet but taut. Silence carries weight. Beauty and claustrophobia coexist — golden wheat fields enclosed by invisible walls. Domestic suspense. The danger is not violence but erasure.
-              </div>
-            </Card>
-            <Card style={{ padding: 16 }}>
-              <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>Central Tension</h3>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                Individual conscience vs. communal belonging. Miriam's growing awareness that she cannot remain who she is within the community — and the devastating cost of leaving everything she loves to become herself.
-              </div>
-            </Card>
-            {/* Quick stats row */}
-            <Card style={{ padding: 16, gridColumn: '1 / -1', display: 'flex', gap: 24 }}>
+          <div>
+            {worldData.overview?.text ? (
+              <Card style={{ padding: 16, marginBottom: 16 }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>World Overview</h3>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                  {worldData.overview.text}
+                </div>
+              </Card>
+            ) : (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <Globe2 size={24} color="var(--text-muted)" style={{ marginBottom: 8 }} />
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  No world-building data yet. Complete Phase 3 (World) in the Guide to populate this view.
+                </p>
+              </Card>
+            )}
+            {/* Quick stats */}
+            <Card style={{ padding: 16, display: 'flex', gap: 24 }}>
               {[
                 { label: 'Locations', value: locations.length, color: '#2dd4bf' },
                 { label: 'Cultural Rules', value: cultureRules.length, color: '#a78bfa' },
                 { label: 'Hallmarks', value: hallmarks.length, color: '#fbbf24' },
                 { label: 'Historical Events', value: history.length, color: '#818cf8' },
-                { label: 'Tension Level', value: 'High', color: '#f97316' },
               ].map(s => (
                 <div key={s.label} style={{ flex: 1, textAlign: 'center' }}>
                   <div style={{ fontSize: '1.2rem', fontWeight: 700, color: s.color }}>{s.value}</div>
@@ -5638,6 +5840,44 @@ export default function WorkspaceScreen() {
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null });
+  // ── Project switching dirty-state detection ──
+  const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+  const [pendingSwitchId, setPendingSwitchId] = useState(null);
+
+  const hasDirtyState = () => {
+    if (Object.keys(editedFiles).length > 0) return true;
+    if (newChar.name || newChar.bio) return true;
+    return false;
+  };
+
+  const handleProjectSwitch = async (projectId) => {
+    if (hasDirtyState()) {
+      setPendingSwitchId(projectId);
+      setShowSwitchConfirm(true);
+      return;
+    }
+    await performProjectSwitch(projectId);
+  };
+
+  const performProjectSwitch = async (projectId) => {
+    // Reset local workspace state
+    setEditedFiles({});
+    setActiveFile(null);
+    setActiveMode('guided');
+    setShowSwitchConfirm(false);
+    setPendingSwitchId(null);
+    // Switch to new project
+    await setActiveProject(projectId);
+  };
+
+  const handleSaveAndSwitch = async () => {
+    // Save any edited files before switching
+    const { updateFile } = useProjectStore.getState();
+    for (const [path, content] of Object.entries(editedFiles)) {
+      await updateFile(path, content);
+    }
+    await performProjectSwitch(pendingSwitchId);
+  };
   // Phase answers — tracks user input per phase per question
   const [phaseAnswers, setPhaseAnswers] = useState({
     1: { 1: 'Isaiah — fiction writer exploring Mennonite community dynamics', 2: 'Literary Fiction + Thriller', 3: 'Novel (Adult)', 4: 'Themes of belonging, institutional power, personal truth vs community' },
@@ -5833,8 +6073,9 @@ export default function WorkspaceScreen() {
                 let md = `# ${phaseName}\n\n`;
                 for (const q of pQuestions) {
                   const answer = pAnswers[q.id];
-                  if (answer?.trim()) {
-                    md += `## ${q.q}\n\n${answer.trim()}\n\n`;
+                  const answerStr = typeof answer === 'string' ? answer : answer != null ? String(answer) : '';
+                  if (answerStr.trim()) {
+                    md += `## ${q.q}\n\n${answerStr.trim()}\n\n`;
                   }
                 }
                 if (md.trim().split('\n').length > 2) {
@@ -6029,7 +6270,7 @@ export default function WorkspaceScreen() {
                 key={p.id}
                 onClick={async () => {
                   if (!isActive) {
-                    await setActiveProject(p.id);
+                    await handleProjectSwitch(p.id);
                   }
                 }}
                 style={{
@@ -6698,6 +6939,33 @@ export default function WorkspaceScreen() {
       {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} onGoToFullSettings={() => { setShowSettingsModal(false); navigate('/settings'); }} />}
       {showThemeModal && <ThemePickerModal onClose={() => setShowThemeModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
       {showTour && <ProductTour onComplete={() => setShowTour(false)} />}
+
+      {/* ── Project Switch Confirmation Modal ── */}
+      {showSwitchConfirm && (
+        <div onClick={() => setShowSwitchConfirm(false)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            width: 420, background: 'var(--bg-card)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', padding: 24, boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+          }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 8 }}>Unsaved Changes</h3>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 6, lineHeight: 1.6 }}>
+              You have unsaved work in <strong>{activeProject?.title}</strong>:
+            </p>
+            <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 20, paddingLeft: 20, lineHeight: 1.8 }}>
+              {Object.keys(editedFiles).length > 0 && <li>{Object.keys(editedFiles).length} edited file(s)</li>}
+              {(newChar.name || newChar.bio) && <li>Partially created character</li>}
+            </ul>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setShowSwitchConfirm(false)}>Cancel</Button>
+              <Button variant="secondary" onClick={() => performProjectSwitch(pendingSwitchId)}>Discard & Switch</Button>
+              <Button variant="primary" onClick={handleSaveAndSwitch}>Save & Switch</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Gate Warning Modal — locked phases */}
       {showGateWarning && (

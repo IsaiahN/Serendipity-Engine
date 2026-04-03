@@ -939,8 +939,49 @@ function PrivacySettings({ navigate, onSettingChange }) {
     onSettingChange('showKeys', val);
   };
 
-  const handleExportAllData = () => {
-    onSettingChange('exportData', true);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportAllData = async () => {
+    setIsExporting(true);
+    try {
+      const store = useProjectStore.getState();
+      let allProjects = store.projects;
+      if (!allProjects.length) allProjects = await store.loadProjects();
+
+      // Build export payload
+      const exportData = { version: '1.0', exportedAt: new Date().toISOString(), projects: [] };
+      for (const project of allProjects) {
+        const projectExport = await store.exportProject(project.id);
+        exportData.projects.push(projectExport);
+      }
+
+      // Include settings
+      const settings = useSettingsStore.getState();
+      const settingsToExport = {};
+      for (const key of Object.keys(settings)) {
+        if (!key.startsWith('_') && typeof settings[key] !== 'function') {
+          settingsToExport[key] = settings[key];
+        }
+      }
+      exportData.settings = settingsToExport;
+
+      // Download as JSON
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `serendipity-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      onSettingChange('exportData', true);
+    } catch (err) {
+      console.error('Export failed:', err);
+      onSettingChange('exportData', 'Export failed: ' + err.message);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleDeleteAllData = () => {
@@ -986,10 +1027,10 @@ function PrivacySettings({ navigate, onSettingChange }) {
         <Toggle checked={showKeys} onChange={handleShowKeys} />
       </SettingRow>
 
-      <SettingRow label="Export All Data" desc="Download all your projects and settings as ZIP">
-        <Button size="sm" variant="secondary" onClick={handleExportAllData}>
+      <SettingRow label="Export All Data" desc="Download all your projects and settings as JSON">
+        <Button size="sm" variant="secondary" onClick={handleExportAllData} disabled={isExporting}>
           <Download size={14} style={{ marginRight: 4 }} />
-          Export →
+          {isExporting ? 'Exporting...' : 'Export →'}
         </Button>
       </SettingRow>
 
