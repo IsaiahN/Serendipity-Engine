@@ -5892,6 +5892,24 @@ export default function WorkspaceScreen() {
         onViewRelationships={() => { setActiveMode('graph'); }}
       />;
       case 'search': return <SearchPanel onOpenFile={(path) => { setActiveFile(path); setActiveMode('reader'); }} onClose={() => setActiveMode('guided')} />;
+      case 'import': return (
+        <div style={{ padding: 40, textAlign: 'center', animation: 'fadeIn 0.3s ease', maxWidth: 560, margin: '0 auto' }}>
+          <Upload size={40} color="var(--accent)" style={{ marginBottom: 16 }} />
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: 8 }}>Import Manuscript</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.6 }}>
+            Upload an existing manuscript to decompose it into chapters and run the Serendipity Engine analysis pipeline in reverse.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <Button variant="primary" onClick={() => navigate('/wizard?mode=decompose')}>
+              <Upload size={14} style={{ marginRight: 6 }} />
+              Start Decomposition Wizard
+            </Button>
+            <Button variant="secondary" onClick={() => setActiveMode('guided')}>
+              Back to Guide
+            </Button>
+          </div>
+        </div>
+      );
       default: return <PlaceholderMode name={centerStageModes.find(m => m.key === activeMode)?.label || activeMode} />;
     }
   };
@@ -6139,7 +6157,7 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 12 }} data-tour="phase-sidebar">
-                {leftTab === 'phases' && <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} onPhaseClick={(num, name, isLocked) => {
+                {leftTab === 'phases' && <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
                   if (isLocked) {
                     setShowGateWarning(true);
                     return;
@@ -6162,7 +6180,25 @@ export default function WorkspaceScreen() {
                     onCharacterClick={(name) => { setSelectedCharacter(name); setActiveMode('character-profile'); }}
                     onViewFullCast={() => setActiveMode('full-cast')}
                     onCharacterChat={(name) => { setSelectedCharacter(name); setActiveMode('chat'); }}
-                    onCharacterDelete={(name) => { /* TODO: remove character from project state */ }}
+                    onCharacterDelete={async (name) => {
+                      if (!confirm(`Delete character "${name}"? This will remove their file and cannot be undone.`)) return;
+                      const path = `characters/${name.toLowerCase().replace(/\s+/g, '-')}.md`;
+                      const { updateFile, loadProjectFiles, activeProjectId } = useProjectStore.getState();
+                      // Remove from IndexedDB via projectFiles table
+                      try {
+                        const record = await import('../lib/db').then(m => m.default.projectFiles
+                          .where('[projectId+path]')
+                          .equals([activeProjectId, path])
+                          .first());
+                        if (record) {
+                          await import('../lib/db').then(m => m.default.projectFiles.delete(record.id));
+                        }
+                        // Reload files to update local state and phase progress
+                        await loadProjectFiles(activeProjectId);
+                      } catch (err) {
+                        console.warn('Failed to delete character file:', err);
+                      }
+                    }}
                   />
                 )}
                 {leftTab === 'files' && (

@@ -200,10 +200,13 @@ export const useLlmStore = create((set, get) => ({
         case 'google': {
           const model = get().providers[providerKey]?.model || 'gemini-2.0-flash';
           response = await fetch(
-            `${PROVIDER_ENDPOINTS.google}/${model}:generateContent?key=${apiKey}`,
+            `${PROVIDER_ENDPOINTS.google}/${model}:generateContent`,
             {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey,
+              },
               body: JSON.stringify({
                 contents: [{ parts: [{ text: 'Say "connected" and nothing else.' }] }],
                 generationConfig: { maxOutputTokens: 10 },
@@ -478,13 +481,16 @@ export const useLlmStore = create((set, get) => ({
             body.systemInstruction = { parts: [{ text: systemInstruction.content }] };
           }
 
-          // Google doesn't support streaming, always use non-streaming
+          // Google: use header-based auth to avoid key exposure in URLs
           response = await retryWithBackoff(() =>
             fetch(
-              `${PROVIDER_ENDPOINTS.google}/${model}:generateContent?key=${apiKey}`,
+              `${PROVIDER_ENDPOINTS.google}/${model}:generateContent`,
               {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-goog-api-key': apiKey,
+                },
                 body: JSON.stringify(body),
               }
             )

@@ -94,12 +94,66 @@ function SearchModal({ onClose, navigate }) {
   );
 }
 
+/* ─── Keyboard Shortcuts Modal ─── */
+const shortcutList = [
+  { keys: 'Ctrl+K', desc: 'Command palette' },
+  { keys: 'Ctrl+,', desc: 'Open settings' },
+  { keys: 'Ctrl+S', desc: 'Save current file' },
+  { keys: 'Ctrl+Z', desc: 'Undo' },
+  { keys: 'Ctrl+Shift+Z', desc: 'Redo' },
+  { keys: 'Ctrl+F', desc: 'Search in project' },
+  { keys: 'Ctrl+/', desc: 'Toggle sidebar' },
+  { keys: 'Escape', desc: 'Close modal / cancel' },
+];
+
+function ShortcutsModal({ onClose }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  return (
+    <div onClick={onClose} style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+    }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: 380, background: 'var(--bg-card)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)', boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+        padding: '20px 24px',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>Keyboard Shortcuts</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4, fontSize: '1.1rem' }}>&times;</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {shortcutList.map(s => (
+            <div key={s.keys} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              padding: '8px 0', borderBottom: '1px solid var(--border)',
+            }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{s.desc}</span>
+              <span style={{
+                fontSize: '0.7rem', color: 'var(--text-muted)',
+                padding: '2px 8px', border: '1px solid var(--border)',
+                borderRadius: 4, fontFamily: 'monospace', background: 'var(--bg-tertiary)',
+              }}>{s.keys}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick, onSettingsClick, onThemeClick, onTourClick }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
   const [showTooltip, setShowTooltip] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   // Ctrl+K / Cmd+K keyboard shortcut for command palette
   useEffect(() => {
@@ -116,6 +170,7 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
   return (
     <>
     {showSearch && <SearchModal onClose={() => setShowSearch(false)} navigate={navigate} />}
+    {showShortcuts && <ShortcutsModal onClose={() => setShowShortcuts(false)} />}
     <div style={{
       height: 48,
       background: 'var(--bg-secondary)',
@@ -209,13 +264,13 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
       <button onClick={() => setShowSearch(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Command Palette (Ctrl+K)">
         <Search size={16} />
       </button>
-      <button onClick={() => {}} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Keyboard Shortcuts">
+      <button onClick={() => setShowShortcuts(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Keyboard Shortcuts">
         <Keyboard size={16} />
       </button>
-      <button onClick={onThemeClick || (() => {})} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Theme">
+      <button onClick={onThemeClick || (() => navigate('/settings?tab=general'))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Theme">
         <Palette size={16} />
       </button>
-      <button onClick={onTourClick || (() => {})} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Start product tour" data-tour="settings-btn">
+      <button onClick={onTourClick || (() => navigate('/settings?tab=about'))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Start product tour" data-tour="settings-btn">
         <HelpCircle size={16} />
       </button>
       <button onClick={onSettingsClick || (() => navigate('/settings'))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Settings (Ctrl+,)">

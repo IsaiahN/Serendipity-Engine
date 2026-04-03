@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Button from '../components/Button';
 import { useLlmStore } from '../stores/llmStore';
+import { useSettingsStore } from '../stores/settingsStore';
+import { useProjectStore } from '../stores/projectStore';
 import { LLM_PROVIDERS } from '../lib/constants';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
@@ -902,7 +904,35 @@ function PrivacySettings({ navigate, onSettingChange }) {
   const [showKeys, setShowKeys] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [storageLocation] = useState('Local (IndexedDB)');
-  const [projectStats] = useState({ count: 12, totalWords: 245000, storageUsed: '2.3 GB' });
+  const projects = useProjectStore(s => s.projects);
+  const [projectStats, setProjectStats] = useState({ count: 0, totalWords: 0, storageUsed: 'Calculating...' });
+
+  useEffect(() => {
+    // Load projects if not already loaded
+    const store = useProjectStore.getState();
+    const doLoad = async () => {
+      let allProjects = store.projects;
+      if (!allProjects.length) {
+        allProjects = await store.loadProjects();
+      }
+      // Count total words across all projects
+      let totalWords = 0;
+      allProjects.forEach(p => { totalWords += p.wordCount || 0; });
+
+      // Estimate IndexedDB storage
+      let storageUsed = 'Unknown';
+      try {
+        if (navigator.storage?.estimate) {
+          const est = await navigator.storage.estimate();
+          const usedMB = ((est.usage || 0) / (1024 * 1024)).toFixed(1);
+          storageUsed = usedMB >= 1024 ? `${(usedMB / 1024).toFixed(1)} GB` : `${usedMB} MB`;
+        }
+      } catch { /* storage API unavailable */ }
+
+      setProjectStats({ count: allProjects.length, totalWords, storageUsed });
+    };
+    doLoad();
+  }, [projects.length]);
 
   const handleShowKeys = (val) => {
     setShowKeys(val);
@@ -1158,10 +1188,12 @@ export default function SettingsScreen() {
   const [currentTheme, setCurrentTheme] = useState(detectCurrentTheme);
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
 
   const handleThemeChange = (key) => {
     applyTheme(key);
     setCurrentTheme(key);
+    updateSettings({ theme: key });
     showToastMessage(`Theme changed to ${themePresets[key].name}`);
   };
 
@@ -1172,6 +1204,12 @@ export default function SettingsScreen() {
   };
 
   const handleSettingChange = (key, value) => {
+    // Persist to IndexedDB via settings store (skip action-only keys)
+    const actionKeys = ['exportData', 'deleteAllData', 'viewProfile', 'resetJourney'];
+    if (!actionKeys.includes(key)) {
+      updateSettings({ [key]: value });
+    }
+
     let message = '';
 
     switch (key) {

@@ -64,10 +64,10 @@ function StatusIcon({ pct, locked }) {
   return <Circle size={14} color="var(--text-muted)" />;
 }
 
-export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePcts = {} }) {
+export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePcts = {}, isDecomposed = false }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const pctOverall = overallProgress(phasePcts);
-  const prereqsDone = allPrereqsComplete(phasePcts);
+  const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

@@ -63,34 +63,40 @@ export async function getAllSettings() {
 
 /**
  * API Key encryption helpers using Web Crypto API
+ *
+ * The CryptoKey is persisted to IndexedDB via the structured clone algorithm,
+ * which browsers natively support for CryptoKey objects. This means:
+ * - Keys survive page reloads and browser restarts
+ * - Keys are bound to this origin (same-origin policy)
+ * - Keys cannot be extracted or exported (extractable: false)
+ * - Clearing browser data (IndexedDB) will destroy the key and all encrypted API keys
  */
 let _encryptionKey = null;
 
 async function getEncryptionKey() {
   if (_encryptionKey) return _encryptionKey;
 
-  // Check if we already stored a key reference
-  const stored = await db.settings.get('_crypto_key_id');
+  // Try to load the persisted CryptoKey from IndexedDB
+  const stored = await db.settings.get('_crypto_key');
 
-  if (!stored) {
-    // Generate a new AES-GCM key
-    _encryptionKey = await crypto.subtle.generateKey(
-      { name: 'AES-GCM', length: 256 },
-      false, // not extractable — device-bound
-      ['encrypt', 'decrypt']
-    );
-    // Store a marker (the actual CryptoKey stays in memory;
-    // re-generated per session in real impl, stored in IDB via CryptoKey serialization)
-    await db.settings.put({ key: '_crypto_key_id', value: Date.now() });
+  if (stored?.value && stored.value instanceof CryptoKey) {
+    _encryptionKey = stored.value;
     return _encryptionKey;
   }
 
-  // For now, generate a new key per session (keys must be re-entered if cleared)
+  // No key found — generate a new AES-256-GCM key
   _encryptionKey = await crypto.subtle.generateKey(
     { name: 'AES-GCM', length: 256 },
-    false,
+    false, // non-extractable: cannot be read out, only used for encrypt/decrypt
     ['encrypt', 'decrypt']
   );
+
+  // Persist the CryptoKey to IndexedDB (browsers support structured clone of CryptoKey)
+  await db.settings.put({ key: '_crypto_key', value: _encryptionKey });
+
+  // Clean up old marker if it exists from previous implementation
+  await db.settings.delete('_crypto_key_id').catch(() => {});
+
   return _encryptionKey;
 }
 
