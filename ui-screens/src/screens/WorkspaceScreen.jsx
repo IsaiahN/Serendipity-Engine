@@ -21,9 +21,11 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useLlmStore } from '../stores/llmStore';
 import { useTTS } from '../hooks/useTTS';
 import { removeEmdashes } from '../lib/randomEngine';
+import { PROMPTS } from '../lib/promptRegistry';
 import { useUndoRedo, useUndoRedoKeys } from '../hooks/useUndoRedo';
 import VersionHistory from '../components/VersionHistory';
 import SearchPanel from '../components/SearchPanel';
+import { countWords } from '../services/exportEngine';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
 /* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
@@ -49,6 +51,22 @@ function RollButton({ label = 'Roll for Me', onClick, size = 'default', variant 
       <Sparkles size={iconSize} style={{ marginRight: size === 'small' ? 3 : 4 }} /> {label}
     </Button>
   );
+}
+
+/* ─── Gradient colors for project avatars ─── */
+const GRADIENTS = [
+  'linear-gradient(135deg, #818cf8, #f97316)',
+  'linear-gradient(135deg, #2dd4bf, #60a5fa)',
+  'linear-gradient(135deg, #fbbf24, #f472b6)',
+  'linear-gradient(135deg, #f97316, #ef4444)',
+  'linear-gradient(135deg, #a78bfa, #ec4899)',
+  'linear-gradient(135deg, #22c55e, #3b82f6)',
+  'linear-gradient(135deg, #06b6d4, #8b5cf6)',
+  'linear-gradient(135deg, #eab308, #22c55e)',
+];
+
+function getGradient(index) {
+  return GRADIENTS[index % GRADIENTS.length];
 }
 
 const centerStageModes = [
@@ -215,7 +233,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
 
     const result = await sendMessage({
       messages: [
-        { role: 'system', content: `You are the Serendipity Engine Story Assistant helping an author build their story. You are currently in Phase ${phase} (${phaseName}). Help the author answer this question thoughtfully. Push back on vague answers. Give concrete, specific suggestions that demonstrate depth. Never use emdashes.` },
+        { role: 'system', content: PROMPTS.PHASE_GUIDE.build({ phaseNum: phase, phaseName, question: q.q, description: q.desc || '', hint: q.hint || '', previousAnswers: existingAnswers || null }) },
         ...(existingAnswers ? [{ role: 'user', content: `Here are the author's answers so far in this phase:\n\n${existingAnswers}` }, { role: 'assistant', content: 'Got it. I have context from your previous answers. How can I help with the current question?' }] : []),
         { role: 'user', content: `Help me answer this question: "${q.q}"\n\n${q.desc || ''}\n\n${q.hint ? `Hint: ${q.hint}` : ''}\n\nGenerate a thoughtful, detailed answer I can use as a starting point. Be specific and creative.` },
       ],
@@ -688,19 +706,7 @@ function EditorMode({ file }) {
         return;
       }
 
-      const systemPrompt = `You are the Editor persona for the Serendipity Engine. You provide constructive, specific feedback on prose quality, structural integrity, and craft. You are supportive but rigorous.
-
-## GOLDEN RULES (Non-Negotiable)
-1. **No Emdashes**: Never use emdashes (the long dash character or en-dash) in any output. Use commas, periods, semicolons, or parentheses instead.
-
-## Your Task
-Review the following content and provide feedback as a JSON array of items. Each item must have:
-- "type": one of "issue", "suggestion", or "strength"
-- "text": your specific, actionable feedback (1-3 sentences)
-
-Aim for 3-4 issues, 4-5 suggestions, and 2-3 strengths. Be specific about line references or passages. Focus on: dialogue authenticity, pacing, transitions, character voice consistency, emotional beats, prose rhythm, and structural choices.
-
-Respond ONLY with the JSON array, no other text.`;
+      const systemPrompt = PROMPTS.EDITOR_REVIEW.build({ fileName: file });
 
       const result = await useLlmStore.getState().sendMessage({
         messages: [
@@ -5642,7 +5648,17 @@ export default function WorkspaceScreen() {
 
   // Hydrate phaseAnswers from active project in the store (if available)
   const activeProject = useProjectStore(s => s.activeProject);
+  const projects = useProjectStore(s => s.projects);
+  const setActiveProject = useProjectStore(s => s.setActiveProject);
   const tourCompleted = useSettingsStore(s => s.tourCompleted);
+
+  // Redirect to hub if no active project is loaded
+  useEffect(() => {
+    if (!activeProject) {
+      navigate('/hub', { replace: true });
+    }
+  }, [activeProject, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (activeProject?.phaseAnswers && Object.keys(activeProject.phaseAnswers).length > 0) {
       setPhaseAnswers(prev => {
@@ -5656,11 +5672,18 @@ export default function WorkspaceScreen() {
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute phase percentages dynamically from answers vs questions
+  // Decomposed projects have all phases pre-marked as complete
+  const isDecomposed = activeProject?.mode === 'decompose' ||
+    Object.values(phaseAnswers).some(a => a?._decomposed);
   const phasePcts = {};
   phases.forEach(p => {
-    const qs = phaseQuestions[p.num] || [];
-    const answered = Object.keys(phaseAnswers[p.num] || {}).length;
-    phasePcts[p.num] = qs.length > 0 ? Math.round((answered / qs.length) * 100) : 0;
+    if (isDecomposed && phaseAnswers[p.num]?._decomposed) {
+      phasePcts[p.num] = 100;
+    } else {
+      const qs = phaseQuestions[p.num] || [];
+      const answered = Object.keys(phaseAnswers[p.num] || {}).filter(k => !k.startsWith('_')).length;
+      phasePcts[p.num] = qs.length > 0 ? Math.round((answered / qs.length) * 100) : 0;
+    }
   });
   // Derive current active phase = first incomplete non-gated phase
   const derivedCurrentPhase = currentActivePhase(phasePcts);
@@ -5766,9 +5789,11 @@ export default function WorkspaceScreen() {
     window.addEventListener('mouseup', onUp);
   };
 
-  // Word count state — in production this comes from the actual manuscript files
-  const wordCount = 72450;
-  const wordLimit = 70000;
+  // Word count — computed from actual project files
+  const wordCount = Object.entries(projectFiles || {})
+    .filter(([path]) => path.startsWith('story/') && path.endsWith('.md'))
+    .reduce((total, [, content]) => total + countWords(content), 0);
+  const wordLimit = activeProject?.wordGoal || 70000;
 
   const openFile = (fileName, parentFolder) => {
     const fullPath = parentFolder ? `${parentFolder}${fileName}` : fileName;
@@ -5874,8 +5899,8 @@ export default function WorkspaceScreen() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <TopBar
-        projectName="The Shunning Season"
-        healthRating={4}
+        projectName={activeProject?.title || 'Untitled Story'}
+        healthRating={overallHealthRating}
         onHealthClick={() => {
           setRightCollapsed(false);
           setTimeout(() => {
@@ -5978,45 +6003,49 @@ export default function WorkspaceScreen() {
            *    - Project deletion should require confirmation
            *    - "New Project" while current project has unsaved changes → same save prompt
            */}
-          {[
-            { abbr: 'TS', name: 'The Shunning Season', gradient: 'linear-gradient(135deg, #818cf8, #f97316)', active: true },
-            { abbr: 'OD', name: 'Orbital Decay', gradient: 'linear-gradient(135deg, #2dd4bf, #60a5fa)', active: false },
-            { abbr: 'GD', name: 'Gatsby Decomposition', gradient: 'linear-gradient(135deg, #fbbf24, #f472b6)', active: false },
-          ].map((p) => (
-            <div
-              key={p.abbr}
-              onClick={() => navigate('/hub')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: threadExpanded ? '4px 10px' : '4px 8px',
-                cursor: 'pointer',
-                borderLeft: p.active ? '2px solid var(--accent)' : '2px solid transparent',
-                opacity: p.active ? 1 : 0.5,
-                minHeight: 36,
-              }}
-            >
-              <div style={{
-                width: 36, height: 36, borderRadius: 'var(--radius-sm)',
-                background: p.gradient,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
-                border: p.active ? '2px solid var(--accent)' : 'none',
-              }}>
-                {p.abbr}
-              </div>
-              {threadExpanded && (
-                <span style={{
-                  fontSize: '0.78rem', fontWeight: p.active ? 600 : 400,
-                  color: p.active ? 'var(--text-primary)' : 'var(--text-muted)',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+          {projects.map((p, idx) => {
+            const abbr = p.title.split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase() || 'P';
+            const isActive = activeProject?.id === p.id;
+            return (
+              <div
+                key={p.id}
+                onClick={async () => {
+                  if (!isActive) {
+                    await setActiveProject(p.id);
+                  }
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: threadExpanded ? '4px 10px' : '4px 8px',
+                  cursor: 'pointer',
+                  borderLeft: isActive ? '2px solid var(--accent)' : '2px solid transparent',
+                  opacity: isActive ? 1 : 0.5,
+                  minHeight: 36,
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 'var(--radius-sm)',
+                  background: getGradient(idx),
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.7rem', fontWeight: 700, flexShrink: 0,
+                  border: isActive ? '2px solid var(--accent)' : 'none',
                 }}>
-                  {p.name}
-                </span>
-              )}
-            </div>
-          ))}
+                  {abbr}
+                </div>
+                {threadExpanded && (
+                  <span style={{
+                    fontSize: '0.78rem', fontWeight: isActive ? 600 : 400,
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                  }}>
+                    {p.title}
+                  </span>
+                )}
+              </div>
+            );
+          })}
 
           <div style={{ flex: 1 }} />
 

@@ -20,7 +20,7 @@ export function buildSearchIndex(files) {
 
   const entries = [];
   for (const [path, content] of Object.entries(files)) {
-    if (!content || typeof content !== 'string') continue;
+    if (content === null || content === undefined || typeof content !== 'string') continue;
 
     const lines = content.split('\n');
     const words = content.toLowerCase().split(/\s+/).filter(Boolean);
@@ -202,7 +202,7 @@ export function searchAndReplace(files, searchQuery, replaceWith, options = {}) 
   const changes = [];
 
   for (const [path, content] of Object.entries(files)) {
-    if (!content || typeof content !== 'string') continue;
+    if (content === null || content === undefined || typeof content !== 'string') continue;
 
     const matches = content.match(pattern);
     if (!matches || matches.length === 0) continue;
@@ -231,7 +231,7 @@ export function getSearchSuggestions(files, partialQuery, limit = 8) {
   const wordCounts = {};
 
   for (const content of Object.values(files)) {
-    if (!content || typeof content !== 'string') continue;
+    if (content === null || content === undefined || typeof content !== 'string') continue;
 
     // Extract words and bigrams
     const words = content.split(/\s+/).filter(w => w.length > 3);

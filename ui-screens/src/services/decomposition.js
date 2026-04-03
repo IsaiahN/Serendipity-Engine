@@ -12,6 +12,7 @@
  */
 
 import { removeEmdashes } from '../lib/randomEngine.js';
+import { PROMPTS } from '../lib/promptRegistry.js';
 
 /**
  * Define the decomposition pipeline steps
@@ -290,286 +291,63 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
   return { files };
 }
 
-// ─── Prompt Builders ────────────────────────────────────────────────────
+// ─── Prompt Builders (delegated to promptRegistry.js) ───────────────────
 
 function buildAuthorVoicePrompt(sourceText) {
-  return `You are analyzing a manuscript to extract the author's voice profile for the Serendipity Engine.
-
-MANUSCRIPT EXCERPT (first 3000 chars):
-${sourceText.substring(0, 3000)}
-
-${sourceText.length > 3000 ? `[...manuscript continues for ${sourceText.length} total characters...]` : ''}
-
-Extract and format the following as markdown:
-
-# Author Voice Profile
-
-## Writing Style
-- Sentence structure (simple/complex, average length)
-- Vocabulary sophistication (academic/casual/vernacular)
-- Rhythm and pacing
-- Use of metaphor, simile, and imagery
-
-## Distinctive Patterns
-- Recurring phrases, idioms, or speech patterns
-- Punctuation preferences
-- Dialogue style (if present)
-- Narrative perspective and distance
-
-## Emotional Tone
-- Overall mood and atmosphere
-- Emotional register (somber/humorous/romantic/etc.)
-- Intensity level
-
-## Influences and References
-- Apparent literary influences
-- Genre conventions followed or subverted
-- Notable stylistic choices
-
-Provide specific textual examples for each observation.`;
+  return PROMPTS.DECOMPOSE_AUTHOR.build({
+    sourceExcerpt: sourceText.substring(0, 3000),
+    sourceLength: sourceText.length,
+  });
 }
 
 function buildNarratorPrompt(sourceText) {
-  return `Analyze the narrative perspective and narrator characteristics in this manuscript.
-
-TEXT (first 2000 chars):
-${sourceText.substring(0, 2000)}
-
-Format as markdown:
-
-# Narrator Analysis
-
-## Narrative Perspective
-- Point of view (first-person, third-person, second-person, omniscient)
-- Narrative distance (intimate/distant)
-- Reliability (reliable/unreliable narrator)
-
-## Narrator Identity
-- Who is the narrator (character, external observer, etc.)
-- Age and background if determinable
-- Knowledge limitations or special insights
-
-## Narrator's Voice
-- Distinctive speech patterns or characteristics
-- Level of intrusion into the story
-- Relationship to the reader
-
-## Narrative Techniques
-- Use of foreshadowing, flashbacks
-- Direct address to reader
-- Asides or commentary`;
+  return PROMPTS.DECOMPOSE_NARRATOR.build({
+    sourceExcerpt: sourceText.substring(0, 2000),
+  });
 }
 
 function buildWorldBuildingPrompt(sourceText) {
-  return `Extract all world-building details from this manuscript.
-
-TEXT:
-${sourceText.substring(0, 4000)}
-
-Format as markdown with these sections:
-
-# World Building
-
-## Setting and Geography
-- Physical location(s)
-- Climate and season
-- Landscape and terrain
-- Notable landmarks
-
-## Time and Era
-- Historical period or year
-- Technology level
-- Social development stage
-
-## Culture and Society
-- Social structures and hierarchies
-- Customs and traditions
-- Values and beliefs
-- Laws and systems
-
-## Magic/Science Systems (if applicable)
-- Rules and mechanics
-- Limitations and costs
-- Common applications
-
-## Economics
-- Currency and trade
-- Resource scarcity
-- Class divisions or wealth distribution
-
-## Conflicts and Tensions
-- External threats or challenges
-- Internal social conflicts
-- World-specific problems
-
-Include specific textual references.`;
+  return PROMPTS.DECOMPOSE_WORLD.build({
+    sourceExcerpt: sourceText.substring(0, 4000),
+  });
 }
 
 function buildCharacterProfilesPrompt(sourceText) {
-  return `Extract and profile all major characters from this manuscript.
-
-TEXT (first 3500 chars):
-${sourceText.substring(0, 3500)}
-
-For each major character, create a markdown section:
-
-# Characters
-
-## [Character Name]
-- **Role**: Protagonist, antagonist, supporting, etc.
-- **Physical Description**: Age, appearance, distinctive features
-- **Personality**: Key traits, temperament
-- **Motivations**: What drives them
-- **Relationships**: Key connections to other characters
-- **Arc**: Growth or change over the story
-- **Conflicts**: Internal and external struggles
-- **Memorable Moments**: Key scenes or quotes revealing character
-
-Prioritize characters by importance. Include 3-8 major characters depending on manuscript scope.`;
+  return PROMPTS.DECOMPOSE_CHARACTERS.build({
+    sourceExcerpt: sourceText.substring(0, 3500),
+  });
 }
 
-function buildRelationshipsPrompt(sourceText, previousFiles) {
-  const charContext = previousFiles['characters/'] ?
-    '(Character files available)' :
-    '(Extract from text)';
-
-  return `Map character relationships and dynamics from this manuscript.
-
-TEXT:
-${sourceText.substring(0, 2500)}
-
-${charContext}
-
-Create a markdown response:
-
-# Relationship Mapping
-
-## Key Relationships
-For each significant relationship:
-- **Characters Involved**: Names and roles
-- **Relationship Type**: Family, romantic, mentor, rivalry, friendship, etc.
-- **History**: How they met, relationship evolution
-- **Tension/Harmony**: Conflicts or bonds
-- **Impact on Story**: How relationship drives plot
-
-## Dynamics
-- Power dynamics and hierarchies
-- Alliances and enemies
-- Love triangles or complex entanglements
-- Unresolved conflicts
-
-## Questions About Relationships
-- What do characters want from each other?
-- What misunderstandings exist?
-- How do relationships create obstacles or opportunities?`;
+function buildRelationshipsPrompt(sourceText, _previousFiles) {
+  return PROMPTS.DECOMPOSE_RELATIONSHIPS.build({
+    sourceExcerpt: sourceText.substring(0, 2500),
+  });
 }
 
 function buildStructurePrompt(sourceText) {
-  return `Analyze the narrative structure and story arc of this manuscript.
-
-TEXT:
-${sourceText.substring(0, 5000)}
-
-Format as markdown:
-
-# Story Structure
-
-## Overall Arc
-- **Inciting Incident**: What kicks off the plot
-- **Rising Action**: Building tension and complications
-- **Climax**: The peak moment
-- **Falling Action**: Resolution of tension
-- **Resolution**: How things conclude
-
-## Three-Act Structure
-- **Act 1**: Setup (approximate location in manuscript)
-- **Act 2**: Confrontation (approximate location)
-- **Act 3**: Resolution (approximate location)
-
-## Plot Outline
-Create a chapter-by-chapter outline showing:
-- Major plot points
-- Character developments
-- World revelations
-- Turning points
-
-## Pacing
-- Fast sections and slow sections
-- Scene balance
-- Information revelation strategy
-
-## Themes
-- Central theme(s)
-- How they're developed
-- Resolution of thematic questions`;
+  return PROMPTS.DECOMPOSE_STRUCTURE.build({
+    sourceExcerpt: sourceText.substring(0, 5000),
+  });
 }
 
-function buildReviewPrompt(sourceText, previousFiles, metadata) {
-  return `Conduct a structural review of this decomposed manuscript.
-
-SOURCE MANUSCRIPT (first 2000 chars):
-${sourceText.substring(0, 2000)}
-
-ANALYSIS COMPLETED:
-- Author voice: ${previousFiles['author.md'] ? 'yes' : 'no'}
+function buildReviewPrompt(sourceText, previousFiles, _metadata) {
+  const analysisStatus = `- Author voice: ${previousFiles['author.md'] ? 'yes' : 'no'}
 - Narrator: ${previousFiles['narrator.md'] ? 'yes' : 'no'}
 - World building: ${previousFiles['world/world-building.md'] ? 'yes' : 'no'}
 - Character profiles: ${Object.keys(previousFiles).filter(p => p.startsWith('characters/')).length || 0} files
-- Story structure: ${previousFiles['outline.md'] || previousFiles['story/arc.md'] ? 'yes' : 'no'}
+- Story structure: ${previousFiles['outline.md'] || previousFiles['story/arc.md'] ? 'yes' : 'no'}`;
 
-REVIEW ASSESSMENT:
-
-# Structural Review
-
-## Completeness
-- What story elements are well-established?
-- What gaps or unclear areas remain?
-- Are all major characters profiled?
-
-## Consistency
-- Do character profiles match their actions in the text?
-- Is the world internally consistent?
-- Do relationships match the interaction patterns?
-
-## Clarity
-- Is the story structure clear?
-- Are the central conflicts evident?
-- Can the narrative arc be followed?
-
-## Readiness for Engine
-- Is the decomposition sufficient for engine reconstruction?
-- What additional work would strengthen the project?
-- Confidence level (low/medium/high)?
-
-## Recommendations
-- Priority improvements
-- Clarifications needed
-- Next steps for the author`;
+  return PROMPTS.DECOMPOSE_REVIEW.build({
+    sourceExcerpt: sourceText.substring(0, 2000),
+    analysisStatus,
+  });
 }
 
 function buildChapterSplitPrompt(sourceText, outlineContent) {
-  return `Split this manuscript into chapter-sized sections aligned with the story structure.
-
-FULL TEXT:
-${sourceText}
-
-${outlineContent ? `OUTLINE PROVIDED:
-${outlineContent}` : 'NO OUTLINE PROVIDED - infer chapter boundaries from narrative structure'}
-
-Create chapter markdown files with this format for each chapter:
-
-# Chapter [N]: [Title]
-
-[Chapter content]
-
-Guidelines:
-- Aim for 2000-4000 words per chapter
-- Break at natural scene transitions
-- Each chapter should have narrative momentum
-- Title chapters meaningfully
-- Number sequentially starting from 1
-
-Output the entire manuscript re-divided into chapters, preserving all original text.`;
+  return PROMPTS.DECOMPOSE_CHAPTERS.build({
+    fullText: sourceText,
+    outlineContent: outlineContent || null,
+  });
 }
 
 // ─── Markdown Formatters ────────────────────────────────────────────────

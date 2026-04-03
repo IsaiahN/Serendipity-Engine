@@ -31,6 +31,17 @@ db.version(1).stores({
   fileHistory: '++id, projectId, filePath, timestamp',
 });
 
+// v2: Switch projects and projectFiles to string UUIDs instead of auto-increment
+db.version(2).stores({
+  projects: 'id, &slug, title, createdAt, updatedAt, medium, genre',
+  projectFiles: '++id, projectId, path, updatedAt, [projectId+path]',
+  settings: 'key',
+  apiKeys: 'provider',
+  writingProfile: 'id',
+  sessionLogs: '++id, projectId, timestamp',
+  fileHistory: '++id, projectId, filePath, timestamp',
+});
+
 export default db;
 
 /**

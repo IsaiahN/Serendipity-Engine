@@ -221,46 +221,46 @@ Chapter 2 should begin with the confrontation itself—don't delay. Elena's arri
 `,
 
     'phaseAnswers': {
-      author: {
+      1: {
         '_total': 5,
-        'wound': 'Internalized the fear that dissent means exile',
-        'flaw': 'Rationalizes moral ambiguity rather than confronting it',
-        'virtue': 'Unusual empathy for people caught between worlds',
-        'bps': 'A community\'s survival and a person\'s integrity cannot coexist when truth-telling is defined as betrayal',
+        1: 'Isaiah — fiction writer exploring Mennonite community dynamics',
+        2: 'Literary Fiction + Thriller',
+        3: 'Novel (Adult)',
+        4: 'Themes of belonging, institutional power, personal truth vs community',
       },
-      narrator: {
+      2: {
         '_total': 4,
-        'pov': 'Third-person limited, close to Elena',
-        'voice': 'Measured, observant, subtly ironic',
-        'tense': 'Present tense',
-        'reliability': 'Reliable but constrained to Elena\'s knowledge',
+        1: 'Third-person limited, close to Elena Yoder. We move through scenes in her consciousness.',
+        2: 'Present tense. This immediacy traps the reader alongside Elena.',
+        3: 'Literary but accessible. Short punchy sentences in tense moments, longer flowing ones in reflective passages.',
       },
-      world: {
+      3: {
         '_total': 5,
-        'setting': 'Rural Lancaster County, PA, 1987',
-        'governance': 'Ordnung (unwritten rules) enforced by bishop',
-        'economy': 'Subsistence farming, trade, small businesses',
-        'themes': 'Humility, obedience, but also reputation and secrecy',
-        'sensory': 'Bread, horse manure, buggies, hand-sewn order',
+        1: 'Rural Lancaster County, Pennsylvania, 1987.',
+        2: 'Contemporary, but the Amish setting creates a feeling of being outside time.',
+        3: 'Patriarchal church leadership. Bishop holds ultimate authority. Shunning is the ultimate sanction.',
+        4: 'Prayer caps, horse-drawn buggies, gas lamps, the community kitchen, the shunning chair, and the county line.',
+        5: 'No electricity. No contact with the shunned. Church authority is absolute. The outside world is "English."',
       },
-      characters: {
-        '_total': 3,
-        'elena_wound': 'Internalized mother\'s death as failure of faith',
-        'marcus_wound': 'Father\'s conditional love based on obedience',
-        'priya_role': 'Window to outside world, emotional anchor',
-      },
-      relationships: {
+      4: {
         '_total': 4,
-        'elena_marcus': 'Trust betrayed into irreconcilable opposition',
-        'elena_priya': 'Mutual dependency strengthened through crisis',
-        'marcus_david': 'David chooses institutional loyalty over daughter',
-        'community': 'Settlement is antagonist, self-preserving not evil',
+        1: 'Elena Yoder, 26, eldest daughter of assistant minister David Yoder.',
+        2: 'Internalized mother\'s death as failure of faith. Overcompensated by being the "good daughter."',
+        3: 'Marcus Beiler, the bishop\'s son, who is careless with community funds and who frames Elena as a troublemaker.',
+        4: 'Priya Troyer (confidante, childhood friend now a nurse); David Yoder (father); Bishop Lapp.',
       },
-      story: {
+      5: {
+        '_total': 4,
+        1: 'Elena ↔ Marcus: Trust betrayed into irreconcilable opposition. Elena experiences this as betrayal; Marcus sees Elena\'s refusal to be silenced as a personal threat.',
+        2: 'Elena ↔ Priya: Warmth and understanding, strengthened through crisis. Priya offers shelter after the shunning.',
+        3: 'Marcus ↔ Elena\'s Father (David): David chooses institutional stability over his daughter. Marcus exploits this.',
+        4: 'Community as Character: The settlement itself is an antagonist. Self-preserving, not evil. Pressure to maintain harmony makes truth expendable.',
+      },
+      6: {
         '_total': 3,
-        'arc': 'Elena moves from compliance to integrity to exile',
-        'three_act': 'Rupture (ch 1–4), Isolation (ch 5–8), Reckoning (ch 9–12)',
-        'ending': 'Ambiguous: liberation and loss interwoven',
+        1: 'Elena Yoder discovers financial discrepancies in Marcus Beiler\'s ledger. She confronts him. He denies it and threatens her silence. She brings evidence to her father. The bishop preemptively frames Elena as a troublemaker.',
+        2: 'Act One: Rupture (ch 1–4) — Accusation and denial. Act Two: Isolation (ch 5–8) — Elena gradually shunned. Act Three: Reckoning (ch 9–12) — Formal shunning, Elena\'s choice to leave.',
+        3: 'A community\'s survival and a person\'s integrity cannot coexist when truth-telling is defined as betrayal.',
       },
     },
   },
@@ -271,7 +271,7 @@ Chapter 2 should begin with the confrontation itself—don't delay. Elena's arri
  */
 export async function activateDemoMode(projectStore) {
   try {
-    // Create the project with metadata
+    // Create the project with metadata, including all phase answers
     const project = await projectStore.createProject({
       title: DEMO_PROJECT_DATA.metadata.title,
       medium: DEMO_PROJECT_DATA.metadata.medium,
@@ -283,21 +283,20 @@ export async function activateDemoMode(projectStore) {
       },
     });
 
+    // Ensure the project is set as active (so updateFile works correctly)
+    await projectStore.setActiveProject(project.id);
+
     // Inject all files
     for (const [path, content] of Object.entries(DEMO_PROJECT_DATA.files)) {
       if (path !== 'phaseAnswers') {
-        await projectStore.updateFile(project.id, path, content);
+        await projectStore.updateFile(path, content);
       }
     }
 
-    // Inject phase answers
-    await projectStore.setPhaseAnswers(
-      project.id,
-      DEMO_PROJECT_DATA.files.phaseAnswers
-    );
-
-    // Compute phase progress
-    await projectStore.computeProjectHealth(project.id);
+    // Update project with all phase answers at once
+    if (DEMO_PROJECT_DATA.files.phaseAnswers) {
+      await projectStore.updateProject({ phaseAnswers: DEMO_PROJECT_DATA.files.phaseAnswers });
+    }
 
     // Mark demo as active in settings
     if (typeof window !== 'undefined' && window.localStorage) {

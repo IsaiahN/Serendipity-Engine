@@ -19,23 +19,13 @@
  * - Chapter 4+: N-1 and N-2 full text, earlier as summaries
  */
 
+import { GOLDEN_RULES, PROMPTS } from '../lib/promptRegistry.js';
+
 // Rough token estimation (4 chars per token for English text)
 function estimateTokens(text) {
   if (!text) return 0;
   return Math.ceil(text.length / 4);
 }
-
-/**
- * Golden Rules — always prepended to every LLM call
- */
-const GOLDEN_RULES = `## GOLDEN RULES (Non-Negotiable)
-
-1. **No Emdashes**: Never use emdashes (the long dash character — or –) in any output. Use commas, periods, semicolons, or parentheses instead.
-2. **Context Completeness**: Every chapter must include full relevant context. Refuse generation if required context files are missing.
-3. **Editor Passes are Bounded**: Default one per arc during drafting; max 2-4 for final full-book review.
-4. **Seed Reproducibility**: Same seed produces same rolls. All roll results must be logged.
-5. **User Sovereignty**: The user can override any suggestion, skip any phase, edit any content. AI metadata tags are stripped in final export.
-`;
 
 /**
  * Build the full context for a chapter generation call
@@ -178,11 +168,14 @@ export function buildChapterContext(files, chapterNum, options = {}) {
     .map(p => p.content)
     .join('\n\n---\n\n');
 
+  // Build the chapter generation task prompt from the registry
+  const chapterTask = PROMPTS.CHAPTER_GENERATION.build({ chapterNum });
+
   const messages = [
     { role: 'system', content: systemContent },
     {
       role: 'user',
-      content: `${contextContent}\n\n---\n\n## TASK\n\nWrite Chapter ${chapterNum} of this story. Follow the outline, maintain voice consistency with the narrator profile, and respect all character arcs and world rules. The chapter should advance the plot while deepening character relationships.\n\nOutput only the chapter prose. No meta-commentary.`,
+      content: `${contextContent}\n\n---\n\n${chapterTask}`,
     },
   ];
 
@@ -201,18 +194,24 @@ export function buildChapterContext(files, chapterNum, options = {}) {
 export function buildChatContext(files, chatHistory, options = {}) {
   const { persona = 'assistant', characterName = null, scope = 'full-project' } = options;
 
-  let systemPrompt = GOLDEN_RULES + '\n\n';
+  let systemPrompt = '';
 
   switch (persona) {
     case 'assistant':
-      systemPrompt += `You are the Story Assistant for the Serendipity Engine. You help the author with brainstorming, structural questions, and creative decisions. You have access to the full project architecture.\n\n`;
+      systemPrompt = PROMPTS.STORY_ASSISTANT.build({ projectTitle: null }) + '\n\n';
       break;
     case 'editor':
-      systemPrompt += `You are the Editor persona for the Serendipity Engine. You provide constructive feedback on prose quality, structural integrity, and craft. You are supportive but rigorous.\n\n`;
+      systemPrompt = PROMPTS.EDITOR.build({ projectTitle: null }) + '\n\n';
       break;
     case 'character':
-      systemPrompt += `You are ${characterName}, a character in this story. Respond in character. You have complete self-awareness of your own character file but limited knowledge of others — you know them only through observed behavior and your relationship with them. If asked about your narrative role, you can reflect on it honestly. If there are gaps in your knowledge, say so and invite the author to help fill them in.\n\n`;
+      systemPrompt = PROMPTS.CHARACTER_ROLEPLAY.build({
+        characterName,
+        characterFile: null,
+        relationshipsFile: null,
+      }) + '\n\n';
       break;
+    default:
+      systemPrompt = GOLDEN_RULES + '\n\n';
   }
 
   // Add relevant context based on scope
@@ -223,20 +222,26 @@ export function buildChatContext(files, chatHistory, options = {}) {
   }
 
   if (persona === 'character' && characterName) {
-    // Find the character file
+    // Find the character file and rebuild prompt with full context
     const charFiles = Object.entries(files)
       .filter(([path]) => path.startsWith('characters/') && path.endsWith('.md'));
 
+    let charFileContent = null;
     for (const [path, content] of charFiles) {
       if (path.toLowerCase().includes(characterName.toLowerCase())) {
-        systemPrompt += `## Your Character File (Complete Self-Knowledge)\n${content}\n\n`;
+        charFileContent = content;
+        break;
       }
     }
 
-    // Add relationship context (limited)
-    if (files['relationships/questions-answered.md']?.trim()) {
-      systemPrompt += `## Relationships (What You Observe)\n${files['relationships/questions-answered.md']}\n\n`;
-    }
+    const relContent = files['relationships/questions-answered.md']?.trim() || null;
+
+    // Rebuild character prompt with the actual file contents
+    systemPrompt = PROMPTS.CHARACTER_ROLEPLAY.build({
+      characterName,
+      characterFile: charFileContent,
+      relationshipsFile: relContent,
+    }) + '\n\n';
   }
 
   const messages = [
@@ -255,7 +260,7 @@ export function buildPreFlightContext(files, chapterNum) {
     messages: [
       {
         role: 'system',
-        content: GOLDEN_RULES + `\n\nYou are running a pre-flight checklist before generating Chapter ${chapterNum}. Check for:\n1. Continuity — any unresolved contradictions?\n2. Character consistency — do character states match the outline?\n3. Thread tracking — are all active threads accounted for?\n4. Tone target — is the planned tone consistent with the tonal arc?\n\nRespond with a structured checklist showing PASS/WARNING/FAIL for each item.`,
+        content: PROMPTS.PRE_FLIGHT.build({ chapterNum }),
       },
       {
         role: 'user',

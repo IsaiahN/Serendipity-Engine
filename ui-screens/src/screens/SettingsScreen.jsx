@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Button from '../components/Button';
+import { useLlmStore } from '../stores/llmStore';
+import { LLM_PROVIDERS } from '../lib/constants';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
   ExternalLink, Trash2, Download, Heart, RefreshCw, Key, ArrowLeft,
@@ -264,8 +266,14 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
 
 // ─── AI Models Settings ───
 function AISettings({ onSettingChange }) {
-  const [provider, setProvider] = useState('Anthropic (Claude)');
-  const [model, setModel] = useState('claude-sonnet-4');
+  const { providers, activeProviders, loadProviders, connectProvider, testConnection, disconnectProvider } = useLlmStore();
+  const [selectedProvider, setSelectedProvider] = useState('anthropic');
+  const [selectedModel, setSelectedModel] = useState('');
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [roleMode, setRoleMode] = useState('standard');
   const [auditTrail, setAuditTrail] = useState(true);
   const [costTracking, setCostTracking] = useState(true);
@@ -273,6 +281,73 @@ function AISettings({ onSettingChange }) {
   const [voice, setVoice] = useState('Amy (US English)');
   const [ttsSpeed, setTtsSpeed] = useState('1.0x');
   const [autoRead, setAutoRead] = useState(false);
+
+  // Load providers on mount
+  useEffect(() => {
+    loadProviders();
+  }, [loadProviders]);
+
+  // When selected provider changes, update model to match
+  useEffect(() => {
+    const def = LLM_PROVIDERS.find(p => p.key === selectedProvider);
+    const existing = providers[selectedProvider];
+    if (existing?.model) {
+      setSelectedModel(existing.model);
+    } else if (def?.models?.length > 0) {
+      setSelectedModel(def.models[0]);
+    } else {
+      setSelectedModel('');
+    }
+    setApiKeyInput('');
+    setTestResult(null);
+    setShowApiKey(false);
+  }, [selectedProvider, providers]);
+
+  const providerDef = LLM_PROVIDERS.find(p => p.key === selectedProvider);
+  const isConnected = activeProviders.includes(selectedProvider);
+  const providerInfo = providers[selectedProvider];
+
+  const handleSaveKey = async () => {
+    if (!apiKeyInput.trim()) return;
+    setSaving(true);
+    setTestResult(null);
+    try {
+      await connectProvider({
+        provider: selectedProvider,
+        apiKey: apiKeyInput.trim(),
+        model: selectedModel || undefined,
+      });
+      setTestResult({ success: true, message: 'API key saved. Click "Test Connection" to verify.' });
+      setApiKeyInput('');
+    } catch (err) {
+      setTestResult({ success: false, message: err.message || 'Failed to save key' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const result = await testConnection(selectedProvider);
+      if (result.success) {
+        setTestResult({ success: true, message: `Connected! Response time: ${result.responseTime}ms` });
+      } else {
+        setTestResult({ success: false, message: result.error || 'Connection failed' });
+      }
+    } catch (err) {
+      setTestResult({ success: false, message: err.message || 'Test failed' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    await disconnectProvider(selectedProvider);
+    setTestResult(null);
+    setApiKeyInput('');
+  };
 
   const handleRoleModeChange = (newMode) => {
     setRoleMode(newMode);
@@ -298,42 +373,194 @@ function AISettings({ onSettingChange }) {
     <>
       <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>AI Models</h2>
 
+      {/* Connected providers overview */}
+      {activeProviders.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>
+            Connected Providers
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {activeProviders.map(key => {
+              const def = LLM_PROVIDERS.find(p => p.key === key);
+              const info = providers[key];
+              return (
+                <div key={key} style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  background: 'var(--accent-subtle)', border: '1px solid var(--accent-border)',
+                  borderRadius: 'var(--radius-sm)', padding: '6px 12px',
+                }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+                  <span style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                    {def?.label || key}
+                  </span>
+                  {info?.model && (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                      {info.model}
+                    </span>
+                  )}
+                  {info?.responseTime && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      {info.responseTime}ms
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600 }}>
-        Active Provider
+        Configure Provider
       </div>
       <div style={{
         background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
         borderRadius: 'var(--radius-sm)', padding: 16, marginBottom: 20,
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Provider selector */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Provider</span>
             <Select
-              options={['Anthropic (Claude)', 'DeepSeek', 'OpenAI', 'Google Gemini', 'Ollama (local)']}
-              value={provider}
-              onChange={setProvider}
+              options={LLM_PROVIDERS.map(p => p.label)}
+              value={providerDef?.label || ''}
+              onChange={(label) => {
+                const match = LLM_PROVIDERS.find(p => p.label === label);
+                if (match) setSelectedProvider(match.key);
+              }}
             />
           </div>
+
+          {/* Model selector */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Model</span>
-            <Select
-              options={['claude-sonnet-4', 'claude-opus-4', 'claude-haiku-3.5']}
-              value={model}
-              onChange={setModel}
-            />
+            {providerDef?.models?.length > 0 ? (
+              <Select
+                options={providerDef.models}
+                value={selectedModel}
+                onChange={setSelectedModel}
+              />
+            ) : (
+              <input
+                type="text"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                placeholder="e.g. llama3, mistral, etc."
+                style={{
+                  padding: '6px 10px', fontSize: '0.8rem', minWidth: 180,
+                  background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                  fontFamily: 'monospace',
+                }}
+              />
+            )}
           </div>
+
+          {/* Connection status */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>API Key</span>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', background: 'var(--bg-primary)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontFamily: 'monospace' }}>sk-...configured</span>
-              <Button size="sm" variant="secondary">
-                <Key size={12} style={{ marginRight: 3 }} /> Change
+              <div style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: isConnected ? '#22c55e' : '#6b7280',
+              }} />
+              <span style={{
+                fontSize: '0.8rem',
+                color: isConnected ? '#22c55e' : 'var(--text-muted)',
+                fontWeight: 500,
+              }}>
+                {isConnected ? 'Connected' : 'Not connected'}
+              </span>
+              {providerInfo?.lastTested && (
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                  (tested {new Date(providerInfo.lastTested).toLocaleDateString()})
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* API Key input */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              {isConnected ? 'Update API Key' : 'API Key'}
+            </span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder={isConnected ? 'Enter new key to update...' : 'Paste your API key here...'}
+                  style={{
+                    width: '100%', padding: '8px 36px 8px 10px', fontSize: '0.8rem',
+                    background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                    fontFamily: 'monospace',
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveKey(); }}
+                />
+                <button
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  style={{
+                    position: 'absolute', right: 6, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+                    color: 'var(--text-muted)',
+                  }}
+                >
+                  {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
+              <Button size="sm" variant="secondary" onClick={handleSaveKey} disabled={!apiKeyInput.trim() || saving}>
+                <Key size={12} style={{ marginRight: 3 }} />
+                {saving ? 'Saving...' : 'Save Key'}
               </Button>
             </div>
           </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 8, paddingTop: 8 }}>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={handleTestConnection}
+              disabled={testing || (!isConnected && !apiKeyInput.trim())}
+              style={{ flex: 1 }}
+            >
+              <Zap size={12} style={{ marginRight: 4 }} />
+              {testing ? 'Testing...' : 'Test Connection'}
+            </Button>
+            {isConnected && (
+              <Button
+                size="sm"
+                onClick={handleDisconnect}
+                style={{
+                  background: 'transparent', color: '#dc2626',
+                  border: '1px solid #dc2626', padding: '6px 12px',
+                  borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
+                  cursor: 'pointer',
+                }}
+              >
+                <Trash2 size={12} style={{ marginRight: 4 }} />
+                Disconnect
+              </Button>
+            )}
+          </div>
+
+          {/* Test result feedback */}
+          {testResult && (
+            <div style={{
+              padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
+              background: testResult.success ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)',
+              border: `1px solid ${testResult.success ? 'rgba(34,197,94,0.3)' : 'rgba(220,38,38,0.3)'}`,
+              color: testResult.success ? '#22c55e' : '#dc2626',
+            }}>
+              {testResult.message}
+            </div>
+          )}
         </div>
+
         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.6, marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-          Recommended ranking: Claude &gt; DeepSeek &gt; OpenAI &gt; Ollama
+          Recommended ranking: Claude &gt; DeepSeek &gt; OpenAI &gt; Ollama. You can connect multiple providers and assign them to different roles below.
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, Suspense, lazy } from 'react'
+import { useEffect, useState, Suspense, lazy, Component } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import TermsScreen from './screens/TermsScreen'
 import SetupScreen from './screens/SetupScreen'
@@ -14,6 +14,88 @@ import { registerServiceWorker, requestPersistentStorage } from './lib/serviceWo
 const WizardScreen = lazy(() => import('./screens/WizardScreen'))
 const WorkspaceScreen = lazy(() => import('./screens/WorkspaceScreen'))
 const SettingsScreen = lazy(() => import('./screens/SettingsScreen'))
+
+/**
+ * ErrorBoundary — catches rendering errors in child components
+ */
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Rendering error caught by ErrorBoundary:', error, errorInfo);
+  }
+
+  handleReload = () => {
+    this.setState({ hasError: false, error: null });
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--bg-primary)',
+          padding: 20,
+        }}>
+          <div style={{ textAlign: 'center', maxWidth: 400 }}>
+            <div style={{ fontSize: '3rem', marginBottom: 16 }}>⚠</div>
+            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>
+              Something went wrong
+            </h1>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: 24, lineHeight: 1.6 }}>
+              An error occurred while rendering the application. Try reloading the page.
+            </p>
+            {this.state.error && (
+              <div style={{
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: 12,
+                marginBottom: 24,
+                fontSize: '0.8rem',
+                color: 'var(--text-muted)',
+                textAlign: 'left',
+                fontFamily: 'monospace',
+                maxHeight: 150,
+                overflow: 'auto',
+              }}>
+                {this.state.error.toString()}
+              </div>
+            )}
+            <button
+              onClick={this.handleReload}
+              style={{
+                padding: '10px 20px',
+                background: 'var(--accent)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Reload
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 /**
  * LoadingFallback — shown while lazy-loaded routes are loading
@@ -68,7 +150,7 @@ export default function App() {
   }, []);
 
   return (
-    <>
+    <ErrorBoundary>
       {/* PWA overlays */}
       <OfflineIndicator />
       <UpdateNotification />
@@ -89,6 +171,6 @@ export default function App() {
           <Route path="/settings" element={<SettingsScreen />} />
         </Routes>
       </Suspense>
-    </>
+    </ErrorBoundary>
   )
 }

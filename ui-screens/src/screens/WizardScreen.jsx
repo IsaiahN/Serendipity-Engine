@@ -8,8 +8,59 @@ import {
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
+import { useLlmStore } from '../stores/llmStore';
 import { STORY_MEDIUMS, PRIMARY_GENRES, TONAL_TYPES, CONTENT_RATINGS } from '../lib/constants';
 import { generateSeed, roll } from '../lib/randomEngine';
+import { decomposeStory } from '../services/decomposition';
+
+/**
+ * Derive a clean project title from a filename.
+ * Strips extension, replaces dashes/underscores with spaces,
+ * collapses whitespace, and title-cases the result.
+ * Preserves date-like patterns (e.g. "2024-01-15") by not
+ * replacing dashes between digits.
+ */
+function cleanFilenameToTitle(filename) {
+  if (!filename) return '';
+  // Strip extension
+  let name = filename.replace(/\.\w+$/, '');
+  // Replace dashes that are NOT between two digits (preserve dates like 2024-01-15)
+  name = name.replace(/(?<!\d)-(?!\d)/g, ' ');
+  // Replace underscores with spaces
+  name = name.replace(/_/g, ' ');
+  // Collapse multiple spaces
+  name = name.replace(/\s+/g, ' ').trim();
+  // Title case: capitalize first letter of each word
+  name = name.replace(/\b\w/g, c => c.toUpperCase());
+  return name;
+}
+
+/**
+ * Try to extract a title from the first few lines of text content.
+ * Looks for markdown headings, short first lines, or "Title:" patterns.
+ */
+function extractTitleFromText(text) {
+  if (!text) return '';
+  const lines = text.trim().split('\n').slice(0, 15);
+  // Check for markdown heading
+  for (const line of lines) {
+    const headingMatch = line.match(/^#{1,2}\s+(.+)/);
+    if (headingMatch) return headingMatch[1].trim();
+  }
+  // Check for "Title: ..." pattern
+  for (const line of lines) {
+    const titleMatch = line.match(/^title\s*[:=]\s*(.+)/i);
+    if (titleMatch) return titleMatch[1].trim();
+  }
+  // Use first non-empty line if it's short enough to be a title
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length > 3 && trimmed.length < 120 && !trimmed.includes('.')) {
+      return trimmed;
+    }
+  }
+  return '';
+}
 
 const WORD_COUNT_PRESETS = {
   'short': { label: 'Short', min: 1000, max: 5000 },
@@ -48,7 +99,11 @@ export default function WizardScreen() {
   const mode = searchParams.get('mode') || 'new';
 
   const createProject = useProjectStore(s => s.createProject);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const setActiveProject = useProjectStore(s => s.setActiveProject);
   const userMode = useSettingsStore(s => s.mode) || 'advanced';
+  const sendMessage = useLlmStore(s => s.sendMessage);
+  const activeProviders = useLlmStore(s => s.activeProviders);
 
   // Wizard state
   const [wizardMode, setWizardMode] = useState(null); // 'simple' | 'advanced'
@@ -78,20 +133,140 @@ export default function WizardScreen() {
   const [diceAnimation, setDiceAnimation] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Decompose progress state — lifted here so DecomposeMode can display it
+  const [decomposeProgress, setDecomposeProgress] = useState(null); // { label, completed, total }
+  const [decomposeError, setDecomposeError] = useState(null); // string or null
+
   // Route-specific handlers
   const handleDecompose = async () => {
     setIsProcessing(true);
-    const seed = generateSeed();
-    await createProject({
-      title: 'Decomposed Story',
-      medium: 'novel',
-      seed,
-      metadata: {
-        mode: 'decompose',
-        material: formData.materialContent,
-      },
-    });
-    navigate('/workspace');
+    setDecomposeError(null);
+    setDecomposeProgress(null);
+
+    // Check if LLM providers are configured
+    const hasProviders = activeProviders && activeProviders.length > 0;
+    if (!hasProviders) {
+      setDecomposeError('no-llm');
+      setIsProcessing(false);
+      return;
+    }
+
+    try {
+      const seed = generateSeed();
+      const sourceText = formData.materialContent.trim();
+      const rawTitle = formData.title?.trim();
+      const title = (rawTitle && rawTitle !== 'Untitled Story')
+        ? rawTitle
+        : extractTitleFromText(sourceText) || 'Decomposed Story';
+
+      setDecomposeProgress({ label: 'Creating project...', completed: 0, total: 9 });
+
+      // Create the project first
+      const project = await createProject({
+        title,
+        medium: 'novel',
+        seed,
+        metadata: {
+          mode: 'decompose',
+          importedAt: new Date().toISOString(),
+        },
+      });
+
+      // Run decomposition service to extract story structure via LLM
+      const { files: decomposedFiles, metadata: decompositionMeta } = await decomposeStory(
+        sendMessage,
+        sourceText,
+        {
+          title,
+          onProgress: (progress) => {
+            setDecomposeProgress({
+              label: progress.label,
+              completed: progress.completed + 1, // +1 for the "creating project" step
+              total: progress.total + 1,
+            });
+          },
+        }
+      );
+
+      setDecomposeProgress({ label: 'Saving files...', completed: 9, total: 9 });
+
+      // Populate project with decomposed files
+      for (const [filePath, content] of Object.entries(decomposedFiles)) {
+        await updateFile(filePath, content);
+      }
+
+      // Also store the original full text
+      await updateFile('story/full-draft.md', sourceText);
+
+      // Mark all phases 1-7 as complete since we decomposed a finished work
+      const updateProject = useProjectStore.getState().updateProject;
+      await setActiveProject(project.id);
+      await updateProject({
+        currentPhase: 8,
+        phaseAnswers: {
+          1: { 1: '(Decomposed from manuscript)', 2: '(Decomposed)', 3: '(Decomposed)', 4: '(Decomposed)', _decomposed: true },
+          2: { 1: '(Decomposed from manuscript)', 2: '(Decomposed)', 3: '(Decomposed)', _decomposed: true },
+          3: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', 4: '(Decomposed)', 5: '(Decomposed)', 6: '(Decomposed)', 7: '(Decomposed)', 8: '(Decomposed)', _decomposed: true },
+          4: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', 4: '(Decomposed)', _decomposed: true },
+          5: { 1: '(Decomposed)', 2: '(Decomposed)', _decomposed: true },
+          6: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', _decomposed: true },
+          7: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', _decomposed: true },
+        },
+      });
+
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Decomposition failed:', err);
+      setDecomposeError(err.message || 'Unknown error');
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRoughDraft = async () => {
+    setIsProcessing(true);
+    try {
+      const seed = generateSeed();
+      const sourceText = formData.materialContent.trim();
+      const rawDraftTitle = formData.title?.trim();
+      const title = (rawDraftTitle && rawDraftTitle !== 'Untitled Story')
+        ? rawDraftTitle
+        : extractTitleFromText(sourceText) || 'Imported Draft';
+      const medium = formData.medium || 'novel';
+
+      // Create project
+      const project = await createProject({
+        title,
+        medium,
+        seed,
+        genre: formData.genre || '',
+        metadata: {
+          mode: 'roughdraft',
+          importedAt: new Date().toISOString(),
+        },
+      });
+
+      // Split the draft into chapters if possible, or store as one file
+      const chapterRegex = /^#{1,3}\s*chapter\s*\d+|^chapter\s*\d+/gim;
+      const chapterSplits = sourceText.split(chapterRegex).filter(s => s.trim());
+
+      if (chapterSplits.length > 1) {
+        // Multiple chapters detected
+        for (let i = 0; i < chapterSplits.length; i++) {
+          await updateFile(`story/chapter-${String(i + 1).padStart(2, '0')}.md`, chapterSplits[i].trim());
+        }
+      } else {
+        // Single body — store as full draft
+        await updateFile('story/full-draft.md', sourceText);
+      }
+
+      // Set active and navigate
+      await setActiveProject(project.id);
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Rough draft import failed:', err);
+      setIsProcessing(false);
+      alert('Import failed. Please check the console for details.');
+    }
   };
 
   const handleRetell = async () => {
@@ -245,7 +420,7 @@ export default function WizardScreen() {
 
   // Special route handlers
   if (mode === 'decompose') {
-    return <DecomposeMode formData={formData} setFormData={setFormData} onComplete={handleDecompose} />;
+    return <DecomposeMode formData={formData} setFormData={setFormData} onComplete={handleDecompose} progress={decomposeProgress} error={decomposeError} onClearError={() => setDecomposeError(null)} />;
   }
   if (mode === 'retell') {
     return <RetellMode formData={formData} setFormData={setFormData} onComplete={handleRetell} />;
@@ -258,6 +433,9 @@ export default function WizardScreen() {
   }
   if (mode === 'prequel') {
     return <PrequelMode formData={formData} setFormData={setFormData} onComplete={handlePrequel} />;
+  }
+  if (mode === 'roughdraft') {
+    return <RoughDraftMode formData={formData} setFormData={setFormData} onComplete={handleRoughDraft} />;
   }
 
   // Mode selector (if not yet chosen)
@@ -282,7 +460,7 @@ export default function WizardScreen() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
-            {/* Simple Mode */}
+            {/* Quick Start */}
             <Card
               onClick={() => setWizardMode('simple')}
               hoverable
@@ -296,7 +474,7 @@ export default function WizardScreen() {
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>3 questions</div>
             </Card>
 
-            {/* Advanced Mode */}
+            {/* Full Wizard */}
             <Card
               onClick={() => setWizardMode('advanced')}
               hoverable
@@ -308,6 +486,34 @@ export default function WizardScreen() {
                 Deep dive. Genre, tone, format, series, and more.
               </p>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>8 questions</div>
+            </Card>
+
+            {/* Decompose a Story */}
+            <Card
+              onClick={() => navigate('/wizard?mode=decompose')}
+              hoverable
+              style={{ cursor: 'pointer', padding: 28, textAlign: 'center' }}
+            >
+              <div style={{ fontSize: '1.8rem', marginBottom: 12 }}>🔬</div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>Decompose a Story</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                Upload a finished work and reverse-engineer its structure.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>upload a file</div>
+            </Card>
+
+            {/* Upload Rough Draft */}
+            <Card
+              onClick={() => navigate('/wizard?mode=roughdraft')}
+              hoverable
+              style={{ cursor: 'pointer', padding: 28, textAlign: 'center' }}
+            >
+              <div style={{ fontSize: '1.8rem', marginBottom: 12 }}>📝</div>
+              <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>Upload Rough Draft</h2>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+                Import your existing draft and build the project around it.
+              </p>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>upload a file</div>
             </Card>
           </div>
 
@@ -1031,16 +1237,197 @@ function StepSimpleTitleAuthor({ formData, setFormData }) {
 // SPECIAL MODE COMPONENTS
 // ──────────────────────────────────────────────────────────────────────
 
-function DecomposeMode({ formData, setFormData, onComplete }) {
+function DecomposeMode({ formData, setFormData, onComplete, progress, error, onClearError }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const [fileName, setFileName] = useState('');
+  const [dragOver, setDragOver] = useState(false);
 
   const handleComplete = async () => {
     setIsProcessing(true);
     await onComplete();
+    // If we're still mounted (error case), reset processing
+    setIsProcessing(false);
   };
 
+  const readFile = (file) => {
+    setFileName(file.name);
+    const titleFromFile = cleanFilenameToTitle(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      const titleFromText = extractTitleFromText(content);
+      const title = titleFromText || titleFromFile || '';
+      setFormData(prev => ({ ...prev, materialContent: content, title }));
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) readFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) readFile(file);
+  };
+
+  const hasContent = formData.materialContent.trim().length > 0;
+
+  // ── No-LLM error screen ──────────────────────────────────
+  if (error === 'no-llm') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+        padding: 20,
+      }}>
+        <div style={{ width: '100%', maxWidth: 500 }}>
+          <Card style={{ padding: 40, textAlign: 'center' }}>
+            <Settings size={40} style={{ margin: '0 auto 20px', color: 'var(--accent)' }} />
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 12 }}>AI Provider Required</h1>
+            <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: 24, lineHeight: 1.6 }}>
+              Decomposition uses AI to reverse-engineer narrative structure from your manuscript. You need to connect at least one AI provider first.
+            </p>
+            <div style={{
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md, 8px)',
+              padding: '16px 20px',
+              marginBottom: 24,
+              textAlign: 'left',
+              fontSize: '0.85rem',
+              color: 'var(--text-secondary)',
+              lineHeight: 1.7,
+            }}>
+              <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>How to connect:</div>
+              <div>1. Open <strong>Settings</strong> from the menu</div>
+              <div>2. Add an AI provider (Anthropic, OpenAI, Google, etc.)</div>
+              <div>3. Paste your API key and test the connection</div>
+              <div>4. Come back here and retry</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <Button variant="secondary" onClick={() => { onClearError(); }}>
+                Back
+              </Button>
+              <Button variant="primary" onClick={() => navigate('/settings')}>
+                <Settings size={16} style={{ marginRight: 6 }} />
+                Open Settings
+              </Button>
+              <Button variant="secondary" onClick={() => { onClearError(); handleComplete(); }}>
+                Retry
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Processing / progress screen ──────────────────────────
+  if (isProcessing && progress) {
+    const pct = progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+        padding: 20,
+      }}>
+        <div style={{ width: '100%', maxWidth: 500 }}>
+          <Card style={{ padding: 40, textAlign: 'center' }}>
+            <Sparkles size={40} style={{ margin: '0 auto 20px', color: 'var(--accent)' }} />
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 8 }}>Decomposing Story</h1>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 24 }}>
+              {formData.title || 'Your manuscript'}
+            </p>
+
+            {/* Progress bar */}
+            <div style={{
+              background: 'var(--bg-tertiary)',
+              borderRadius: 'var(--radius-md, 8px)',
+              overflow: 'hidden',
+              height: 8,
+              marginBottom: 16,
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${pct}%`,
+                background: 'var(--accent)',
+                borderRadius: 'var(--radius-md, 8px)',
+                transition: 'width 0.5s ease',
+              }} />
+            </div>
+
+            {/* Step label */}
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+              {progress.label}
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Step {progress.completed} of {progress.total}
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Error screen (non-LLM errors) ────────────────────────
+  if (error && error !== 'no-llm') {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--bg-primary)',
+        padding: 20,
+      }}>
+        <div style={{ width: '100%', maxWidth: 500 }}>
+          <Card style={{ padding: 40, textAlign: 'center' }}>
+            <X size={40} style={{ margin: '0 auto 20px', color: 'var(--health-just-started, #ef4444)' }} />
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 12 }}>Decomposition Failed</h1>
+            <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
+              Something went wrong during decomposition.
+            </p>
+            <div style={{
+              background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)',
+              padding: 12,
+              marginBottom: 24,
+              fontSize: '0.8rem',
+              color: 'var(--text-muted)',
+              fontFamily: 'monospace',
+              textAlign: 'left',
+              wordBreak: 'break-word',
+            }}>
+              {error}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <Button variant="secondary" onClick={() => { onClearError(); }}>
+                Back
+              </Button>
+              <Button variant="primary" onClick={() => { onClearError(); handleComplete(); }}>
+                Retry
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Main upload screen ────────────────────────────────────
   return (
     <div style={{
       minHeight: '100vh',
@@ -1055,34 +1442,115 @@ function DecomposeMode({ formData, setFormData, onComplete }) {
           <Upload size={40} style={{ margin: '0 auto 20px', color: 'var(--accent)' }} />
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 12 }}>Decompose a Story</h1>
           <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>
-            Paste or upload an existing story to reverse-engineer its narrative structure.
+            Upload a text file or paste content to reverse-engineer its narrative structure.
           </p>
 
-          <Card style={{ padding: 24, background: 'var(--bg-tertiary)', marginBottom: 24 }}>
-            <textarea
-              placeholder="Paste your story here..."
-              value={formData.materialContent}
-              onChange={(e) => setFormData(prev => ({ ...prev, materialContent: e.target.value }))}
-              style={{
-                width: '100%',
-                height: 200,
-                padding: '12px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                fontFamily: 'var(--font-sans)',
-                resize: 'vertical',
-                outline: 'none',
-              }}
-              onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-              onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-            />
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8 }}>
-              {formData.materialContent.length} characters
-            </div>
-          </Card>
+          {/* File upload zone */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.rtf,.html,.htm,.fountain"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <div
+            onClick={() => !hasContent && fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            style={{
+              border: `2px dashed ${dragOver ? 'var(--accent)' : hasContent ? 'var(--border-success, #4ade80)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-md, 8px)',
+              padding: hasContent ? '16px' : '32px 24px',
+              marginBottom: 24,
+              cursor: hasContent ? 'default' : 'pointer',
+              background: dragOver ? 'rgba(var(--accent-rgb, 255,170,50), 0.05)' : 'var(--bg-tertiary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {hasContent ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                  <FileText size={18} style={{ color: 'var(--accent)' }} />
+                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                    {fileName || 'Pasted content'}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFormData(prev => ({ ...prev, materialContent: '', title: '' }));
+                      setFileName('');
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--text-muted)', padding: 4, display: 'flex',
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {formData.materialContent.length.toLocaleString()} characters
+                  {' · '}
+                  ~{Math.round(formData.materialContent.split(/\s+/).filter(Boolean).length).toLocaleString()} words
+                </div>
+                {/* Show derived title (only when it's been auto-detected, not the default) */}
+                {formData.title && formData.title !== 'Untitled Story' && (
+                  <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginTop: 6 }}>
+                    Title: {formData.title}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div>
+                <Upload size={24} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 6 }}>
+                  Drop a file here or click to browse
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  .txt, .md, .rtf, .html, .fountain
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Or paste manually (collapsible) */}
+          {!hasContent && (
+            <details style={{ marginBottom: 24, textAlign: 'left' }}>
+              <summary style={{
+                fontSize: '0.85rem', color: 'var(--text-muted)', cursor: 'pointer',
+                marginBottom: 12, textAlign: 'center',
+              }}>
+                Or paste text directly
+              </summary>
+              <textarea
+                placeholder="Paste your story here..."
+                value={formData.materialContent}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const title = extractTitleFromText(val);
+                  setFormData(prev => ({ ...prev, materialContent: val, ...(title ? { title } : {}) }));
+                }}
+                style={{
+                  width: '100%',
+                  height: 200,
+                  padding: '12px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.85rem',
+                  fontFamily: 'var(--font-sans)',
+                  resize: 'vertical',
+                  outline: 'none',
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              />
+            </details>
+          )}
 
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => navigate('/hub')}>
@@ -1091,9 +1559,174 @@ function DecomposeMode({ formData, setFormData, onComplete }) {
             <Button
               variant="primary"
               onClick={handleComplete}
-              disabled={!formData.materialContent.trim() || isProcessing}
+              disabled={!hasContent || isProcessing}
             >
-              Decompose
+              {isProcessing ? 'Decomposing...' : 'Decompose'}
+            </Button>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+function RoughDraftMode({ formData, setFormData, onComplete }) {
+  const fileInputRef = useRef(null);
+  const navigate = useNavigate();
+  const [fileName, setFileName] = useState('');
+  const [dragOver, setDragOver] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleComplete = async () => {
+    setIsProcessing(true);
+    await onComplete();
+  };
+
+  const readFile = (file) => {
+    setFileName(file.name);
+    const titleFromFile = cleanFilenameToTitle(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target.result;
+      const titleFromText = extractTitleFromText(content);
+      const title = titleFromText || titleFromFile || '';
+      setFormData(prev => ({ ...prev, materialContent: content, title }));
+    };
+    reader.readAsText(file);
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (file) readFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) readFile(file);
+  };
+
+  const hasContent = formData.materialContent.trim().length > 0;
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-primary)',
+      padding: 20,
+    }}>
+      <div style={{ width: '100%', maxWidth: 600 }}>
+        <Card style={{ padding: 40, textAlign: 'center' }}>
+          <FileText size={40} style={{ margin: '0 auto 20px', color: 'var(--accent)' }} />
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 12 }}>Upload Rough Draft</h1>
+          <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.6 }}>
+            Import your existing draft and the engine will build a project scaffold around it.
+          </p>
+
+          {/* File upload zone */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,.rtf,.html,.htm,.fountain,.docx"
+            onChange={handleFileSelect}
+            style={{ display: 'none' }}
+          />
+
+          <div
+            onClick={() => !hasContent && fileInputRef.current?.click()}
+            onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={handleDrop}
+            style={{
+              border: `2px dashed ${dragOver ? 'var(--accent)' : hasContent ? 'var(--border-success, #4ade80)' : 'var(--border)'}`,
+              borderRadius: 'var(--radius-md, 8px)',
+              padding: hasContent ? '16px' : '32px 24px',
+              marginBottom: 24,
+              cursor: hasContent ? 'default' : 'pointer',
+              background: dragOver ? 'rgba(var(--accent-rgb, 255,170,50), 0.05)' : 'var(--bg-tertiary)',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            {hasContent ? (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}>
+                  <FileText size={18} style={{ color: 'var(--accent)' }} />
+                  <span style={{ fontWeight: 600, fontSize: '0.9rem' }}>{fileName || 'Pasted content'}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFormData(prev => ({ ...prev, materialContent: '', title: '' }));
+                      setFileName('');
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: 'var(--text-muted)', padding: 4, display: 'flex',
+                    }}
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {formData.materialContent.length.toLocaleString()} characters
+                  {' · '}
+                  ~{Math.round(formData.materialContent.split(/\s+/).filter(Boolean).length).toLocaleString()} words
+                </div>
+              </div>
+            ) : (
+              <div>
+                <Upload size={24} style={{ margin: '0 auto 12px', color: 'var(--text-muted)' }} />
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 6 }}>
+                  Drop your draft here or click to browse
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  .txt, .md, .rtf, .html, .fountain
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Title input */}
+          {hasContent && (
+            <div style={{ marginBottom: 24, textAlign: 'left' }}>
+              <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+                Story Title
+              </label>
+              <input
+                type="text"
+                placeholder="Title for your project"
+                value={formData.title || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.9rem',
+                  fontFamily: 'var(--font-sans)',
+                  outline: 'none',
+                }}
+                onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="secondary" onClick={() => navigate('/hub')}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleComplete}
+              disabled={!hasContent || isProcessing}
+            >
+              {isProcessing ? 'Importing...' : 'Import Draft'}
             </Button>
           </div>
         </Card>

@@ -10,6 +10,7 @@
 
 import { buildChapterContext, buildPreFlightContext } from './contextBuilder.js';
 import { removeEmdashes } from '../lib/randomEngine.js';
+import { PROMPTS } from '../lib/promptRegistry.js';
 
 // ─── Pre-Flight Checklist ───────────────────────────────────────────────────
 
@@ -191,18 +192,7 @@ export async function runPostFlight(sendMessage, files, chapterNum) {
   }
 
   // 1. Generate chapter notes (post-flight items)
-  const notesPrompt = `You are analyzing Chapter ${chapterNum} after it was just written. Generate structured post-flight notes covering:
-
-1. **Forward Continuity**: Flag any new details that future chapters must be consistent with (new locations, promises, physical changes, timeline markers).
-2. **Relationship Updates**: Note any relationship changes that occurred (alliances, betrayals, revelations, tensions).
-3. **Thread State**: Mark story threads as: INTRODUCED (new), ADVANCED (progressed), or RESOLVED (closed).
-4. **Character State Snapshot**: Brief note on where each character stands emotionally and physically at the end of this chapter.
-5. **Handoff Note**: What the next chapter needs to pick up or address.
-
-## GOLDEN RULES
-- Never use emdashes. Use commas, periods, semicolons, or parentheses instead.
-
-Format as clean markdown with the five sections above.`;
+  const notesPrompt = PROMPTS.POST_FLIGHT_NOTES.build({ chapterNum });
 
   const notesResult = await sendMessage({
     messages: [
@@ -216,20 +206,7 @@ Format as clean markdown with the five sections above.`;
   const notes = notesResult.success ? removeEmdashes(notesResult.content) : '';
 
   // 2. Generate progressive summary
-  const summaryPrompt = `Generate a structured summary of Chapter ${chapterNum} for use as context in future chapter generation. Follow this exact format:
-
-## Chapter ${chapterNum} Summary (Auto-generated)
-
-**Plot:** [2-3 sentences covering what happened]
-**Characters:** [Who appeared, what changed for them]
-**Relationships:** [Any shifts, revelations, or tensions]
-**World:** [Any new world details introduced]
-**Threads:** [Which threads advanced, which were planted, which resolved]
-**Tone:** [Dominant emotional tone of this chapter]
-
-## GOLDEN RULES
-- Never use emdashes. Use commas, periods, semicolons, or parentheses instead.
-- Keep the summary between 200-500 words.`;
+  const summaryPrompt = PROMPTS.POST_FLIGHT_SUMMARY.build({ chapterNum });
 
   const summaryResult = await sendMessage({
     messages: [
