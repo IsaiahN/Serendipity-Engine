@@ -8,6 +8,7 @@ import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pe
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { PHASES } from '../lib/constants';
+import { activateDemoMode, isDemoActive } from '../services/demoMode';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #818cf8, #f97316)',
@@ -144,6 +145,25 @@ export default function HubScreen() {
             onClick={() => navigate('/wizard')}
           >
             <Plus size={16} /> New Story
+          </Button>
+        </div>
+
+        {/* Demo Mode Button */}
+        <div style={{ padding: '0 16px 12px' }}>
+          <Button
+            variant="ghost"
+            style={{ width: '100%', justifyContent: 'center', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+            onClick={async () => {
+              if (isDemoActive()) return;
+              const store = useProjectStore.getState();
+              const demoProject = await activateDemoMode(store);
+              if (demoProject) {
+                await store.loadProjects();
+                navigate('/workspace');
+              }
+            }}
+          >
+            <BookOpen size={14} style={{ marginRight: 4 }} /> Try Demo Project
           </Button>
         </div>
 

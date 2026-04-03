@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Settings, Search, Keyboard, Palette, ChevronDown, FileText, BookOpen, MessageSquare, Clock, Users, Compass, Edit3, GitCompare } from 'lucide-react';
+import { Settings, Search, Keyboard, Palette, ChevronDown, FileText, BookOpen, MessageSquare, Clock, Users, Compass, Edit3, GitCompare, HelpCircle } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import HealthBar, { getHealthLevel } from './HealthBar';
 
@@ -94,7 +94,7 @@ function SearchModal({ onClose, navigate }) {
   );
 }
 
-export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick, onSettingsClick, onThemeClick }) {
+export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick, onSettingsClick, onThemeClick, onTourClick }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
@@ -214,6 +214,9 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
       </button>
       <button onClick={onThemeClick || (() => {})} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Theme">
         <Palette size={16} />
+      </button>
+      <button onClick={onTourClick || (() => {})} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Start product tour" data-tour="settings-btn">
+        <HelpCircle size={16} />
       </button>
       <button onClick={onSettingsClick || (() => navigate('/settings'))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Settings (Ctrl+,)">
         <Settings size={16} />

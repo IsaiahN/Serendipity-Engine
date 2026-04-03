@@ -234,6 +234,13 @@ export const useProjectStore = create((set, get) => ({
       await db.projects.update(projectId, { updatedAt: Date.now() });
     } catch (err) {
       console.warn('Failed to update file:', err);
+      // Queue for background sync if the save failed (e.g., quota exceeded, corruption)
+      try {
+        const { queueSync } = await import('../lib/serviceWorker');
+        await queueSync({ type: 'file-save', projectId, path, content });
+      } catch (syncErr) {
+        // Sync queue unavailable; data is still in local state
+      }
     }
   },
 

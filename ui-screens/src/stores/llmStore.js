@@ -3,6 +3,7 @@
  *
  * Manages connected providers, model assignments, and API communication.
  * Provider Router: routes requests to the correct provider based on role assignment.
+ * Supports streaming, role-based routing, usage tracking, and retry with exponential backoff.
  */
 import { create } from 'zustand';
 import { storeApiKey, getApiKey, removeApiKey, listProviders } from '../lib/db';
@@ -20,6 +21,53 @@ const PROVIDER_ENDPOINTS = {
   custom: null, // user-provided
 };
 
+/**
+ * Lazy load settings store to avoid circular dependencies
+ */
+const getSettings = async () => {
+  try {
+    const { useSettingsStore } = await import('../stores/settingsStore');
+    return useSettingsStore.getState();
+  } catch (err) {
+    console.warn('Could not load settings store:', err);
+    return { roleAssignment: 'simple', roles: {}, taskOverrides: {} };
+  }
+};
+
+/**
+ * Retry helper with exponential backoff
+ * Max 3 retries: 1s, 2s, 4s
+ * Only retry on 429 (rate limit) or 5xx errors
+ */
+const retryWithBackoff = async (fetchFn, maxRetries = 3) => {
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetchFn();
+      // Don't retry on 4xx errors (except 429)
+      if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+        return response;
+      }
+      // Retry on 429 or 5xx
+      if (response.ok || (response.status !== 429 && response.status < 500)) {
+        return response;
+      }
+      lastError = response;
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+        await new Promise(r => setTimeout(r, backoffMs));
+      }
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        await new Promise(r => setTimeout(r, backoffMs));
+      }
+    }
+  }
+  throw lastError;
+};
+
 export const useLlmStore = create((set, get) => ({
   // Connected providers with their config
   providers: {},
@@ -29,6 +77,8 @@ export const useLlmStore = create((set, get) => ({
   loading: false,
   // Last error
   lastError: null,
+  // Usage history: { timestamp, provider, model, role, inputTokens, outputTokens }
+  usageHistory: [],
 
   /**
    * Load saved providers from IndexedDB
@@ -229,19 +279,58 @@ export const useLlmStore = create((set, get) => ({
   },
 
   /**
+   * Determine which provider to use based on role assignment settings
+   */
+  selectProvider: async (role = 'generator', task = null) => {
+    const { providers, activeProviders } = get();
+    const settings = await getSettings();
+
+    if (activeProviders.length === 0) {
+      return null;
+    }
+
+    if (settings.roleAssignment === 'simple') {
+      // Simple mode: use first active provider
+      return activeProviders[0];
+    }
+
+    if (settings.roleAssignment === 'granular' && task && settings.taskOverrides?.[task]) {
+      // Granular mode: check task-specific overrides first
+      const override = settings.taskOverrides[task];
+      if (override && activeProviders.includes(override)) {
+        return override;
+      }
+    }
+
+    if (settings.roleAssignment === 'standard' || settings.roleAssignment === 'granular') {
+      // Standard/Granular mode: look up role assignment
+      const roleConfig = settings.roles?.[role];
+      if (roleConfig?.provider && activeProviders.includes(roleConfig.provider)) {
+        return roleConfig.provider;
+      }
+    }
+
+    // Fallback: use first active provider
+    return activeProviders[0];
+  },
+
+  /**
    * Send a message to the appropriate provider
    * Routes based on role assignment settings
    */
-  sendMessage: async ({ messages, role = 'generator', maxTokens = 4096, stream = false }) => {
+  sendMessage: async ({ messages, role = 'generator', maxTokens = 4096, stream = false, task = null }) => {
     const { providers, activeProviders } = get();
 
     if (activeProviders.length === 0) {
       return { success: false, error: 'No connected providers. Please add an AI model in Settings.' };
     }
 
-    // For now, use the first active provider
-    // TODO: Implement role-based routing from settings store
-    const providerKey = activeProviders[0];
+    // Use role-based routing to select provider
+    const providerKey = await get().selectProvider(role, task);
+    if (!providerKey) {
+      return { success: false, error: 'No suitable provider found for role: ' + role };
+    }
+
     const provider = providers[providerKey];
     const apiKey = await getApiKey(providerKey);
 
@@ -266,16 +355,18 @@ export const useLlmStore = create((set, get) => ({
           };
           if (systemMsg) body.system = systemMsg.content;
 
-          response = await fetch(PROVIDER_ENDPOINTS.anthropic, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': apiKey,
-              'anthropic-version': '2023-06-01',
-              'anthropic-dangerous-direct-browser-access': 'true',
-            },
-            body: JSON.stringify(body),
-          });
+          response = await retryWithBackoff(() =>
+            fetch(PROVIDER_ENDPOINTS.anthropic, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+              },
+              body: JSON.stringify(body),
+            })
+          );
 
           if (!response.ok) {
             const err = await response.json().catch(() => ({}));
@@ -285,6 +376,24 @@ export const useLlmStore = create((set, get) => ({
           if (stream) return { success: true, stream: response.body, provider: providerKey };
 
           const data = await response.json();
+
+          // Track usage
+          if (data.usage) {
+            set(state => ({
+              usageHistory: [
+                ...state.usageHistory,
+                {
+                  timestamp: Date.now(),
+                  provider: providerKey,
+                  model: data.model || provider.model,
+                  role,
+                  inputTokens: data.usage.input_tokens || 0,
+                  outputTokens: data.usage.output_tokens || 0,
+                },
+              ],
+            }));
+          }
+
           return {
             success: true,
             content: data.content?.[0]?.text || '',
@@ -298,19 +407,21 @@ export const useLlmStore = create((set, get) => ({
         case 'openrouter':
         case 'custom': {
           const url = provider.baseUrl || PROVIDER_ENDPOINTS[providerKey];
-          response = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
-            body: JSON.stringify({
-              model: provider.model || 'gpt-4o',
-              max_tokens: maxTokens,
-              messages,
-              stream,
-            }),
-          });
+          response = await retryWithBackoff(() =>
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model: provider.model || 'gpt-4o',
+                max_tokens: maxTokens,
+                messages,
+                stream,
+              }),
+            })
+          );
 
           if (!response.ok) {
             const err = await response.json().catch(() => ({}));
@@ -320,6 +431,24 @@ export const useLlmStore = create((set, get) => ({
           if (stream) return { success: true, stream: response.body, provider: providerKey };
 
           const data = await response.json();
+
+          // Track usage
+          if (data.usage) {
+            set(state => ({
+              usageHistory: [
+                ...state.usageHistory,
+                {
+                  timestamp: Date.now(),
+                  provider: providerKey,
+                  model: data.model || provider.model,
+                  role,
+                  inputTokens: data.usage.prompt_tokens || 0,
+                  outputTokens: data.usage.completion_tokens || 0,
+                },
+              ],
+            }));
+          }
+
           return {
             success: true,
             content: data.choices?.[0]?.message?.content || '',
@@ -349,13 +478,16 @@ export const useLlmStore = create((set, get) => ({
             body.systemInstruction = { parts: [{ text: systemInstruction.content }] };
           }
 
-          response = await fetch(
-            `${PROVIDER_ENDPOINTS.google}/${model}:generateContent?key=${apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body),
-            }
+          // Google doesn't support streaming, always use non-streaming
+          response = await retryWithBackoff(() =>
+            fetch(
+              `${PROVIDER_ENDPOINTS.google}/${model}:generateContent?key=${apiKey}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+              }
+            )
           );
 
           if (!response.ok) {
@@ -364,6 +496,24 @@ export const useLlmStore = create((set, get) => ({
           }
 
           const data = await response.json();
+
+          // Track usage
+          if (data.usageMetadata) {
+            set(state => ({
+              usageHistory: [
+                ...state.usageHistory,
+                {
+                  timestamp: Date.now(),
+                  provider: providerKey,
+                  model,
+                  role,
+                  inputTokens: data.usageMetadata.promptTokenCount || 0,
+                  outputTokens: data.usageMetadata.candidatesTokenCount || 0,
+                },
+              ],
+            }));
+          }
+
           return {
             success: true,
             content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
@@ -374,19 +524,37 @@ export const useLlmStore = create((set, get) => ({
         }
 
         case 'ollama': {
-          response = await fetch(PROVIDER_ENDPOINTS.ollama, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: provider.model || 'llama3',
-              messages,
-              stream: false,
-            }),
-          });
+          response = await retryWithBackoff(() =>
+            fetch(PROVIDER_ENDPOINTS.ollama, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: provider.model || 'llama3',
+                messages,
+                stream: false,
+              }),
+            })
+          );
 
           if (!response.ok) throw new Error(`Ollama HTTP ${response.status}`);
 
           const data = await response.json();
+
+          // Ollama doesn't provide standard usage metrics, track model only
+          set(state => ({
+            usageHistory: [
+              ...state.usageHistory,
+              {
+                timestamp: Date.now(),
+                provider: providerKey,
+                model: provider.model || 'llama3',
+                role,
+                inputTokens: 0,
+                outputTokens: 0,
+              },
+            ],
+          }));
+
           return {
             success: true,
             content: data.message?.content || '',
@@ -401,6 +569,286 @@ export const useLlmStore = create((set, get) => ({
     } catch (err) {
       return { success: false, error: err.message };
     }
+  },
+
+  /**
+   * Send a message with streaming support
+   * Returns an async generator that yields text chunks
+   */
+  sendMessageStreaming: async function* ({ messages, role = 'generator', maxTokens = 4096, task = null }) {
+    const { providers, activeProviders } = get();
+
+    if (activeProviders.length === 0) {
+      throw new Error('No connected providers. Please add an AI model in Settings.');
+    }
+
+    const providerKey = await get().selectProvider(role, task);
+    if (!providerKey) {
+      throw new Error('No suitable provider found for role: ' + role);
+    }
+
+    const provider = providers[providerKey];
+    const apiKey = await getApiKey(providerKey);
+
+    if (!apiKey) {
+      throw new Error('API key not found. Please reconnect provider.');
+    }
+
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+
+    try {
+      let response;
+
+      switch (providerKey) {
+        case 'anthropic': {
+          const systemMsg = messages.find(m => m.role === 'system');
+          const userMessages = messages.filter(m => m.role !== 'system');
+
+          const body = {
+            model: provider.model || 'claude-sonnet-4-5-20250514',
+            max_tokens: maxTokens,
+            messages: userMessages,
+            stream: true,
+          };
+          if (systemMsg) body.system = systemMsg.content;
+
+          response = await retryWithBackoff(() =>
+            fetch(PROVIDER_ENDPOINTS.anthropic, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true',
+              },
+              body: JSON.stringify(body),
+            })
+          );
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error?.message || `HTTP ${response.status}`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = JSON.parse(line.slice(6));
+                  if (data.type === 'content_block_delta' && data.delta?.type === 'text_delta') {
+                    yield data.delta.text;
+                  } else if (data.type === 'message_delta' && data.usage) {
+                    totalInputTokens = data.usage.input_tokens || 0;
+                    totalOutputTokens = data.usage.output_tokens || 0;
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+
+          // Track usage after streaming completes
+          if (totalInputTokens > 0 || totalOutputTokens > 0) {
+            set(state => ({
+              usageHistory: [
+                ...state.usageHistory,
+                {
+                  timestamp: Date.now(),
+                  provider: providerKey,
+                  model: provider.model,
+                  role,
+                  inputTokens: totalInputTokens,
+                  outputTokens: totalOutputTokens,
+                },
+              ],
+            }));
+          }
+          break;
+        }
+
+        case 'openai':
+        case 'openrouter':
+        case 'custom': {
+          const url = provider.baseUrl || PROVIDER_ENDPOINTS[providerKey];
+          response = await retryWithBackoff(() =>
+            fetch(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                model: provider.model || 'gpt-4o',
+                max_tokens: maxTokens,
+                messages,
+                stream: true,
+              }),
+            })
+          );
+
+          if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.error?.message || `HTTP ${response.status}`);
+          }
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const dataStr = line.slice(6);
+                  if (dataStr === '[DONE]') continue;
+                  const data = JSON.parse(dataStr);
+                  if (data.choices?.[0]?.delta?.content) {
+                    yield data.choices[0].delta.content;
+                  }
+                  // Capture usage from final chunk if present
+                  if (data.usage) {
+                    totalInputTokens = data.usage.prompt_tokens || 0;
+                    totalOutputTokens = data.usage.completion_tokens || 0;
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+
+          // Track usage after streaming completes
+          if (totalInputTokens > 0 || totalOutputTokens > 0) {
+            set(state => ({
+              usageHistory: [
+                ...state.usageHistory,
+                {
+                  timestamp: Date.now(),
+                  provider: providerKey,
+                  model: provider.model,
+                  role,
+                  inputTokens: totalInputTokens,
+                  outputTokens: totalOutputTokens,
+                },
+              ],
+            }));
+          }
+          break;
+        }
+
+        case 'google': {
+          // Google doesn't support streaming, fall back to non-streaming
+          const result = await get().sendMessage({ messages, role, maxTokens, task });
+          if (result.success) {
+            yield result.content;
+          } else {
+            throw new Error(result.error);
+          }
+          break;
+        }
+
+        case 'ollama': {
+          response = await retryWithBackoff(() =>
+            fetch(PROVIDER_ENDPOINTS.ollama, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                model: provider.model || 'llama3',
+                messages,
+                stream: true,
+              }),
+            })
+          );
+
+          if (!response.ok) throw new Error(`Ollama HTTP ${response.status}`);
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunk = decoder.decode(value, { stream: true });
+              const lines = chunk.split('\n');
+
+              for (const line of lines) {
+                if (line.trim()) {
+                  const data = JSON.parse(line);
+                  if (data.message?.content) {
+                    yield data.message.content;
+                  }
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+
+          // Track Ollama usage (no token counts available)
+          set(state => ({
+            usageHistory: [
+              ...state.usageHistory,
+              {
+                timestamp: Date.now(),
+                provider: providerKey,
+                model: provider.model || 'llama3',
+                role,
+                inputTokens: 0,
+                outputTokens: 0,
+              },
+            ],
+          }));
+          break;
+        }
+
+        default:
+          throw new Error('Unknown provider');
+      }
+    } catch (err) {
+      throw err;
+    }
+  },
+
+  /**
+   * Get a summary of usage by provider
+   */
+  getUsageSummary: () => {
+    const { usageHistory } = get();
+    const summary = {};
+
+    for (const entry of usageHistory) {
+      if (!summary[entry.provider]) {
+        summary[entry.provider] = {
+          provider: entry.provider,
+          totalInputTokens: 0,
+          totalOutputTokens: 0,
+          callCount: 0,
+        };
+      }
+      summary[entry.provider].totalInputTokens += entry.inputTokens || 0;
+      summary[entry.provider].totalOutputTokens += entry.outputTokens || 0;
+      summary[entry.provider].callCount += 1;
+    }
+
+    return Object.values(summary);
   },
 
   /**

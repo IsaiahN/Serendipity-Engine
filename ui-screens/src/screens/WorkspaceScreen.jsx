@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
+import ProductTour from '../components/ProductTour';
 import PhaseProgress, { phases, allPrereqsComplete, overallProgress, currentActivePhase } from '../components/PhaseProgress';
 import CastRoster from '../components/CastRoster';
 import fileContents from '../data/fileData';
@@ -18,6 +19,7 @@ import {
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useLlmStore } from '../stores/llmStore';
+import { useTTS } from '../hooks/useTTS';
 import { removeEmdashes } from '../lib/randomEngine';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
@@ -100,17 +102,19 @@ const fileTree = [
   ]},
 ];
 
-const healthDimensions = [
-  { name: 'Author Depth', rating: 5, phase: 1, tip: 'Strong author identity established. Your voice and intent are clear.' },
-  { name: 'Narrator Clarity', rating: 4, phase: 2, tip: 'Perspective and voice are well-defined. Minor refinements could strengthen tense consistency.' },
-  { name: 'World Integrity', rating: 3, phase: 3, flag: 'Story Deaths audit: 2 unresolved', tip: 'World rules have gaps. Run the Story Deaths audit to check for structural weaknesses in your world-building.' },
-  { name: 'Character Depth', rating: 2, phase: 4, flag: 'Two characters share same wound', tip: 'Characters need more differentiation. Revisit wounds, flaws, and motivations to ensure each character is distinct.' },
-  { name: 'Relationship Arch.', rating: 3, phase: 5, tip: 'Relationship dynamics are sketched but could be deepened. Consider power shifts and secret dependencies.' },
-  { name: 'Story Structure', rating: 4, phase: 6, tip: 'Narrative arc is solid. Check that your story death is properly guarded against.' },
-  { name: 'Theoretical Alignment', rating: 3, phase: 7, tip: 'Run the Quality Control phase to verify all structural elements are consistent and aligned.' },
-  { name: 'Voice Consistency', rating: 4, phase: 2, tip: 'Narrative voice is mostly consistent. Watch for register shifts between action and reflection scenes.' },
-  { name: 'Conflict Depth', rating: 3, phase: 6, tip: 'Core conflict is present but could use more layering. Consider internal vs. external tension balance.' },
-  { name: 'Theme Resonance', rating: 5, phase: 1, tip: 'Themes are deeply woven into the story. Strong resonance across characters and plot.' },
+// Health dimensions are now computed dynamically — see useHealthDimensions() in the workspace component
+// Fallback static data used only until the store hydrates
+const defaultHealthDimensions = [
+  { name: 'Narrative Arc', key: 'narrativeArc', phase: 6, tip: 'Measures outline quality and story structure.' },
+  { name: 'Character Depth', key: 'characterDepth', phase: 4, tip: 'Character file completeness and differentiation.' },
+  { name: 'World Building', key: 'worldBuilding', phase: 3, tip: 'World-building detail and consistency.' },
+  { name: 'Dialogue Quality', key: 'dialogueQuality', phase: 8, tip: 'Dialogue presence, variety, and naturalism.' },
+  { name: 'Pacing', key: 'pacing', phase: 8, tip: 'Chapter length consistency and act structure.' },
+  { name: 'Thematic Coherence', key: 'thematicCoherence', phase: 1, tip: 'Theme consistency across the project.' },
+  { name: 'Prose Quality', key: 'proseQuality', phase: 8, tip: 'Vocabulary diversity and sentence variety.' },
+  { name: 'Emotional Resonance', key: 'emotionalResonance', phase: 8, tip: 'Emotional language density in chapters.' },
+  { name: 'Plot Consistency', key: 'plotConsistency', phase: 7, tip: 'Character and event continuity across chapters.' },
+  { name: 'Reader Engagement', key: 'readerEngagement', phase: 8, tip: 'Hooks, tension, and cliffhangers.' },
 ];
 
 /* ─── Center Stage Content ─── */
@@ -362,6 +366,292 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── Chapter Execution Mode (Phase 8) ─── */
+function ChapterExecutionMode() {
+  const [chapterNum, setChapterNum] = useState(1);
+  const [stage, setStage] = useState('idle'); // idle | preflight | generating | postflight | complete | error
+  const [preflight, setPreflight] = useState(null);
+  const [postflight, setPostflight] = useState(null);
+  const [generatedContent, setGeneratedContent] = useState('');
+  const [error, setError] = useState(null);
+  const [userNotes, setUserNotes] = useState('');
+  const [progressDetail, setProgressDetail] = useState('');
+  const [duration, setDuration] = useState(null);
+
+  const files = useProjectStore(s => s.files);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const logSession = useProjectStore(s => s.logSession);
+  const sendMessage = useLlmStore.getState().sendMessage;
+
+  // Detect next chapter number from existing files
+  useEffect(() => {
+    const existingChapters = Object.keys(files || {})
+      .filter(f => f.match(/^story\/chapter-\d+\.md$/))
+      .map(f => parseInt(f.match(/chapter-(\d+)/)[1]))
+      .sort((a, b) => a - b);
+    setChapterNum(existingChapters.length > 0 ? existingChapters[existingChapters.length - 1] + 1 : 1);
+  }, [files]);
+
+  const handleGenerate = async () => {
+    setStage('preflight');
+    setError(null);
+    setPreflight(null);
+    setPostflight(null);
+    setGeneratedContent('');
+
+    try {
+      const { runChapterPipeline } = await import('../services/chapterPipeline.js');
+      const result = await runChapterPipeline({
+        sendMessage,
+        files,
+        chapterNum,
+        updateFile,
+        logSession,
+        userNotes,
+        onProgress: ({ stage: s, detail }) => {
+          setStage(s === 'complete' ? 'complete' : s === 'error' ? 'error' : s);
+          setProgressDetail(detail);
+        },
+      });
+
+      if (result.success) {
+        setPreflight(result.preflight);
+        setPostflight(result.postflight);
+        setGeneratedContent(result.chapter);
+        setDuration(result.duration);
+        setStage('complete');
+      } else {
+        setError(result.error);
+        setPreflight(result.preflight);
+        setStage('error');
+      }
+    } catch (err) {
+      setError(err.message);
+      setStage('error');
+    }
+  };
+
+  const existingChapters = Object.keys(files || {})
+    .filter(f => f.match(/^story\/chapter-\d+\.md$/))
+    .map(f => parseInt(f.match(/chapter-(\d+)/)[1]))
+    .sort((a, b) => a - b);
+
+  const checklistIcon = (status) => {
+    if (status === 'pass') return <span style={{ color: '#4ade80' }}>&#10003;</span>;
+    if (status === 'warning') return <span style={{ color: '#fbbf24' }}>&#9888;</span>;
+    return <span style={{ color: '#ef4444' }}>&#10007;</span>;
+  };
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 700, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Chapter Execution</h2>
+        <Badge variant="accent">Phase 8</Badge>
+      </div>
+
+      {/* Existing chapters */}
+      {existingChapters.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Written Chapters
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {existingChapters.map(n => (
+              <Badge key={n} variant="accent" style={{ fontSize: '0.75rem' }}>Ch. {n}</Badge>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Chapter selector */}
+      <div style={{
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+          <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>Generate Chapter</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button onClick={() => setChapterNum(Math.max(1, chapterNum - 1))} style={{
+              width: 28, height: 28, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+              background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>-</button>
+            <span style={{ fontSize: '1.4rem', fontWeight: 700, minWidth: 40, textAlign: 'center', color: 'var(--accent)' }}>{chapterNum}</span>
+            <button onClick={() => setChapterNum(chapterNum + 1)} style={{
+              width: 28, height: 28, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)',
+              background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>+</button>
+          </div>
+          {files[`story/chapter-${chapterNum}.md`]?.trim() && (
+            <Badge style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: '0.65rem' }}>
+              Already exists (will overwrite)
+            </Badge>
+          )}
+        </div>
+
+        {/* Author notes */}
+        <textarea
+          value={userNotes}
+          onChange={e => setUserNotes(e.target.value)}
+          placeholder="Optional notes for this chapter (e.g., 'Focus on the confrontation scene', 'Keep it under 3000 words', 'Start with Elena at the bridge')..."
+          style={{
+            width: '100%', minHeight: 80, padding: 12, boxSizing: 'border-box',
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+            fontFamily: 'var(--font-sans)', fontSize: '0.85rem', resize: 'vertical',
+          }}
+        />
+      </div>
+
+      {/* Generate button */}
+      {stage === 'idle' && (
+        <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem' }}>
+          <Sparkles size={16} style={{ marginRight: 8 }} />
+          Generate Chapter {chapterNum}
+        </Button>
+      )}
+
+      {/* Progress states */}
+      {(stage === 'preflight' || stage === 'generating' || stage === 'postflight') && (
+        <div style={{
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', padding: 24, textAlign: 'center',
+        }}>
+          <div style={{ animation: 'pulse 1.5s ease-in-out infinite', marginBottom: 12 }}>
+            {stage === 'preflight' && <Search size={32} style={{ color: 'var(--accent)' }} />}
+            {stage === 'generating' && <Sparkles size={32} style={{ color: 'var(--accent)' }} />}
+            {stage === 'postflight' && <FileText size={32} style={{ color: '#4ade80' }} />}
+          </div>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 8 }}>
+            {stage === 'preflight' && 'Running Pre-Flight Checklist...'}
+            {stage === 'generating' && `Generating Chapter ${chapterNum}...`}
+            {stage === 'postflight' && 'Running Post-Flight Analysis...'}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{progressDetail}</div>
+
+          {/* Pipeline steps indicator */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 20 }}>
+            {['Pre-flight', 'Generate', 'Post-flight'].map((step, i) => {
+              const stepStages = ['preflight', 'generating', 'postflight'];
+              const isActive = stepStages[i] === stage;
+              const isDone = stepStages.indexOf(stage) > i;
+              return (
+                <div key={step} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%', fontSize: '0.6rem',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: isDone ? '#4ade80' : isActive ? 'var(--accent)' : 'var(--bg-tertiary)',
+                    color: isDone || isActive ? '#000' : 'var(--text-muted)',
+                    fontWeight: 700,
+                  }}>
+                    {isDone ? '✓' : i + 1}
+                  </div>
+                  <span style={{ fontSize: '0.75rem', color: isActive ? 'var(--accent)' : isDone ? '#4ade80' : 'var(--text-muted)' }}>
+                    {step}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Error state */}
+      {stage === 'error' && (
+        <div style={{
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <AlertTriangle size={18} color="#ef4444" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#ef4444' }}>Generation Failed</span>
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#f87171', marginBottom: 12 }}>{error}</div>
+          <Button variant="ghost" onClick={() => { setStage('idle'); setError(null); }}>Try Again</Button>
+        </div>
+      )}
+
+      {/* Pre-flight results */}
+      {preflight && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', padding: 16, marginTop: 16,
+        }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10 }}>
+            Pre-Flight Checklist
+          </div>
+          {preflight.items.map((item, i) => (
+            <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6, fontSize: '0.82rem' }}>
+              <span style={{ flexShrink: 0, marginTop: 1 }}>{checklistIcon(item.status)}</span>
+              <div>
+                <span style={{ fontWeight: 600, marginRight: 6 }}>{item.label}:</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{item.detail}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Completion state */}
+      {stage === 'complete' && generatedContent && (
+        <div style={{ marginTop: 16 }}>
+          {/* Post-flight summary */}
+          {postflight?.notes && (
+            <div style={{
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16,
+            }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10 }}>
+                Post-Flight Notes
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-wrap' }}>
+                {postflight.notes.slice(0, 800)}{postflight.notes.length > 800 ? '...' : ''}
+              </div>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+            <Badge style={{ background: 'rgba(74,222,128,0.1)', color: '#4ade80' }}>
+              {generatedContent.split(/\s+/).length} words
+            </Badge>
+            {duration && (
+              <Badge style={{ background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                {Math.round(duration / 1000)}s
+              </Badge>
+            )}
+            <Badge variant="accent">Chapter {chapterNum} saved</Badge>
+          </div>
+
+          {/* Preview */}
+          <div style={{
+            background: 'var(--editor-bg, #0d0f14)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', padding: 20, maxHeight: 400, overflowY: 'auto',
+          }}>
+            <div style={{
+              fontSize: '0.85rem', color: 'var(--editor-text, #c9d1d9)',
+              lineHeight: 1.8, whiteSpace: 'pre-wrap', fontFamily: 'var(--font-sans)',
+            }}>
+              {generatedContent.slice(0, 3000)}{generatedContent.length > 3000 ? '\n\n[Preview truncated. Open in Editor to see full chapter.]' : ''}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+            <Button variant="primary" onClick={() => { setChapterNum(chapterNum + 1); setStage('idle'); setGeneratedContent(''); setUserNotes(''); }}>
+              Next Chapter ({chapterNum + 1}) →
+            </Button>
+            <Button variant="ghost" onClick={() => { setStage('idle'); setGeneratedContent(''); }}>
+              Regenerate
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -843,6 +1133,7 @@ function ReaderMode({ file, onEdit, editedContent }) {
     );
   }
 
+  const tts = useTTS();
   const fc = fileContents[file] || defaultFileContent(file || 'chapter-1.md');
   const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
@@ -874,7 +1165,43 @@ function ReaderMode({ file, onEdit, editedContent }) {
           >
             <Pencil size={12} /> Edit
           </button>
-          <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Volume2 size={16} /></button>
+          <button
+            onClick={() => {
+              if (tts.isSpeaking && !tts.isPaused) {
+                tts.pause();
+              } else if (tts.isPaused) {
+                tts.resume();
+              } else {
+                const text = displayContent.rawText || displayContent.content.join('\n\n');
+                tts.speak(text);
+              }
+            }}
+            style={{
+              background: tts.isSpeaking ? 'var(--accent-glow)' : 'none',
+              border: tts.isSpeaking ? '1px solid var(--accent)' : 'none',
+              color: tts.isSpeaking ? 'var(--accent)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              borderRadius: 'var(--radius-sm)',
+              padding: '2px 6px',
+              display: 'flex', alignItems: 'center', gap: 4,
+              fontSize: '0.7rem',
+            }}
+            title={tts.isSpeaking ? (tts.isPaused ? 'Resume reading' : 'Pause reading') : 'Read aloud'}
+          >
+            <Volume2 size={16} />
+            {tts.isSpeaking && (
+              <span>{tts.isPaused ? 'Paused' : 'Reading...'}</span>
+            )}
+          </button>
+          {tts.isSpeaking && (
+            <button
+              onClick={() => tts.stop()}
+              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem' }}
+              title="Stop reading"
+            >
+              ■ Stop
+            </button>
+          )}
           <button style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><Settings size={16} /></button>
         </div>
       </div>
@@ -4983,26 +5310,82 @@ function ModalOverlay({ children, onClose }) {
 
 /* ─── Export Modal ─── */
 function ExportModal({ onClose }) {
+  const [selectedFormat, setSelectedFormat] = useState(0);
+  const [selectedScope, setSelectedScope] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const projectFiles = useProjectStore(s => s.files);
+  const activeProject = useProjectStore(s => s.activeProject);
+
   const formats = [
-    { label: 'Markdown (.md)', desc: 'Plain text with formatting — works everywhere', icon: FileText },
-    { label: 'Word Document (.docx)', desc: 'Microsoft Word format with styles', icon: FileText },
-    { label: 'PDF (.pdf)', desc: 'Print-ready document with layout', icon: FileText },
-    { label: 'JSON Bundle', desc: 'Full project data for backup or migration', icon: Download },
+    { label: 'Markdown (.md)', desc: 'Plain text with formatting — works everywhere', icon: FileText, key: 'markdown' },
+    { label: 'Word Document (.docx)', desc: 'Microsoft Word format with styles', icon: FileText, key: 'docx' },
+    { label: 'PDF (.pdf)', desc: 'Print-ready document with layout', icon: FileText, key: 'pdf' },
+    { label: 'EPUB (.epub)', desc: 'E-reader format for Kindle, Apple Books, etc.', icon: BookOpen, key: 'epub' },
+    { label: 'Fountain (.fountain)', desc: 'Screenplay format for Final Draft, Highland', icon: FileText, key: 'fountain' },
+    { label: 'JSON Bundle', desc: 'Full project data for backup or migration', icon: Download, key: 'json' },
+    { label: 'ZIP Archive', desc: 'All project files in a compressed folder', icon: Download, key: 'zip' },
   ];
   const scopes = ['Full Project', 'Current Chapter', 'Characters Only', 'World Building Only'];
+
+  const handleExport = async () => {
+    if (!activeProject || !projectFiles) return;
+    setExporting(true);
+    try {
+      const title = activeProject.title || 'Untitled';
+      const fmt = formats[selectedFormat].key;
+      const { downloadFile } = await import('../services/exportEngine.js');
+
+      if (fmt === 'markdown') {
+        const { exportAsMarkdown } = await import('../services/exportEngine.js');
+        const md = exportAsMarkdown(projectFiles, title);
+        downloadFile(md, `${title}.md`, 'text/markdown');
+      } else if (fmt === 'docx') {
+        const { exportAsDocx } = await import('../services/exportEngine.js');
+        const blob = await exportAsDocx(projectFiles, title);
+        downloadFile(blob, `${title}.docx`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      } else if (fmt === 'pdf') {
+        const { exportAsPdf } = await import('../services/exportEngine.js');
+        const blob = await exportAsPdf(projectFiles, title);
+        downloadFile(blob, `${title}.pdf`, 'application/pdf');
+      } else if (fmt === 'epub') {
+        const { exportAsEpub } = await import('../services/exportEngine.js');
+        const blob = await exportAsEpub(projectFiles, title);
+        downloadFile(blob, `${title}.epub`, 'application/epub+zip');
+      } else if (fmt === 'fountain') {
+        const { exportAsFountain } = await import('../services/exportEngine.js');
+        const text = exportAsFountain(projectFiles, title);
+        downloadFile(text, `${title}.fountain`, 'text/plain');
+      } else if (fmt === 'json') {
+        const { exportAsJSON } = await import('../services/exportEngine.js');
+        const json = exportAsJSON(activeProject, projectFiles);
+        downloadFile(json, `${title}.json`, 'application/json');
+      } else if (fmt === 'zip') {
+        const { exportAsZip } = await import('../services/exportEngine.js');
+        const blob = await exportAsZip(projectFiles, title);
+        downloadFile(blob, `${title}.zip`, 'application/zip');
+      }
+      onClose();
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <ModalOverlay onClose={onClose}>
       <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Export Project</h3>
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Format</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, maxHeight: 280, overflowY: 'auto' }}>
         {formats.map((f, i) => (
-          <div key={i} style={{
+          <div key={i} onClick={() => setSelectedFormat(i)} style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-            background: i === 0 ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
-            border: i === 0 ? '1px solid var(--accent)' : '1px solid var(--border)',
+            background: selectedFormat === i ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
+            border: selectedFormat === i ? '1px solid var(--accent)' : '1px solid var(--border)',
             borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+            transition: 'var(--transition)',
           }}>
-            <f.icon size={16} color={i === 0 ? 'var(--accent)' : 'var(--text-muted)'} />
+            <f.icon size={16} color={selectedFormat === i ? 'var(--accent)' : 'var(--text-muted)'} />
             <div>
               <div style={{ fontSize: '0.85rem', fontWeight: 500 }}>{f.label}</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>{f.desc}</div>
@@ -5013,12 +5396,14 @@ function ExportModal({ onClose }) {
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>Scope</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 20 }}>
         {scopes.map((s, i) => (
-          <Badge key={s} variant={i === 0 ? 'accent' : 'muted'} style={{ cursor: 'pointer', padding: '4px 10px' }}>{s}</Badge>
+          <Badge key={s} variant={selectedScope === i ? 'accent' : 'muted'} style={{ cursor: 'pointer', padding: '4px 10px' }} onClick={() => setSelectedScope(i)}>{s}</Badge>
         ))}
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="primary"><Download size={14} style={{ marginRight: 4 }} /> Export</Button>
+        <Button variant="primary" onClick={handleExport} disabled={exporting}>
+          <Download size={14} style={{ marginRight: 4 }} /> {exporting ? 'Exporting...' : 'Export'}
+        </Button>
       </div>
     </ModalOverlay>
   );
@@ -5200,6 +5585,7 @@ export default function WorkspaceScreen() {
 
   // Hydrate phaseAnswers from active project in the store (if available)
   const activeProject = useProjectStore(s => s.activeProject);
+  const tourCompleted = useSettingsStore(s => s.tourCompleted);
   useEffect(() => {
     if (activeProject?.phaseAnswers && Object.keys(activeProject.phaseAnswers).length > 0) {
       setPhaseAnswers(prev => {
@@ -5221,6 +5607,42 @@ export default function WorkspaceScreen() {
   });
   // Derive current active phase = first incomplete non-gated phase
   const derivedCurrentPhase = currentActivePhase(phasePcts);
+
+  // Compute health dimensions from real project data
+  const projectFiles = useProjectStore(s => s.files);
+  const [healthDimensions, setHealthDimensions] = useState(defaultHealthDimensions.map(d => ({ ...d, rating: 0 })));
+  const [overallHealthRating, setOverallHealthRating] = useState(0);
+
+  useEffect(() => {
+    // Lazy import to avoid loading the scoring engine upfront
+    import('../services/healthScoring.js').then(({ computeHealthDimensions, computeOverallHealth, getHealthLabel }) => {
+      const dims = computeHealthDimensions(projectFiles || {}, phaseAnswers, activeProject);
+      const overall = computeOverallHealth(dims);
+
+      const mapped = defaultHealthDimensions.map(d => {
+        const score = dims[d.key] ?? 0;
+        const rating = Math.round(score);
+        return {
+          ...d,
+          rating,
+          flag: score < 2 ? `${d.name} needs attention` : null,
+          tip: `${d.tip} Current score: ${score.toFixed(1)}/5 (${getHealthLabel(score)}).`,
+        };
+      });
+      setHealthDimensions(mapped);
+      setOverallHealthRating(Math.round(overall));
+    }).catch(() => {
+      // Fallback: keep defaults
+    });
+  }, [projectFiles, phaseAnswers, activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-show product tour for first-time users
+  useEffect(() => {
+    if (tourCompleted === false) {
+      const timer = setTimeout(() => setShowTour(true), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [leftTab, setLeftTab] = useState(initialPanel === 'cast' ? 'cast' : 'phases');
   const [expandedDim, setExpandedDim] = useState(null);
@@ -5244,6 +5666,7 @@ export default function WorkspaceScreen() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('amber');
 
   // Apply theme to document
@@ -5301,7 +5724,10 @@ export default function WorkspaceScreen() {
 
   const renderCenter = () => {
     switch (activeMode) {
-      case 'guided': return <GuidedFlow
+      case 'guided':
+        // Phase 8 gets a dedicated chapter execution UI
+        if (activePhase === 8) return <ChapterExecutionMode />;
+        return <GuidedFlow
             phase={activePhase}
             answers={phaseAnswers}
             onAnswer={(phase, qId, value) => {
@@ -5399,6 +5825,7 @@ export default function WorkspaceScreen() {
         }}
         onSettingsClick={() => setShowSettingsModal(true)}
         onThemeClick={() => setShowThemeModal(true)}
+        onTourClick={() => setShowTour(true)}
       />
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -5622,7 +6049,7 @@ export default function WorkspaceScreen() {
                 </button>
               </div>
 
-              <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+              <div style={{ flex: 1, overflowY: 'auto', padding: 12 }} data-tour="phase-sidebar">
                 {leftTab === 'phases' && <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} onPhaseClick={(num, name, isLocked) => {
                   if (isLocked) {
                     setShowGateWarning(true);
@@ -5650,7 +6077,7 @@ export default function WorkspaceScreen() {
                   />
                 )}
                 {leftTab === 'files' && (
-                  <div style={{ fontSize: '0.8rem' }}>
+                  <div style={{ fontSize: '0.8rem' }} data-tour="file-tree">
                     {/* Story Project Files — Collapsible */}
                     <div
                       onClick={() => setProjectFilesOpen(prev => !prev)}
@@ -5871,7 +6298,7 @@ export default function WorkspaceScreen() {
           </div>
 
           {/* Content */}
-          <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }}>
+          <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }} data-tour="guide-area">
             {renderCenter()}
           </div>
         </div>
@@ -5990,7 +6417,9 @@ export default function WorkspaceScreen() {
                 <h4 id="project-health-section" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
                   Project Health
                 </h4>
-                <HealthBar rating={4} style={{ marginBottom: 12 }} />
+                <div data-tour="health-bar">
+                  <HealthBar rating={overallHealthRating} style={{ marginBottom: 12 }} />
+                </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 16 }}>
                   {healthDimensions.map((d) => (
                     <div key={d.name}>
@@ -6094,6 +6523,7 @@ export default function WorkspaceScreen() {
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
       {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} onGoToFullSettings={() => { setShowSettingsModal(false); navigate('/settings'); }} />}
       {showThemeModal && <ThemePickerModal onClose={() => setShowThemeModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
+      {showTour && <ProductTour onComplete={() => setShowTour(false)} />}
 
       {/* Gate Warning Modal — locked phases */}
       {showGateWarning && (
