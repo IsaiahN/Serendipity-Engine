@@ -1603,6 +1603,7 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
 /* ─── Full Cast Mode ─── */
 function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
   const fcFiles = useProjectStore(s => s.files);
+  const fcProject = useProjectStore(s => s.activeProject);
   const characterProfiles = buildCharacterProfiles(fcFiles);
   const allChars = Object.entries(characterProfiles);
   const mainChars = allChars.filter(([, c]) => c.tier !== 'minor');
@@ -1688,7 +1689,7 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
         }}>
           <ChevronLeft size={14} /> Back
         </button>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Full Cast/Characters — The Shunning Season</h2>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Full Cast/Characters{fcProject?.title ? ` — ${fcProject.title}` : ''}</h2>
         <Badge variant="muted">{allChars.length} characters</Badge>
         <button
           onClick={() => onAddCharacter?.()}
@@ -2154,8 +2155,8 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
       return Math.min(Math.round(mentions * 1.5), 10) || (Math.random() * 3 + 1) | 0;
     });
 
-    // If no chapters, generate a placeholder arc from character file length
-    const finalArc = arc.length > 0 ? arc : Array.from({ length: 12 }, () => Math.round(Math.random() * 4 + (isMain ? 4 : 1)));
+    // If no chapters, use empty arc (no fake data)
+    const finalArc = arc.length > 0 ? arc : [];
 
     return {
       name,
@@ -2163,7 +2164,7 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
       gradient: characterGradients[idx % characterGradients.length],
       tier: isMain ? 'main' : 'minor',
       arc: finalArc,
-      realityArc: finalArc.map(v => Math.max(0, Math.min(10, v + (Math.random() * 2 - 1) | 0))),
+      realityArc: finalArc.length > 0 ? finalArc.map(v => Math.max(0, Math.min(10, v + (Math.random() * 2 - 1) | 0))) : [],
       beats: finalArc.map((_, i) => `Chapter ${i + 1}`),
       interactions: {},
     };
@@ -2183,20 +2184,14 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
     .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
     .sort(([a], [b]) => parseInt(a.match(/\d+/)?.[0] || 0) - parseInt(b.match(/\d+/)?.[0] || 0));
 
-  const numPoints = Math.max(chapterFiles.length, characters[0]?.arc.length || 12);
+  const numPoints = Math.max(chapterFiles.length, characters[0]?.arc.length || 0);
   const plotSpine = chapterFiles.length > 0
     ? chapterFiles.map(([, content]) => {
         const len = (content || '').length;
         // Normalize to 1-10 scale based on content density
         return Math.min(Math.round((len / 500) + 2), 10);
       })
-    : Array.from({ length: numPoints }, (_, i) => {
-        // Classic three-act tension curve placeholder
-        const t = i / (numPoints - 1);
-        if (t < 0.25) return Math.round(3 + t * 8);
-        if (t < 0.75) return Math.round(5 + Math.sin((t - 0.25) * Math.PI * 2) * 4);
-        return Math.round(8 - (t - 0.75) * 16);
-      });
+    : []; // No fake placeholder data — empty until chapters are written
 
   // 3. Build act structure
   const totalChapters = numPoints;
@@ -2213,6 +2208,7 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
 
 // SVG helper: build a smooth curve path through points
 function buildPath(points, width, height, maxVal = 10, smooth = true) {
+  if (!points || points.length < 2) return '';
   const stepX = width / (points.length - 1);
   const coords = points.map((v, i) => ({ x: i * stepX, y: height - (v / maxVal) * height }));
   if (!smooth) {
@@ -3942,7 +3938,8 @@ function ComparisonMode() {
 
 /* ─── Relationship Graph ─── */
 function RelationshipGraph() {
-  const [centerCharacter, setCenterCharacter] = useState('miriam');
+  const rgFiles = useProjectStore(s => s.files);
+  const [centerCharacterOverride, setCenterCharacter] = useState(null);
   const [filterType, setFilterType] = useState(null); // null = show all
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -3968,41 +3965,49 @@ function RelationshipGraph() {
 
   const resetView = () => { setZoom(1); setPan({ x: 0, y: 0 }); };
 
-  const characters = {
-    miriam:  { name: 'Miriam Yoder',    initials: 'MY', color: '#e85d2a' },
-    daniel:  { name: 'Daniel Yoder',    initials: 'DY', color: '#818cf8' },
-    bishop:  { name: 'Bishop Lapp',     initials: 'BL', color: '#64748b' },
-    ruth:    { name: 'Ruth Byler',      initials: 'RB', color: '#f472b6' },
-    sarah:   { name: 'Sarah Miller',    initials: 'SM', color: '#f97316' },
-    eli:     { name: 'Eli Stoltzfus',   initials: 'ES', color: '#fbbf24' },
-    hannah:  { name: 'Hannah Yoder',    initials: 'HY', color: '#2dd4bf' },
-  };
+  // Build characters dynamically from project files
+  const rgCharColors = ['#e85d2a', '#818cf8', '#64748b', '#f472b6', '#f97316', '#fbbf24', '#2dd4bf', '#a78bfa', '#f87171', '#34d399'];
+  const characters = {};
+  const charEntries = Object.entries(rgFiles)
+    .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'));
+  charEntries.forEach(([path, content], idx) => {
+    const slug = path.replace('characters/', '').replace('.md', '');
+    const key = slug.replace(/-/g, '');
+    const h1 = (content || '').split('\n').find(l => l.startsWith('# '));
+    const nameMatch = h1 ? h1.match(/^#\s+(.+?)(?:\s*\([^)]*\))?\s*$/) : null;
+    const fullName = nameMatch ? nameMatch[1].trim() : slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const initials = fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    characters[key] = { name: fullName, initials, color: rgCharColors[idx % rgCharColors.length] };
+  });
 
-  // Full relationship web — characters connect to EACH OTHER, not just Miriam
-  const relationships = [
-    // Miriam's connections
-    { from: 'miriam', to: 'daniel',  type: 'family',    label: 'Married', strength: 5 },
-    { from: 'miriam', to: 'hannah',  type: 'family',    label: 'Mother-Daughter', strength: 5 },
-    { from: 'miriam', to: 'ruth',    type: 'friend',    label: 'Close friends', strength: 4 },
-    { from: 'miriam', to: 'sarah',   type: 'rival',     label: 'Tension over standing', strength: 3 },
-    { from: 'miriam', to: 'eli',     type: 'mentor',    label: 'Spiritual guide', strength: 3 },
-    { from: 'miriam', to: 'bishop',  type: 'authority',  label: 'Under his authority', strength: 2 },
-    // Daniel's connections (beyond Miriam)
-    { from: 'daniel', to: 'hannah',  type: 'family',    label: 'Father-Daughter', strength: 4 },
-    { from: 'daniel', to: 'bishop',  type: 'authority',  label: 'Congregant', strength: 2 },
-    { from: 'daniel', to: 'eli',     type: 'friend',    label: 'Old friends', strength: 3 },
-    // Hannah's connections
-    { from: 'hannah', to: 'ruth',    type: 'friend',    label: 'Auntie figure', strength: 3 },
-    { from: 'hannah', to: 'sarah',   type: 'rival',     label: 'Distrusts her', strength: 1 },
-    // Ruth's connections
-    { from: 'ruth', to: 'sarah',     type: 'rival',     label: 'Former friends', strength: 2 },
-    { from: 'ruth', to: 'bishop',    type: 'authority',  label: 'Questions his judgment', strength: 1 },
-    // Sarah's connections
-    { from: 'sarah', to: 'bishop',   type: 'ally',      label: 'Aligned interests', strength: 3 },
-    // Eli's connections
-    { from: 'eli', to: 'bishop',     type: 'rival',     label: 'Theological disagreement', strength: 2 },
-    { from: 'eli', to: 'hannah',     type: 'mentor',    label: 'Teaching her', strength: 2 },
-  ];
+  // Build relationships from relationships/ files
+  const relationships = [];
+  const relContent = rgFiles['relationships/questions-answered.md'] || '';
+  const charKeys = Object.keys(characters);
+  // Parse "## X ↔ Y" sections for relationship pairs
+  const relSections = relContent.split(/^## /m).filter(s => s.includes('↔'));
+  relSections.forEach(section => {
+    const headerLine = section.split('\n')[0];
+    const pairMatch = headerLine.match(/(.+?)\s*↔\s*(.+)/);
+    if (!pairMatch) return;
+    const nameA = pairMatch[1].trim().split(' ')[0].toLowerCase();
+    const nameB = pairMatch[2].trim().split(/[\s(]/)[0].toLowerCase();
+    const fromKey = charKeys.find(k => k.startsWith(nameA)) || nameA;
+    const toKey = charKeys.find(k => k.startsWith(nameB)) || nameB;
+    if (!characters[fromKey] || !characters[toKey]) return;
+    const lower = section.toLowerCase();
+    const type = lower.includes('betray') || lower.includes('opposition') || lower.includes('enemy') ? 'rival'
+      : lower.includes('friend') || lower.includes('warmth') || lower.includes('alliance') ? 'friend'
+      : lower.includes('family') || lower.includes('father') || lower.includes('mother') || lower.includes('sister') ? 'family'
+      : lower.includes('mentor') || lower.includes('guide') ? 'mentor'
+      : lower.includes('authority') || lower.includes('bishop') ? 'authority'
+      : 'ally';
+    const label = headerLine.replace(pairMatch[1], '').replace('↔', '').replace(pairMatch[2], '').trim() || `${characters[fromKey].name} ↔ ${characters[toKey].name}`;
+    relationships.push({ from: fromKey, to: toKey, type, label: `${characters[fromKey].name} ↔ ${characters[toKey].name}`, strength: 3 });
+  });
+
+  // Center character defaults to first character
+  const centerCharacter = centerCharacterOverride && characters[centerCharacterOverride] ? centerCharacterOverride : (Object.keys(characters)[0] || '');
 
   const relationshipColors = {
     family: '#818cf8',
@@ -4042,6 +4047,15 @@ function RelationshipGraph() {
 
   // Filter relationships by type if filter is active
   const visibleRels = filterType ? relationships.filter(r => r.type === filterType) : relationships;
+
+  if (Object.keys(characters).length === 0) {
+    return (
+      <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 8 }}>No Characters Yet</h3>
+        <p style={{ fontSize: '0.85rem' }}>Add characters to your project to see their relationship web here.</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -4660,243 +4674,8 @@ function buildCharacterProfiles(files) {
   return profiles;
 }
 
-// Legacy fallback — kept as static reference (no longer primary source)
-const characterProfiles_LEGACY = {
-  Elena: {
-    name: 'Elena Vasquez', role: 'Protagonist', type: 'Main protagonist', tier: 'main',
-    color: '#2dd4bf', gradient: 'linear-gradient(135deg, #2dd4bf, #f472b6)',
-    age: '28', gender: 'Cis woman', sexuality: 'Heterosexual',
-    religion: 'Lapsed Catholic', lifePhilosophy: 'Existentialism',
-    relationshipStatus: 'Recently separated', parentalStatus: 'No children',
-    livingStatus: 'Lives alone', financialUpbringing: 'Middle class', currentFinancial: 'Financially stable',
-    emotionalRegister: 'Anxious',
-    mbti: 'INFJ-T', mbtiLabel: 'The Advocate',
-    enneagram: 'Type 4 — The Individualist', enneagramWing: '4w5',
-    alignment: 'Chaotic Good',
-    zodiac: 'Scorpio',
-    build: 'Slim', height: 'Average (5\'4"–5\'6")', hairColor: 'Dark brown', eyeColor: 'Hazel-green', skinTone: 'Olive',
-    flaw: 'Fear of abandonment', virtue: 'Empathy', wound: 'Conditional love — only loved when performing/achieving',
-    coreValues: ['Honesty / Integrity', 'Freedom / Autonomy'],
-    personalCode: ['Never lie to someone who trusts you', 'Question every authority', 'If you break it, you fix it'],
-    selfCareHealthy: 'Meaningful conversation with a trusted person',
-    selfCareDestructive: 'Isolation that becomes withdrawal',
-    socialPositioning: 'Insider who secretly doesn\'t belong',
-    networkArchetype: 'Bridge',
-    storyDeath: 'Projection (Seal 5) — assigns her own fears to others and then reacts to the projection',
-    voice: {
-      speechRhythm: 'Circling / Recursive', vocabularyRegister: 'Educated Casual',
-      volumePacing: 'Quiet by default', dialogueTic: 'Starts sentences with "I mean—" when about to say something true',
-      metaphorFamily: 'Architecture / Structure', defensiveSpeech: 'Becomes overly analytical',
-      subtextDefault: 'Cannot say "I need you"',
-    },
-    arcStart: 'Ordinary life — performing normalcy after separation',
-    arcEnd: 'Quiet resolve — accepts imperfection, stops performing',
-    arcType: 'Positive arc with regression',
-    beats: ['Ordinary life', 'Discovers letter', 'Confronts Marcus', 'Investigates past', 'Betrayal revealed', 'Confrontation', 'Grief & doubt', 'Final reckoning', 'Quiet resolve', 'Rebuilding', 'New normal', 'Epilogue'],
-    physicalDescription: 'Elena is twenty-eight and looks it — not in the way that means young, but in the way that means she has started to carry things. Slim, average height, olive-toned skin that holds the remnants of summers she barely remembers enjoying. Dark brown hair she keeps shoulder-length and mostly forgets about. Hazel-green eyes that change color depending on the light, which people comment on and she finds exhausting.',
-    // Radar chart data
-    strengths: { emotional: 9, analytical: 7, social: 6, physical: 4, creative: 8, resilience: 5, intuition: 9, leadership: 5 },
-    temperament: { openness: 9, conscientiousness: 6, extraversion: 3, agreeableness: 7, neuroticism: 8 },
-    swot: {
-      strengths: ['Deep empathy reads people accurately', 'Strong moral compass', 'Creative problem-solver'],
-      weaknesses: ['Overthinks to paralysis', 'Avoids direct confrontation', 'Performance-based self-worth'],
-      opportunities: ['Separation forces genuine self-discovery', 'New relationships without pretense', 'Marcus situation demands courage she has but doesn\'t know'],
-      threats: ['Abandonment wound triggered by every departure', 'Isolation spiral when overwhelmed', 'Projection flaw creates false enemies'],
-    },
-    relationships: [
-      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Complicated ally / former trust', attachment: 'Anxious-Avoidant' },
-      { name: 'Priya', type: 'Supporting', dynamic: 'Best friend / honest mirror', attachment: 'Secure' },
-      { name: 'Thomas', type: 'Minor', dynamic: 'Information source / old connection', attachment: 'Avoidant' },
-      { name: 'Ruth', type: 'Minor', dynamic: 'Maternal figure / quiet anchor', attachment: 'Secure' },
-      { name: 'Bishop Lapp', type: 'Minor', dynamic: 'Authority figure / pressure', attachment: 'Fearful-Avoidant' },
-    ],
-  },
-  Marcus: {
-    name: 'Marcus Chen', role: 'Deuteragonist', type: 'Antihero', tier: 'main',
-    color: '#818cf8', gradient: 'linear-gradient(135deg, #818cf8, #f97316)',
-    age: '32', gender: 'Cis man', sexuality: 'Heterosexual',
-    religion: 'Agnostic', lifePhilosophy: 'Pragmatism',
-    relationshipStatus: 'Single — recently ended', parentalStatus: 'No children',
-    livingStatus: 'Lives alone', financialUpbringing: 'Upper-middle class', currentFinancial: 'Comfortable',
-    emotionalRegister: 'Tense',
-    mbti: 'ENTJ-A', mbtiLabel: 'The Commander',
-    enneagram: 'Type 3 — The Achiever', enneagramWing: '3w4',
-    alignment: 'Lawful Neutral',
-    zodiac: 'Capricorn',
-    build: 'Athletic / Toned', height: 'Tall (5\'11"–6\'1")', hairColor: 'Black', eyeColor: 'Dark brown', skinTone: 'Warm tan',
-    flaw: 'Compulsive lying', virtue: 'Determination', wound: 'Had success stolen or uncredited',
-    coreValues: ['Achievement / Excellence', 'Loyalty'],
-    personalCode: ['Never let them see you bleed', 'Always finish what you start', 'The ends justify the means'],
-    selfCareHealthy: 'Physical movement — running, training',
-    selfCareDestructive: 'Overworking to the point of collapse',
-    socialPositioning: 'Overestimated position',
-    networkArchetype: 'Hub',
-    storyDeath: 'Deception (Seal 3) — the lie he told is the load-bearing wall; remove it and everything falls',
-    voice: {
-      speechRhythm: 'Declarative / Direct', vocabularyRegister: 'Formal / Elevated',
-      volumePacing: 'Measured regardless', dialogueTic: 'Names people in conversation — "Elena, listen" — as a control mechanism',
-      metaphorFamily: 'Business / Transactions', defensiveSpeech: 'Becomes charming',
-      subtextDefault: 'Cannot say "I was wrong"',
-    },
-    arcStart: 'Keeping secrets — maintaining the edifice',
-    arcEnd: 'Open wound — the lie undone, no rebuild yet',
-    arcType: 'Negative arc (fall)',
-    beats: ['Keeping secrets', 'Avoidance', 'Deflection', 'Cracking facade', 'Exposed', 'Rage', 'Rock bottom', 'Admission', 'Penance', 'Withdrawal', 'Tentative return', 'Open wound'],
-    physicalDescription: 'Marcus is thirty-two and built like someone who runs before dawn — athletic, toned, the specific kind of fit that reads as discipline rather than vanity. Tall, dark-haired, dark-eyed, warm tan skin. He dresses well in the way that costs money but pretends not to. His face is handsome and controlled — the kind of face that looks like it is listening carefully when it is actually calculating.',
-    strengths: { emotional: 4, analytical: 9, social: 8, physical: 7, creative: 5, resilience: 7, intuition: 6, leadership: 9 },
-    temperament: { openness: 5, conscientiousness: 9, extraversion: 8, agreeableness: 3, neuroticism: 4 },
-    swot: {
-      strengths: ['Charismatic and persuasive', 'Strategic thinker', 'Physically disciplined'],
-      weaknesses: ['Cannot be vulnerable', 'Compulsive dishonesty under pressure', 'Confuses control with care'],
-      opportunities: ['Exposure forces authenticity', 'Elena\'s integrity could model another way', 'Rock bottom creates genuine humility'],
-      threats: ['Success-wound makes any failure existential', 'Charm is both asset and cage', 'Overwork spiral masks emotional collapse'],
-    },
-    relationships: [
-      { name: 'Elena', type: 'Protagonist', dynamic: 'Former trust / guilt object', attachment: 'Avoidant' },
-      { name: 'Priya', type: 'Supporting', dynamic: 'Reluctant mediator', attachment: 'Dismissive' },
-      { name: 'Thomas', type: 'Minor', dynamic: 'Old ally / liability', attachment: 'Transactional' },
-      { name: 'Bishop Lapp', type: 'Minor', dynamic: 'Authority confrontation', attachment: 'Antagonistic' },
-    ],
-  },
-  Priya: {
-    name: 'Priya Sharma', role: 'Supporting', type: 'Foil', tier: 'main',
-    color: '#a78bfa', gradient: 'linear-gradient(135deg, #fbbf24, #a78bfa)',
-    age: '30', gender: 'Cis woman', sexuality: 'Lesbian',
-    religion: 'Hindu (cultural, not practicing)', lifePhilosophy: 'Stoicism',
-    relationshipStatus: 'In a long-term relationship', parentalStatus: 'No children',
-    livingStatus: 'Lives with partner', financialUpbringing: 'Upper-middle class', currentFinancial: 'Comfortable',
-    emotionalRegister: 'Sardonic',
-    mbti: 'ENTP-A', mbtiLabel: 'The Debater',
-    enneagram: 'Type 8 — The Challenger', enneagramWing: '8w7',
-    alignment: 'Neutral Good',
-    zodiac: 'Aries',
-    build: 'Curvy', height: 'Average (5\'4"–5\'6")', hairColor: 'Black', eyeColor: 'Dark brown', skinTone: 'Medium brown',
-    flaw: 'Sarcasm as a weapon', virtue: 'Courage', wound: 'First experience of racism during formative years',
-    coreValues: ['Justice / Fairness', 'Courage'],
-    personalCode: ['Say what you mean', 'Protect those who can\'t protect themselves', 'Don\'t take more than your share'],
-    selfCareHealthy: 'Humor — finding something to laugh at',
-    selfCareDestructive: 'Social saturation — being with people constantly',
-    socialPositioning: 'Orientation lateral',
-    networkArchetype: 'Connector',
-    storyDeath: 'None — she is the story\'s clearest-seeing character, which costs her differently',
-    voice: {
-      speechRhythm: 'Question-forward', vocabularyRegister: 'Educated Casual',
-      volumePacing: 'Loud by default — fills the room', dialogueTic: 'Deflects with humor when the subject is serious',
-      metaphorFamily: 'Food / Cooking', defensiveSpeech: 'Gets louder and funnier',
-      subtextDefault: 'Cannot say "I\'m scared for you"',
-    },
-    arcStart: 'Background ally — concerned but uninvolved',
-    arcEnd: 'New path — own agency discovered through others\' crisis',
-    arcType: 'Positive arc (growth)',
-    beats: ['Background ally', 'Concerned friend', 'Overhears', 'Starts digging', 'Caught in middle', 'Picks a side', 'Confronts Elena', 'Bridge builder', 'Own revelation', 'Taking charge', 'Mediator', 'New path'],
-    physicalDescription: 'Priya is thirty and built like someone who enjoys life — curvy in the way that means she eats well and moves when she wants to. Average height, black hair she wears in different styles depending on her mood. Dark brown eyes that are always slightly amused, which people find either disarming or infuriating.',
-    strengths: { emotional: 6, analytical: 7, social: 9, physical: 5, creative: 7, resilience: 8, intuition: 7, leadership: 7 },
-    temperament: { openness: 8, conscientiousness: 5, extraversion: 9, agreeableness: 6, neuroticism: 3 },
-    swot: {
-      strengths: ['Fearless truth-teller', 'Reads rooms instantly', 'Natural mediator despite combative style'],
-      weaknesses: ['Humor as deflection prevents depth', 'Over-identifies as the strong one', 'Social saturation avoids self-reflection'],
-      opportunities: ['Friends\' crisis reveals her own unlived questions', 'Bridge-building develops leadership', 'Confrontation with Elena deepens the friendship'],
-      threats: ['Being everyone\'s anchor exhausts her', 'Sarcasm alienates at the wrong moment', 'Justice orientation can become self-righteousness'],
-    },
-    relationships: [
-      { name: 'Elena', type: 'Protagonist', dynamic: 'Best friend / honest mirror', attachment: 'Secure' },
-      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Reluctant mediator / suspicious', attachment: 'Guarded' },
-      { name: 'Thomas', type: 'Minor', dynamic: 'Unexpected ally', attachment: 'Curious' },
-    ],
-  },
-  Thomas: {
-    name: 'Thomas Weaver', role: 'Minor', type: 'Unexpected ally', tier: 'minor',
-    color: '#6ee7b7', gradient: 'linear-gradient(135deg, #6ee7b7, #60a5fa)',
-    age: '45', gender: 'Cis man', religion: 'Mennonite (Plain)',
-    emotionalRegister: 'Cautious',
-    mbti: 'ISFJ-T', mbtiLabel: 'The Defender',
-    enneagram: 'Type 6 — The Loyalist', enneagramWing: '6w5',
-    alignment: 'Lawful Neutral',
-    build: 'Sturdy', height: 'Tall (5\'10"–5\'11")', hairColor: 'Gray-brown', eyeColor: 'Blue-gray', skinTone: 'Fair',
-    flaw: 'Overprotectiveness', virtue: 'Reliability', wound: 'Lost faith in community institutions',
-    voice: {
-      speechRhythm: 'Measured', vocabularyRegister: 'Plain-spoken',
-      subtextDefault: 'Cannot say "I am afraid for you"',
-    },
-    arcStart: 'Isolated insider — caught between two worlds',
-    arcEnd: 'Deliberate choice — chooses his own path',
-    arcType: 'Subtle positive arc',
-    beats: ['Isolation', 'First contact', 'Suspicion', 'Shared truth', 'Commitment', 'Consequence', 'Standing firm'],
-    physicalDescription: 'Thomas is forty-five and looks like someone who has worked with his hands all his life. Sturdy build, tall, with graying hair and blue-gray eyes. The kind of quiet presence that takes up space without demanding attention.',
-    strengths: { emotional: 5, analytical: 6, social: 4, physical: 7, creative: 3, resilience: 7, intuition: 6, leadership: 4 },
-    relationships: [
-      { name: 'Elena', type: 'Protagonist', dynamic: 'Information source / old connection', attachment: 'Avoidant' },
-      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Old ally / liability', attachment: 'Transactional' },
-    ],
-    swot: {
-      strengths: ['Trustworthy', 'Deep community knowledge', 'Physically capable'],
-      weaknesses: ['Difficulty with direct confrontation', 'Bound by loyalty codes', 'Isolated from mainstream support'],
-      opportunities: ['New relationships outside the community', 'Voice of dissent becomes strength', 'Redemption through honesty'],
-      threats: ['Community rejection if truth emerges', 'Caught between protecting others and himself', 'Age and isolation compound isolation'],
-    },
-  },
-  Ruth: {
-    name: 'Ruth Miller', role: 'Minor', type: 'Maternal anchor', tier: 'minor',
-    color: '#f9a8d4', gradient: 'linear-gradient(135deg, #f9a8d4, #818cf8)',
-    age: '58', gender: 'Cis woman', religion: 'Mennonite (Plain)',
-    emotionalRegister: 'Grounded',
-    mbti: 'ISFP-A', mbtiLabel: 'The Adventurer',
-    enneagram: 'Type 2 — The Helper', enneagramWing: '2w1',
-    alignment: 'Lawful Good',
-    build: 'Round', height: 'Average (5\'2"–5\'3")', hairColor: 'Gray with silver', eyeColor: 'Warm brown', skinTone: 'Fair',
-    flaw: 'Enables others\' avoidance', virtue: 'Kindness', wound: 'Too much responsibility too young',
-    voice: {
-      speechRhythm: 'Gentle', vocabularyRegister: 'Plain-spoken with warmth',
-      subtextDefault: 'Cannot say "You must face this yourself"',
-    },
-    arcStart: 'Quiet anchor — holding space for others',
-    arcEnd: 'Gentle boundaries — love with honesty',
-    arcType: 'Subtle positive arc',
-    beats: ['Ordinary duty', 'Elena arrives', 'Small kindnesses', 'Hears truth', 'Torn loyalty', 'Clear sight', 'Quiet wisdom'],
-    physicalDescription: 'Ruth is fifty-eight and moves through the world with the ease of someone who has settled into her own skin. Round-faced, warm brown eyes, gray and silver hair pulled back. Her hands are always doing something — counting change, wiping a counter, reaching out to steady someone.',
-    strengths: { emotional: 8, analytical: 4, social: 7, physical: 5, creative: 4, resilience: 7, intuition: 7, leadership: 3 },
-    relationships: [
-      { name: 'Elena', type: 'Protagonist', dynamic: 'Maternal figure / quiet anchor', attachment: 'Secure' },
-    ],
-    swot: {
-      strengths: ['Genuine kindness', 'Deep listening', 'Community trusted'],
-      weaknesses: ['Difficulty setting boundaries', 'Over-identifies with caretaker role', 'Conflict avoidance'],
-      opportunities: ['Truth-telling deepens relationships', 'Discovering own needs', 'Modeling healthy boundaries'],
-      threats: ['Community judgment if loyalty questioned', 'Compassion fatigue', 'Enabling others\' harm cycles'],
-    },
-  },
-  'Bishop Lapp': {
-    name: 'Bishop Lapp', role: 'Minor', type: 'Authority figure', tier: 'minor',
-    color: '#94a3b8', gradient: 'linear-gradient(135deg, #94a3b8, #475569)',
-    age: '72', gender: 'Cis man', religion: 'Mennonite (Plain) — Elder',
-    emotionalRegister: 'Rigid',
-    mbti: 'ISTJ-T', mbtiLabel: 'The Logistician',
-    enneagram: 'Type 1 — The Reformer', enneagramWing: '1w2',
-    alignment: 'Lawful Neutral',
-    build: 'Lean', height: 'Tall (5\'9"–5\'10")', hairColor: 'White', eyeColor: 'Steel gray', skinTone: 'Fair',
-    flaw: 'Righteousness disguises fear', virtue: 'Principle', wound: 'Changing world threatens identity',
-    voice: {
-      speechRhythm: 'Declarative', vocabularyRegister: 'Biblical / formal',
-      subtextDefault: 'Cannot say "I don\'t know what to do"',
-    },
-    arcStart: 'Absolute authority — enforcing the law',
-    arcEnd: 'Uncertain ground — law fails to contain truth',
-    arcType: 'Negative arc (pressure)',
-    beats: ['Absolute order', 'First challenge', 'Community pressure', 'Rules invoked', 'Rule fails', 'Confrontation', 'Helplessness'],
-    physicalDescription: 'Bishop Lapp is seventy-two and carries authority in his posture. Lean, tall, white-bearded, with steel gray eyes that see through every pretense. His clothes are severe Plain dress — the uniform of his office.',
-    strengths: { emotional: 2, analytical: 7, social: 6, physical: 3, creative: 2, resilience: 5, intuition: 3, leadership: 8 },
-    relationships: [
-      { name: 'Elena', type: 'Protagonist', dynamic: 'Authority figure / pressure', attachment: 'Fearful-Avoidant' },
-      { name: 'Marcus', type: 'Deuteragonist', dynamic: 'Authority confrontation', attachment: 'Antagonistic' },
-    ],
-    swot: {
-      strengths: ['Community respect and authority', 'Clear moral framework', 'Decades of experience'],
-      weaknesses: ['Cannot adapt to changing values', 'Weaponizes scripture', 'Deaf to dissenting voices'],
-      opportunities: ['Crisis forces reflection on doctrine', 'Meeting resistance shows limits of power', 'Possible growth toward humility'],
-      threats: ['Community fractures if authority questioned', 'Personal faith shaken', 'Becomes isolated fixture of old order'],
-    },
-  },
-};
+// NOTE: Legacy hardcoded characterProfiles removed — all character data now built dynamically
+// via buildCharacterProfiles(files) from the Zustand store's character markdown files.
 
 function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationships }) {
   // Build dynamic profiles from store files, merge with legacy for any extra fields
@@ -6179,12 +5958,9 @@ export default function WorkspaceScreen() {
     }
     await performProjectSwitch(pendingSwitchId);
   };
-  // Phase answers — tracks user input per phase per question
+  // Phase answers — tracks user input per phase per question (hydrated from store below)
   const [phaseAnswers, setPhaseAnswers] = useState({
-    1: { 1: 'Isaiah — fiction writer exploring Mennonite community dynamics', 2: 'Literary Fiction + Thriller', 3: 'Novel (Adult)', 4: 'Themes of belonging, institutional power, personal truth vs community' },
-    2: { 1: 'Third-person limited, close to Elena', 2: 'Present tense — immersive, claustrophobic', 3: 'Literary but accessible, short punchy sentences in tense moments' },
-    3: { 1: 'Rural Lancaster County, PA — Amish/Mennonite settlement', 2: 'Contemporary (present day)', 3: 'Tight-knit religious community with rigid social rules' },
-    4: {}, 5: {}, 6: {}, 7: {}, '⟡': {}, 8: {}, 9: {},
+    1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, '⟡': {}, 8: {}, 9: {},
   });
 
   // Hydrate phaseAnswers from active project in the store (if available)
@@ -6271,14 +6047,7 @@ export default function WorkspaceScreen() {
   const [engineRefOpen, setEngineRefOpen] = useState(false);
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
   // Drawing Board / Scratchpad items — lifted to workspace level so sidebar can access
-  const [boardItems, setBoardItems] = useState([
-    { id: 1, type: 'note', text: '"What if the detective is lying too?"', fullText: '"What if the detective is lying too?"\n\nThis could flip the entire chapter 4 reveal. If the detective has been lying about knowing Marcus before the trial, then the scene in the courthouse takes on a completely different meaning. Elena would be the only one telling the truth in a room full of liars.\n\nPossible implications:\n- The detective\'s testimony becomes the real tension, not the verdict\n- Marcus\'s reaction when he realizes the detective lied could be the emotional climax\n- This connects to the theme of institutional deception vs personal honesty\n\nNeed to check: does this contradict anything in chapter 2 where the detective is introduced?', used: false, group: 'Alternate Ideas' },
-    { id: 2, type: 'image', label: 'Fog bridge reference', fullText: 'Reference image for the fog bridge scene in chapter 1. The bridge should feel liminal, like crossing between worlds. Morning fog, wooden planks, barely visible other side.\n\nUsed for the opening scene where Elena crosses from her family\'s farm into town for the first time after the shunning.', used: 'hallmarks/bridge', group: 'World Research' },
-    { id: 3, type: 'note', text: 'Marcus backstory: grew up in foster care, first arrest at 16', fullText: 'Marcus Chen backstory notes:\n\n- Foster care system from age 6 after mother\'s death\n- Moved through 4 homes in 3 years\n- First arrest at 16: shoplifting (survival, not rebellion)\n- Met a mentor in juvenile detention who introduced him to law\n- Put himself through college on scholarship\n- The wound: had success stolen or uncredited throughout childhood. Every time he built something, someone took it.\n- This drives his compulsive need to control narratives now.\n\nKey tension: his public image as a self-made success hides a deep fear that everything can be taken away again.', used: 'characters/marcus.md', group: 'Characters' },
-    { id: 4, type: 'draft', text: 'Ch.3 opening alternate version', fullText: 'CHAPTER 3 - ALTERNATE OPENING (v2)\n\nThe council hall smelled like beeswax and old decisions. Elena stood at the back, near the door, where the unbaptized and the uncertain were expected to stand. The benches ahead of her were full of black hats and white kapps, a sea of uniformity that she had once found comforting and now found suffocating.\n\nBishop Lapp was speaking. His voice had that particular quality, like honey poured over gravel, that made everything he said sound both gentle and final.\n\n"We are not here to judge," he said, which meant they were absolutely here to judge.\n\nElena\'s hands were shaking. She pressed them flat against her apron and tried to remember the breathing exercise Priya had taught her. In through the nose, four counts. Hold. Out through the mouth, six counts. But the air in the council hall was too thick with expectation, and her lungs refused to cooperate.\n\n[continues...]', used: false, group: 'Alternate Ideas' },
-    { id: 5, type: 'note', text: 'Mennonite funeral customs: check wiki', fullText: 'Research needed: Mennonite/Amish funeral customs for the burial scene in chapter 7.\n\nWhat I know so far:\n- Plain wooden coffin, no ornamentation\n- Body prepared by family, not funeral home\n- Viewing at the family home, not a parlor\n- Service in German/Pennsylvania Dutch\n- Burial in community cemetery, simple headstone\n\nQuestions to research:\n- How long between death and burial?\n- Are shunned members allowed to attend funerals?\n- What happens if the deceased was under the ban?\n- Are there specific hymns or readings?\n\nThis is critical for the chapter 7 scene where Elena attends her grandmother\'s funeral despite being shunned.', used: 'world/hallmarks', group: 'World Research' },
-    { id: 6, type: 'image', label: 'Council hall interior ref', fullText: 'Reference image for the council hall where the shunning vote takes place. Key details:\n- Large open room, wooden benches in rows\n- No altar or cross (Amish meeting houses are plain)\n- Natural light from tall windows\n- Separation: men on one side, women on the other\n- Bishop\'s bench at the front, slightly elevated\n\nThe room should feel both communal and oppressive. A space built for togetherness that is being used for exclusion.', used: 'hallmarks/council-hall', group: 'World Research' },
-  ]);
+  const [boardItems, setBoardItems] = useState([]);
   const [quickChatOpen, setQuickChatOpen] = useState(false);
   const [threadExpanded, setThreadExpanded] = useState(false);
   const [overLimitPrompt, setOverLimitPrompt] = useState(false);

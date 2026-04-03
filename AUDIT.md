@@ -9,8 +9,8 @@
 ## Summary
 
 **Total features tested:** 35+
-**Issues found:** 16 (5 P1, 4 P2, 7 P3)
-**Issues fixed this session:** 16 (all resolved)
+**Issues found:** 23 (7 P1, 6 P2, 10 P3)
+**Issues fixed this session:** 23 (all resolved)
 
 ---
 
@@ -101,6 +101,45 @@
 
 ---
 
+## HARDCODED DATA AUDIT (Session 2)
+
+### 17. Full Cast / Character Profile used hardcoded data (P1 — FIXED)
+- **File:** `WorkspaceScreen.jsx` — `FullCastMode` + `CharacterProfile`
+- **Problem:** Full Cast view and Character Profile rendered from a 236-line hardcoded `characterProfiles` object with 6 fictional characters (Elena Vasquez, Marcus Chen, etc.) that didn't match the actual demo project characters. CastRoster sidebar read from the store dynamically, causing a mismatch.
+- **Fix:** Created `buildCharacterProfiles(files)` function that parses character markdown files from the Zustand store. Extracts name, role, tier, age, MBTI, wound/flaw/virtue, physical description, and section content from `## Heading` structure. Added null guards throughout `CharacterProfile` for missing fields (SWOT, MBTI, beats, relationships). Removed the 236-line legacy `characterProfiles` object entirely.
+
+### 18. Relationship graph was fully hardcoded (P1 — FIXED)
+- **File:** `WorkspaceScreen.jsx` — `RelationshipGraph`
+- **Problem:** The relationship graph had a hardcoded 7-character object (Miriam Yoder, Daniel Yoder, etc.) and 16 hardcoded relationship edges. Characters in the graph had no connection to actual project data.
+- **Fix:** Replaced with dynamic builder that reads `characters/*.md` files from the store and parses `relationships/questions-answered.md` for `## X ↔ Y` sections. Relationship types derived from content keywords (family, friend, rival, authority, mentor, ally). Added empty state ("No Characters Yet") when no character files exist. Center character defaults to first dynamically.
+
+### 19. Phase answers were hardcoded for demo (P1 — FIXED)
+- **File:** `WorkspaceScreen.jsx` — Guide mode state initialization
+- **Problem:** `phaseAnswers` state was initialized with hardcoded demo answers for phases 1–3 (author name, narrator POV, world setting, etc.). These were baked into the component rather than loaded from the project store.
+- **Fix:** Changed initial state to empty objects `{ 1: {}, 2: {}, ... }`. Phase answers now load from `activeProject.phaseAnswers` in the store via existing hydration logic.
+
+### 20. Drawing Board had 6 hardcoded example items (P2 — FIXED)
+- **File:** `WorkspaceScreen.jsx` — Drawing Board state initialization
+- **Problem:** `boardItems` state was initialized with 6 fake scratchpad items (character notes, world research, alternate ideas). These appeared for every project regardless of actual user data.
+- **Fix:** Changed initial state to empty array `[]`. Items now start empty and users add their own via the "+ Add" button.
+
+### 21. Timeline showed fake random arc data (P2 — FIXED)
+- **File:** `WorkspaceScreen.jsx` — `buildTimelineData()`
+- **Problem:** When no chapter files existed, character arcs were filled with random fake data (`Math.random() * 3 + 1`) and the plot spine generated a fake "classic three-act tension curve" placeholder.
+- **Fix:** Empty arcs now return `[]` instead of random data. Empty plot spine returns `[]` instead of generated curve. Added guard in `buildPath()` to return empty string for arrays with fewer than 2 points, preventing SVG rendering errors.
+
+### 22. Full Cast title was hardcoded (P3 — FIXED)
+- **File:** `WorkspaceScreen.jsx` — `FullCastMode`
+- **Problem:** The heading said "Full Cast/Characters" with no project context.
+- **Fix:** Now reads `activeProject.title` from store and displays "Full Cast/Characters — The Shunning Season" (or whatever the active project name is).
+
+### 23. Legacy characterProfiles object cleanup (P3 — FIXED)
+- **File:** `WorkspaceScreen.jsx`
+- **Problem:** After switching to dynamic `buildCharacterProfiles()`, the 236-line `characterProfiles_LEGACY` object remained in the file as dead code.
+- **Fix:** Removed entirely, reducing file from 7507 to 7271 lines. Added comment noting all character data now comes from the dynamic builder.
+
+---
+
 ## FEATURES TESTED & WORKING
 
 | Feature | Status | Notes |
@@ -154,6 +193,14 @@
    - Replaced hardcoded `fileTree` with `buildProjectFileTree()` dynamic function (#13)
    - Added Reader settings popover with font/size/line-height controls (#15)
    - Fixed History/Search mutual exclusion in right panel (#16)
+   - Added `buildCharacterProfiles(files)` dynamic character profile parser (#17)
+   - Replaced hardcoded relationship graph with dynamic store reader (#18)
+   - Replaced hardcoded phase answers with empty initial state (#19)
+   - Replaced hardcoded board items with empty array (#20)
+   - Removed fake timeline arc data and placeholder plot spine (#21)
+   - Added dynamic project title to Full Cast heading (#22)
+   - Removed 236-line legacy `characterProfiles` dead code (#23)
+   - Added null guards throughout CharacterProfile for missing fields
 
 2. **`ui-screens/src/components/CastRoster.jsx`**
    - Complete rewrite — replaced hardcoded character array with dynamic store reader
