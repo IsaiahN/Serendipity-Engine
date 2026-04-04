@@ -69,6 +69,9 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePct
   const pctOverall = overallProgress(phasePcts);
   const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed);
 
+  // Filter out Bridge phase for decomposed projects
+  const visiblePhases = isDecomposed ? phases.filter(p => p.num !== '⟡') : phases;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -82,7 +85,7 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePct
           <div style={{ width: `${pctOverall}%`, height: '100%', background: 'var(--accent)', borderRadius: 100, transition: 'width 0.5s ease' }} />
         </div>
       </div>
-      {phases.map((p, i) => {
+      {visiblePhases.map((p, i) => {
         const pct = phasePcts[p.num] || 0;
         const isActive = p.num === currentPhase;
         const isLocked = p.gated && !prereqsDone;

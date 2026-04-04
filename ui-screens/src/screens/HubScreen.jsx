@@ -27,6 +27,7 @@ function getGradient(index) {
 
 const quickActions = [
   { icon: Upload, label: 'Import a story to decompose', path: '/wizard?mode=decompose' },
+  { icon: BookOpen, label: 'Decompose a book series', path: '/wizard?mode=decompose&series=true' },
   { icon: Users, label: 'Build a character (standalone)', path: '/workspace?mode=full-cast&action=add-character' },
   { icon: Globe, label: 'Build a world (standalone)', path: '/workspace?mode=world' },
   { icon: GitCompare, label: 'Compare two stories', path: '/workspace?mode=comparison' },

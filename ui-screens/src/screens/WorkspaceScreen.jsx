@@ -6,6 +6,7 @@ import PhaseProgress, { phases, allPrereqsComplete, overallProgress, currentActi
 import CastRoster from '../components/CastRoster';
 import fileContents from '../data/fileData';
 import HealthBar from '../components/HealthBar';
+import MarkdownEditor from '../components/MarkdownEditor';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import Badge from '../components/Badge';
@@ -206,7 +207,18 @@ const phaseQuestions = {
   ],
 };
 
-function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
+// Map decomposed phases to their source files for "Edit in Editor" links
+const DECOMPOSED_FILE_MAP = {
+  1: 'author.md',
+  2: 'narrator.md',
+  3: 'world/world-building.md',
+  4: null, // characters — multiple files
+  5: 'relationships/questions-answered.md',
+  6: 'outline.md',
+  7: 'dry-run-audit.md',
+};
+
+function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDecomposed, onOpenFile }) {
   const [currentQ, setCurrentQ] = useState(0);
   const [aiResponse, setAiResponse] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
@@ -333,23 +345,26 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase }) {
         </div>
       )}
 
-      {/* Answer field — shows existing answer if already filled */}
-      <textarea
+      {/* Answer field — WYSIWYG markdown editor */}
+      <MarkdownEditor
         value={currentAnswer}
-        onChange={(e) => onAnswer(phase, q.id, e.target.value)}
+        onChange={(val) => onAnswer(phase, q.id, val)}
         placeholder={q.placeholder || 'Your answer...'}
-        style={{
-          width: '100%', minHeight: 120, padding: 16,
-          background: currentAnswer ? 'var(--bg-secondary)' : 'var(--bg-tertiary)',
-          border: currentAnswer ? '1px solid var(--accent-border)' : '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)', color: 'var(--text-primary)',
-          fontFamily: 'var(--font-sans)', fontSize: '0.9rem', resize: 'vertical',
-          boxSizing: 'border-box',
-        }}
+        minHeight={140}
       />
       {currentAnswer && (
-        <div style={{ fontSize: '0.7rem', color: 'var(--health-exceptional)', marginTop: 4 }}>
-          ✓ Previously answered — edit above to update
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+          <div style={{ fontSize: '0.7rem', color: 'var(--health-exceptional)' }}>
+            ✓ Previously answered — edit above to update
+          </div>
+          {isDecomposed && DECOMPOSED_FILE_MAP[phase] && onOpenFile && (
+            <div
+              onClick={() => onOpenFile(DECOMPOSED_FILE_MAP[phase])}
+              style={{ fontSize: '0.7rem', color: 'var(--accent)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+            >
+              Open in Editor →
+            </div>
+          )}
         </div>
       )}
 
@@ -5909,6 +5924,7 @@ export default function WorkspaceScreen() {
   const [editedFiles, setEditedFiles] = useState({});
   const [activePhase, setActivePhase] = useState(3); // which phase is being viewed in Guide
   const [showGateWarning, setShowGateWarning] = useState(false); // modal for locked phases
+  const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null });
@@ -6009,7 +6025,9 @@ export default function WorkspaceScreen() {
 
     // Check if already hydrated (answers are not "(Decomposed)" placeholders)
     const needsHydration = Object.values(pa).some(a =>
-      a?._decomposed && Object.values(a).some(v => typeof v === 'string' && v.startsWith('(Decomposed'))
+      a?._decomposed && Object.values(a).some(v =>
+        typeof v === 'string' && (v.startsWith('(Decomposed') || v.includes('(truncated)') || v.startsWith('(Extracted from'))
+      )
     );
     if (!needsHydration) return;
 
@@ -6032,12 +6050,6 @@ export default function WorkspaceScreen() {
       return results;
     };
 
-    // Helper to truncate long content for display
-    const summarize = (text, maxLen = 2000) => {
-      if (!text || text.length <= maxLen) return text;
-      return text.substring(0, maxLen) + '\n\n...(truncated)';
-    };
-
     const hydrated = {
       1: { _decomposed: true }, // Author
       2: { _decomposed: true }, // Narrator
@@ -6051,7 +6063,7 @@ export default function WorkspaceScreen() {
     // Phase 1 — Author: from author.md
     const authorContent = getFile('author.md');
     if (authorContent) {
-      hydrated[1][1] = summarize(authorContent);
+      hydrated[1][1] = authorContent;
       hydrated[1][2] = '(Extracted from manuscript — see author.md)';
       hydrated[1][3] = '(Extracted from manuscript — see author.md)';
       hydrated[1][4] = '(Extracted from manuscript — see author.md)';
@@ -6060,7 +6072,7 @@ export default function WorkspaceScreen() {
     // Phase 2 — Narrator: from narrator.md
     const narratorContent = getFile('narrator.md');
     if (narratorContent) {
-      hydrated[2][1] = summarize(narratorContent);
+      hydrated[2][1] = narratorContent;
       hydrated[2][2] = '(Extracted from manuscript — see narrator.md)';
       hydrated[2][3] = '(Extracted from manuscript — see narrator.md)';
     }
@@ -6068,7 +6080,7 @@ export default function WorkspaceScreen() {
     // Phase 3 — World: from world/world-building.md
     const worldContent = getFile('world/world-building.md') || getFile('world-building.md');
     if (worldContent) {
-      hydrated[3][1] = summarize(worldContent);
+      hydrated[3][1] = worldContent;
       for (let i = 2; i <= 8; i++) hydrated[3][i] = '(Extracted from manuscript — see world-building.md)';
     }
 
@@ -6079,7 +6091,7 @@ export default function WorkspaceScreen() {
         const name = f.path.split('/').pop().replace('.md', '').replace(/-/g, ' ');
         return `### ${name}\n${f.content}`;
       }).join('\n\n---\n\n');
-      hydrated[4][1] = summarize(charSummary, 3000);
+      hydrated[4][1] = charSummary;
       hydrated[4][2] = '(Extracted from manuscript — see character files)';
       hydrated[4][3] = '(Extracted from manuscript — see character files)';
       hydrated[4][4] = `${charFiles.length} characters extracted: ${charFiles.map(f => f.path.split('/').pop().replace('.md', '').replace(/-/g, ' ')).join(', ')}`;
@@ -6088,21 +6100,21 @@ export default function WorkspaceScreen() {
     // Phase 5 — Relationships: from relationships/questions-answered.md
     const relContent = getFile('relationships/questions-answered.md');
     if (relContent) {
-      hydrated[5][1] = summarize(relContent);
+      hydrated[5][1] = relContent;
       hydrated[5][2] = '(Extracted from manuscript — see relationships)';
     }
 
     // Phase 6 — Story Foundation: from outline.md and story/arc.md
     const outlineContent = getFile('outline.md');
     const arcContent = getFile('story/arc.md') || getFile('arc.md');
-    if (outlineContent) hydrated[6][1] = summarize(outlineContent);
-    if (arcContent) hydrated[6][2] = summarize(arcContent);
+    if (outlineContent) hydrated[6][1] = outlineContent;
+    if (arcContent) hydrated[6][2] = arcContent;
     hydrated[6][3] = '(Extracted from manuscript — see outline and arc files)';
 
     // Phase 7 — Review: from dry-run-audit.md
     const auditContent = getFile('dry-run-audit.md');
     if (auditContent) {
-      hydrated[7][1] = summarize(auditContent);
+      hydrated[7][1] = auditContent;
       hydrated[7][2] = '(Extracted from manuscript — see dry-run-audit.md)';
       hydrated[7][3] = '(Extracted from manuscript — see dry-run-audit.md)';
     }
@@ -6130,7 +6142,7 @@ export default function WorkspaceScreen() {
     Object.values(phaseAnswers).some(a => a?._decomposed);
   const phasePcts = {};
   phases.forEach(p => {
-    if (isDecomposed && phaseAnswers[p.num]?._decomposed) {
+    if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === '⟡')) {
       phasePcts[p.num] = 100;
     } else {
       const qs = phaseQuestions[p.num] || [];
@@ -6306,6 +6318,11 @@ export default function WorkspaceScreen() {
               const idx = phaseOrder.indexOf(activePhase);
               if (idx > 0) setActivePhase(phaseOrder[idx - 1]);
             }}
+            isDecomposed={isDecomposed}
+            onOpenFile={(filePath) => {
+              setActiveFile(filePath);
+              setActiveMode('file-editor');
+            }}
           />;
       case 'editor': return <EditorMode file={activeFile} />;
       case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} editedContent={editedFiles[activeFile]} />;
@@ -6366,6 +6383,7 @@ export default function WorkspaceScreen() {
       <TopBar
         projectName={activeProject?.title || 'Untitled Story'}
         healthRating={overallHealthRating}
+        projectMode={activeProject?.metadata?.mode || (isDecomposed ? 'decompose' : null)}
         onHealthClick={() => {
           setRightCollapsed(false);
           setTimeout(() => {
@@ -6971,6 +6989,51 @@ export default function WorkspaceScreen() {
                 {/* Default Content: Section 1: Next Steps — dynamic based on phase progress */}
                 {!showVersionHistory && !showSearchPanel && (
                   <>
+                {/* Decomposition guard overlay */}
+                {isDecomposed && !decomposedHealthRevealed && (
+                  <div style={{
+                    position: 'absolute', top: 40, left: 0, right: 0, bottom: 0,
+                    zIndex: 20, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', padding: 24, textAlign: 'center',
+                    backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)',
+                    background: 'rgba(20, 20, 30, 0.75)',
+                  }}>
+                    <div style={{
+                      fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+                      color: 'var(--accent)', fontWeight: 600, marginBottom: 8,
+                    }}>
+                      Decomposition Mode
+                    </div>
+                    <div style={{
+                      fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600,
+                      marginBottom: 12, lineHeight: 1.5,
+                    }}>
+                      Health scores & suggestions are hidden
+                    </div>
+                    <div style={{
+                      fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6,
+                      marginBottom: 20, maxWidth: 240,
+                    }}>
+                      This is a decomposed work — these AI-generated ratings are subjective heuristics, not a judgment on you, the author, or the book itself. They're useful if you want to build on or remix this story.
+                    </div>
+                    <button
+                      onClick={() => setDecomposedHealthRevealed(true)}
+                      style={{
+                        background: 'transparent', border: '1px solid var(--accent)',
+                        color: 'var(--accent)', padding: '8px 16px', borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+                        transition: 'all 0.2s ease',
+                      }}
+                      onMouseEnter={(e) => { e.target.style.background = 'var(--accent)'; e.target.style.color = '#fff'; }}
+                      onMouseLeave={(e) => { e.target.style.background = 'transparent'; e.target.style.color = 'var(--accent)'; }}
+                    >
+                      Show me anyway — I can handle it
+                    </button>
+                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 10, fontStyle: 'italic' }}>
+                      Scores are heuristic only — not a reflection of quality
+                    </div>
+                  </div>
+                )}
                 <h4 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
                   Next Steps
                 </h4>

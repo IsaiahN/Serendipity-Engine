@@ -138,7 +138,7 @@ export default function WizardScreen() {
   const [decomposeError, setDecomposeError] = useState(null); // string or null
 
   // Route-specific handlers
-  const handleDecompose = async () => {
+  const handleDecompose = async (intent) => {
     setIsProcessing(true);
     setDecomposeError(null);
     setDecomposeProgress(null);
@@ -168,6 +168,7 @@ export default function WizardScreen() {
         seed,
         metadata: {
           mode: 'decompose',
+          decomposeIntent: intent || 'research',
           importedAt: new Date().toISOString(),
         },
       });
@@ -1261,18 +1262,34 @@ function StepSimpleTitleAuthor({ formData, setFormData }) {
 // SPECIAL MODE COMPONENTS
 // ──────────────────────────────────────────────────────────────────────
 
+const DECOMPOSE_INTENTS = [
+  { key: 'research', label: 'Research / Fun', icon: '🔍', desc: 'Just exploring — I want to study how this story works structurally.' },
+  { key: 'build', label: 'Build On Top', icon: '🏗️', desc: 'I want to extend, remix, or create a sequel/prequel from this foundation.' },
+  { key: 'adapt', label: 'Remix / Adapt', icon: '✨', desc: 'I want to reimagine this — new genre, medium (play, musical), or POV (like turning Wizard of Oz into Wicked).' },
+];
+
 function DecomposeMode({ formData, setFormData, onComplete, progress, error, onClearError }) {
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
   const [fileName, setFileName] = useState('');
   const [dragOver, setDragOver] = useState(false);
+  const [showIntentModal, setShowIntentModal] = useState(false);
+  const [selectedIntent, setSelectedIntent] = useState(null);
+  const [multiFileMode, setMultiFileMode] = useState(false);
+  const [additionalFiles, setAdditionalFiles] = useState([]); // for series support
 
   const handleComplete = async () => {
     setIsProcessing(true);
-    await onComplete();
+    // Store intent in formData metadata
+    setFormData(prev => ({ ...prev, decomposeIntent: selectedIntent }));
+    await onComplete(selectedIntent);
     // If we're still mounted (error case), reset processing
     setIsProcessing(false);
+  };
+
+  const handleShowIntent = () => {
+    setShowIntentModal(true);
   };
 
   const readFile = (file) => {
@@ -1576,20 +1593,163 @@ function DecomposeMode({ formData, setFormData, onComplete, progress, error, onC
             </details>
           )}
 
+          {/* Multi-file series toggle */}
+          {hasContent && (
+            <div style={{ marginBottom: 16, textAlign: 'left' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <input
+                  type="checkbox"
+                  checked={multiFileMode}
+                  onChange={(e) => setMultiFileMode(e.target.checked)}
+                  style={{ accentColor: 'var(--accent)' }}
+                />
+                This is part of a series (add more books)
+              </label>
+            </div>
+          )}
+
+          {/* Series file list */}
+          {multiFileMode && hasContent && (
+            <div style={{
+              marginBottom: 20, padding: 16, background: 'var(--bg-tertiary)',
+              border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+              textAlign: 'left',
+            }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 10 }}>
+                Series Books ({1 + additionalFiles.length} total)
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: 'var(--accent)' }}>
+                  <span style={{ fontWeight: 600 }}>1.</span> {formData.title || fileName || 'Book 1'} (primary)
+                </div>
+                {additionalFiles.map((af, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ fontWeight: 600 }}>{i + 2}.</span>
+                    {af.name}
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      (~{Math.round(af.content.split(/\s+/).length).toLocaleString()} words)
+                    </span>
+                    <button
+                      onClick={() => setAdditionalFiles(prev => prev.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 2 }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <input
+                type="file"
+                accept=".txt,.md,.rtf,.html,.htm,.fountain"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  files.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                      setAdditionalFiles(prev => [...prev, { name: file.name, content: ev.target.result }]);
+                    };
+                    reader.readAsText(file);
+                  });
+                  e.target.value = '';
+                }}
+                style={{ display: 'none' }}
+                id="series-file-input"
+              />
+              <Button variant="secondary" onClick={() => document.getElementById('series-file-input')?.click()} style={{ fontSize: '0.75rem' }}>
+                + Add Next Book
+              </Button>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 8 }}>
+                Each book will be decomposed separately with shared world/character data carried forward.
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 8 }}>
             <Button variant="secondary" onClick={() => navigate('/hub')}>
               Cancel
             </Button>
             <Button
               variant="primary"
-              onClick={handleComplete}
+              onClick={handleShowIntent}
               disabled={!hasContent || isProcessing}
             >
-              {isProcessing ? 'Decomposing...' : 'Decompose'}
+              {isProcessing ? 'Decomposing...' : 'Continue →'}
             </Button>
           </div>
         </Card>
       </div>
+
+      {/* ── Intent Modal ── */}
+      {showIntentModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, animation: 'fadeIn 0.2s ease',
+        }}
+          onClick={() => setShowIntentModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)', borderRadius: 'var(--radius-md, 12px)',
+              padding: 32, maxWidth: 520, width: '90%',
+              border: '1px solid var(--border)',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+            }}
+          >
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>
+              What's your goal?
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: 24, textAlign: 'center', lineHeight: 1.6 }}>
+              This helps us tailor the decomposition and workspace experience.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+              {DECOMPOSE_INTENTS.map(intent => (
+                <div
+                  key={intent.key}
+                  onClick={() => setSelectedIntent(intent.key)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '14px 16px', borderRadius: 'var(--radius-sm)',
+                    border: selectedIntent === intent.key
+                      ? '2px solid var(--accent)'
+                      : '1px solid var(--border)',
+                    background: selectedIntent === intent.key
+                      ? 'rgba(240,160,80,0.06)'
+                      : 'var(--bg-tertiary)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span style={{ fontSize: '1.4rem' }}>{intent.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: 2 }}>{intent.label}</div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{intent.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setShowIntentModal(false)}>
+                Back
+              </Button>
+              <Button
+                variant="primary"
+                disabled={!selectedIntent}
+                onClick={() => {
+                  setShowIntentModal(false);
+                  handleComplete();
+                }}
+              >
+                Decompose Now
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

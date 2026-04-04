@@ -147,7 +147,7 @@ function ShortcutsModal({ onClose }) {
   );
 }
 
-export default function TopBar({ projectName, healthRating, showHealth = true, onHealthClick, onSettingsClick, onThemeClick, onTourClick }) {
+export default function TopBar({ projectName, healthRating, showHealth = true, projectMode, onHealthClick, onSettingsClick, onThemeClick, onTourClick }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
@@ -205,14 +205,33 @@ export default function TopBar({ projectName, healthRating, showHealth = true, o
         <>
           <span style={{ color: 'var(--text-muted)' }}>/</span>
           <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{projectName}</span>
+          {projectMode && (
+            <span style={{
+              fontSize: '0.6rem',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.04em',
+              padding: '2px 7px',
+              borderRadius: 100,
+              background: projectMode === 'decompose'
+                ? 'rgba(168, 85, 247, 0.12)'
+                : 'rgba(59, 130, 246, 0.12)',
+              color: projectMode === 'decompose'
+                ? '#c084fc'
+                : '#60a5fa',
+              border: `1px solid ${projectMode === 'decompose' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(59, 130, 246, 0.25)'}`,
+            }}>
+              {projectMode === 'decompose' ? 'Decomposition' : projectMode === 'roughdraft' ? 'Rough Draft' : 'Creation'}
+            </span>
+          )}
         </>
       )}
 
       {/* Spacer */}
       <div style={{ flex: 1 }} />
 
-      {/* Story Structure Score (if in workspace) — clickable */}
-      {isWorkspace && showHealth && (
+      {/* Story Structure Score (if in workspace) — hidden for decomposed projects */}
+      {isWorkspace && showHealth && projectMode !== 'decompose' && (
         <div
           style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', position: 'relative' }}
           onClick={onHealthClick}
