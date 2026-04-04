@@ -159,7 +159,7 @@ export default function WizardScreen() {
         ? rawTitle
         : extractTitleFromText(sourceText) || 'Decomposed Story';
 
-      setDecomposeProgress({ label: 'Creating project...', completed: 0, total: 9 });
+      setDecomposeProgress({ label: 'Creating project...', completed: 0, total: 13 });
 
       // Create the project first
       const project = await createProject({
@@ -189,7 +189,7 @@ export default function WizardScreen() {
         }
       );
 
-      setDecomposeProgress({ label: 'Saving files...', completed: 9, total: 9 });
+      setDecomposeProgress({ label: 'Saving files...', completed: 13, total: 13 });
 
       // Populate project with decomposed files
       for (const [filePath, content] of Object.entries(decomposedFiles)) {

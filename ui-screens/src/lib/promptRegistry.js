@@ -685,6 +685,180 @@ ${outlineContent ? `### Outline:\n${outlineContent}` : '### No outline provided.
   },
 
   // ═════════════════════════════════════════════════════════════════════
+  //  16b. DECOMPOSITION — World Detail (Hallmarks + Questions Answered)
+  // ═════════════════════════════════════════════════════════════════════
+  DECOMPOSE_WORLD_DETAIL: {
+    build: ({ sourceExcerpt, worldSummary, title }) => GOLDEN_RULES + `
+## Your Role: Literary Analyst — World Detail Extraction
+
+You are analyzing "${title}" to produce two distinct outputs for the Serendipity Engine's decomposition folder. Use evidence from the manuscript and the world-building analysis already completed.
+
+### Manuscript excerpt:
+${sourceExcerpt}
+
+### World-building analysis so far:
+${worldSummary}
+
+### Produce TWO sections in a single response, separated by headings:
+
+# World Hallmarks
+
+Identify the world's signature objects, places, forces, and mechanics that have cultural resonance — things that outlive their plot function and enter the story's identity. For each hallmark:
+- **Name**: The hallmark
+- **Category**: Object / Place / Force / Mechanic / Symbol
+- **First appearance**: Where in the text it appears
+- **Resonance**: Why it sticks — frequency, adaptation survival, the poster test
+- **Plot function vs. Identity function**: What it does for the story vs. what it means for the world
+
+Include 5-15 hallmarks ordered by significance.
+
+---
+
+# World Questions Answered
+
+Answer the following questions about the world using [CONFIRMED] and [INFERRED] markers:
+1. What is the genre blend? (e.g. "Fantasy / Coming-of-Age / Fairy Tale")
+2. What is the theme as a *question* (not a statement)?
+3. What are the rules of the world? What is possible and impossible?
+4. How does Society function as a character — what does it demand?
+5. What is the tonal register? (earnest, ironic, mythic, etc.)
+6. What are the primary conflicts: Man vs. Nature, Man vs. Society, Man vs. Self?
+7. What narrative techniques are operating? (Chekhov's guns, foreshadowing, dramatic irony)
+8. How does geography shape character behavior and plot?
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  16c. DECOMPOSITION — Characters Detail (Cast-Level Questions)
+  // ═════════════════════════════════════════════════════════════════════
+  DECOMPOSE_CHARACTERS_DETAIL: {
+    build: ({ sourceExcerpt, characterNames, title }) => GOLDEN_RULES + `
+## Your Role: Literary Analyst — Cast-Level Character Questions
+
+You are analyzing "${title}" to answer cast-level structural questions. The major characters identified are: ${characterNames}.
+
+### Manuscript excerpt:
+${sourceExcerpt}
+
+### Answer in markdown format:
+
+# Characters — Questions Answered (Cast-Level)
+
+Use [CONFIRMED] and [INFERRED] markers for each answer.
+
+1. **Who is the protagonist?** Why — what structural evidence confirms this?
+2. **Who is the antagonist (if any)?** Is the antagonist a person, system, or force?
+3. **Which characters are load-bearing?** (removal would collapse a story thread)
+4. **Which characters are catalysts/extras?** (functional but arc-less)
+5. **Who are the foil pairs?** What does each reveal about the other?
+6. **What is each character's wound?** The thing they are running from or toward.
+7. **What are the Stream A vs. Stream B tensions?** (what each character privately knows vs. what their world tells them)
+8. **Which network archetypes are present?** (hub, bridge, isolate, gatekeeper)
+9. **What character is missing?** If you were generating this cast from scratch, who would the engine have added?
+10. **What is the ensemble dynamic?** How do these characters function as a group — complementary, redundant, or conflicting?
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  16d. DECOMPOSITION — Relationship Graph CSV
+  // ═════════════════════════════════════════════════════════════════════
+  DECOMPOSE_RELATIONSHIPS_DETAIL: {
+    build: ({ sourceExcerpt, characterNames, relSummary, title }) => GOLDEN_RULES + `
+## Your Role: Literary Analyst — Relationship Graph Construction
+
+Build a CSV relationship matrix for "${title}".
+
+### Characters: ${characterNames.join(', ')}
+
+### Relationship analysis so far:
+${relSummary}
+
+### Manuscript excerpt:
+${sourceExcerpt}
+
+### Instructions:
+Build a CSV table where:
+- First column header is "From/To"
+- Column headers are character names (include minor characters with "(minor)" suffix and society groups with "(society)" suffix)
+- Each cell describes how the ROW character perceives the COLUMN character at the story's close
+- Use "SELF" for diagonal cells (a character's self-perception)
+- Leave cells blank for characters who never interact
+- Keep each cell to 1-3 sentences maximum
+- Write from the row character's voice and awareness level
+
+### Output format (CSV only, no prose before or after):
+\`\`\`csv
+From/To,${characterNames.join(',')}
+${characterNames[0]},SELF,description of how ${characterNames[0]} sees ${characterNames[1] || 'others'},...
+\`\`\`
+
+Output ONLY the CSV with no extra commentary. Every row must have the same number of comma-separated fields as the header.
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  16e. DECOMPOSITION — Story Detail (Questions Answered + Abstract)
+  // ═════════════════════════════════════════════════════════════════════
+  DECOMPOSE_STORY_DETAIL: {
+    build: ({ sourceExcerpt, outlineSummary, arcSummary, title }) => GOLDEN_RULES + `
+## Your Role: Literary Analyst — Story Questions and Abstract
+
+Produce two outputs for "${title}": an abstract and story-level questions answered.
+
+### Manuscript excerpt:
+${sourceExcerpt}
+
+### Outline summary:
+${outlineSummary}
+
+### Arc summary:
+${arcSummary}
+
+### Produce TWO sections:
+
+# Abstract
+## *${title}*
+
+---
+
+## Short Description
+(1-2 sentences — the elevator pitch)
+
+---
+
+## Abstract
+(A 150-300 word summary covering: premise, protagonist, central conflict, stakes, and resolution)
+
+---
+
+## Key Details
+- **Genre**:
+- **Setting**:
+- **Time Period**:
+- **Word Count**: (approximate)
+- **Chapters**: (count)
+- **Point of View**:
+- **Tone**:
+
+---
+
+# Story — Questions Answered
+
+Use [CONFIRMED] and [INFERRED] markers:
+1. What is the inciting incident? What exactly breaks the protagonist's status quo?
+2. What is the central dramatic question? (the question the reader keeps reading to answer)
+3. What is the climax? Where does the central question get answered?
+4. What is the resolution? How does the world differ from page 1?
+5. What is the tonal arc? (chapter-by-chapter or act-by-act)
+6. What is the pacing strategy? Where does the story accelerate and decelerate?
+7. What are the planted/paid-off story threads? (Chekhov's guns, foreshadowing, callbacks)
+8. What threads are left open? (intentionally or accidentally)
+9. What is the theme as a question, and does the story answer it?
+10. What is the Big Picture Finding? What was the author trying to say that they could not say directly?
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
   //  17. EDITOR REVIEW (One-shot — JSON editorial feedback)
   // ═════════════════════════════════════════════════════════════════════
   /**

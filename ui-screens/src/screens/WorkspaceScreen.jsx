@@ -921,6 +921,32 @@ const defaultFileContent = (fileName) => ({
   chapter: false,
 });
 
+/**
+ * Bridge: convert raw markdown from Zustand store into the { title, content, chapter }
+ * format expected by ReaderMode / FileEditorMode.
+ * Returns null if the store has no content for this path.
+ */
+function storeFileToFc(storeFiles, filePath) {
+  const raw = storeFiles?.[filePath];
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+
+  // Extract title from first heading or filename
+  const headingMatch = raw.match(/^#+ (.+)/m);
+  const fallbackTitle = filePath
+    .split('/').pop()
+    .replace('.md', '')
+    .replace(/-/g, ' ')
+    .replace(/\b\w/g, c => c.toUpperCase());
+  const title = headingMatch ? headingMatch[1].trim() : fallbackTitle;
+
+  // Split into paragraphs (double-newline separated)
+  const paragraphs = raw.split(/\n\n+/).filter(Boolean);
+
+  const isChapter = /^story\/chapter-\d+\.md$/.test(filePath);
+
+  return { title, content: paragraphs, chapter: isChapter, rawText: raw };
+}
+
 /* ─── Lightweight Markdown Renderer ─── */
 function renderInlineMarkdown(text, keyPrefix = '') {
   // Process inline markdown: bold, italic, code, links, strikethrough
@@ -1178,12 +1204,14 @@ function ReaderMode({ file, onEdit, editedContent }) {
   const [readerFontSize, setReaderFontSize] = useState(1.05);
   const [readerLineHeight, setReaderLineHeight] = useState(2);
   const [readerFont, setReaderFont] = useState('Georgia, serif');
-  const fc = fileContents[file] || defaultFileContent(file || 'chapter-1.md');
+  // Prefer live project data from Zustand store; fall back to static demo data
+  const storeFiles = useProjectStore(s => s.files);
+  const fc = storeFileToFc(storeFiles, file) || fileContents[file] || defaultFileContent(file || 'chapter-1.md');
   const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
   const displayContent = editedContent !== undefined
     ? { ...fc, content: editedContent.split('\n\n').filter(Boolean), rawText: editedContent }
-    : { ...fc, rawText: fc.content.join('\n\n') };
+    : { ...fc, rawText: fc.rawText || fc.content.join('\n\n') };
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 24px', animation: 'fadeIn 0.3s ease' }}>
@@ -1414,8 +1442,10 @@ function ReaderMode({ file, onEdit, editedContent }) {
 
 /* ─── IDE-like File Editor ─── */
 function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onContentChange, onSave }) {
-  const fc = fileContents[file] || defaultFileContent(file || 'untitled.md');
-  const fallbackText = fc.content.join('\n\n');
+  // Prefer live project data from Zustand store; fall back to static demo data
+  const storeFiles = useProjectStore(s => s.files);
+  const fc = storeFileToFc(storeFiles, file) || fileContents[file] || defaultFileContent(file || 'untitled.md');
+  const fallbackText = fc.rawText || fc.content.join('\n\n');
   const content = editedContent !== undefined ? editedContent : fallbackText;
   const [saved, setSaved] = useState(editedContent === undefined);
   const [showMinimap, setShowMinimap] = useState(true);
