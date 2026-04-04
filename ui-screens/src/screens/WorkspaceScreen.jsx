@@ -6265,26 +6265,12 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
       let savedCount = 0;
       let errorCount = 0;
 
-      // For character regeneration, we need to handle old character files being replaced.
-      // If 'characters' step was selected, remove old character files first (except questions-answered).
-      if (selectedStepKeys.includes('characters')) {
-        const oldCharFiles = Object.keys(projectFiles).filter(
-          p => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered')
-        );
-        const db = (await import('../lib/db')).default;
-        for (const oldPath of oldCharFiles) {
-          try {
-            const record = await db.projectFiles
-              .where('[projectId+path]')
-              .equals([activeProjectId, oldPath])
-              .first();
-            if (record) await db.projectFiles.delete(record.id);
-          } catch (e) {
-            console.warn('Failed to remove old character file:', oldPath, e);
-          }
-        }
-      }
+      // Verify we actually got new files before touching old ones
+      const newCharFiles = Object.keys(newFiles).filter(
+        p => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered')
+      );
 
+      // Write all new files FIRST
       for (const [filePath, content] of Object.entries(newFiles)) {
         try {
           await updateFile(filePath, content);
@@ -6292,6 +6278,30 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
         } catch (e) {
           console.warn(`Failed to save ${filePath}:`, e);
           errorCount++;
+        }
+      }
+
+      // THEN clean up old character files that no longer exist in the new set.
+      // Only if 'characters' step was selected AND we got at least 1 new character file.
+      if (selectedStepKeys.includes('characters') && newCharFiles.length > 0) {
+        const oldCharFiles = Object.keys(projectFiles).filter(
+          p => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered')
+        );
+        // Only remove old files that are NOT in the new set (avoids deleting just-written files)
+        const toRemove = oldCharFiles.filter(p => !newFiles[p]);
+        if (toRemove.length > 0) {
+          const db = (await import('../lib/db')).default;
+          for (const oldPath of toRemove) {
+            try {
+              const record = await db.projectFiles
+                .where('[projectId+path]')
+                .equals([activeProjectId, oldPath])
+                .first();
+              if (record) await db.projectFiles.delete(record.id);
+            } catch (e) {
+              console.warn('Failed to remove old character file:', oldPath, e);
+            }
+          }
         }
       }
 

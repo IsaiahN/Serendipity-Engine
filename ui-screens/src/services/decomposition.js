@@ -876,15 +876,49 @@ function parseSplitResponse(content, sections) {
 
 function parseCharacterMarkdown(content) {
   const files = {};
-  // Split by character sections
-  const sections = content.split(/^## /m).slice(1);
+
+  // Strip markdown code fences (```markdown ... ``` or ``` ... ```)
+  let cleaned = content.replace(/^```(?:markdown|md)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
+
+  // Try splitting by ## (h2) first — this is the expected format
+  let sections = cleaned.split(/^## /m).slice(1);
+
+  // Fallback: if no ## sections found, try # (h1) — skip any "# Characters" header
+  if (sections.length === 0) {
+    const h1Parts = cleaned.split(/^# /m).slice(1);
+    // Filter out meta-headers like "# Characters", "# Cast", "# Character Profiles"
+    sections = h1Parts.filter(s => {
+      const firstLine = s.split('\n')[0].trim().toLowerCase();
+      return !['characters', 'cast', 'character profiles', 'character list'].includes(firstLine);
+    });
+  }
+
+  // Fallback: try ### (h3) if nothing else matched
+  if (sections.length === 0) {
+    sections = cleaned.split(/^### /m).slice(1);
+  }
+
+  if (sections.length === 0) {
+    console.warn('[parseCharacterMarkdown] Could not find any character sections in LLM output. First 500 chars:', cleaned.substring(0, 500));
+  }
 
   sections.forEach((section) => {
     const lines = section.split('\n');
     const charName = lines[0].trim();
-    const safeName = charName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+$/, '');
+    if (!charName) return; // skip empty sections
 
-    files[`characters/${safeName}.md`] = `## ${section}`.trim();
+    // Strip parenthetical aliases for the filename slug (keep in content)
+    // "Elphaba Thropp (The Wicked Witch of the West)" → "Elphaba Thropp"
+    const nameForSlug = charName.replace(/\s*\(.*?\)\s*/g, '').trim();
+    const safeName = (nameForSlug || charName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    if (!safeName) return; // skip if name produces empty slug
+
+    // Determine the heading prefix to restore based on which split matched
+    const headingPrefix = cleaned.includes(`## ${charName}`) ? '## ' :
+                          cleaned.includes(`# ${charName}`) ? '# ' :
+                          cleaned.includes(`### ${charName}`) ? '### ' : '## ';
+
+    files[`characters/${safeName}.md`] = `${headingPrefix}${section}`.trim();
   });
 
   return files;
