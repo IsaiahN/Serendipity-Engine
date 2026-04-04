@@ -321,6 +321,33 @@ export const useProjectStore = create((set, get) => ({
       } catch (logErr) {
         console.warn('Failed to log file edit:', logErr);
       }
+
+      // ── Silent Writing Assessment ──
+      // After file save, analyze writing if enabled
+      if (path.endsWith('.md') && content.length > 200) {
+        try {
+          const { useSettingsStore } = await import('./settingsStore');
+          const { analyzeTextMetrics } = await import('../services/writingAssessment');
+          const settings = useSettingsStore.getState();
+
+          if (settings.silentAssessment) {
+            const metrics = analyzeTextMetrics(content);
+            if (metrics) {
+              const assessmentId = `${projectId}-${path}`;
+              await db.writingProfile.put({
+                id: assessmentId,
+                projectId,
+                path,
+                metrics,
+                timestamp: Date.now(),
+              });
+            }
+          }
+        } catch (err) {
+          // Silent fail — don't interrupt user workflow
+          console.warn('Writing assessment failed (silent):', err);
+        }
+      }
     } catch (err) {
       console.warn('Failed to update file:', err);
       // Queue for background sync if the save failed (e.g., quota exceeded, corruption)

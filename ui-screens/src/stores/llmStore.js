@@ -325,9 +325,10 @@ export const useLlmStore = create((set, get) => ({
 
     if (settings.roleAssignment === 'standard' || settings.roleAssignment === 'granular') {
       // Standard/Granular mode: look up role assignment
-      const roleConfig = settings.roles?.[role];
-      if (roleConfig?.provider && activeProviders.includes(roleConfig.provider)) {
-        return roleConfig.provider;
+      const assignedProvider = settings.roles?.[role];
+      // Verify the assigned provider is actually connected/active
+      if (assignedProvider && activeProviders.includes(assignedProvider)) {
+        return assignedProvider;
       }
     }
 

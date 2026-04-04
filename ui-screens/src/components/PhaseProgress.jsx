@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Check, Circle, Loader, Lock, AlertTriangle } from 'lucide-react';
+import { useSettingsStore } from '../stores/settingsStore';
 
 /*
  * Phase gating rules:
@@ -68,9 +69,14 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePct
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const pctOverall = overallProgress(phasePcts);
   const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed);
+  const userMode = useSettingsStore(s => s.mode) || 'advanced';
 
-  // Filter out Bridge phase for decomposed projects
-  const visiblePhases = isDecomposed ? phases.filter(p => p.num !== '⟡') : phases;
+  // Filter phases: in simple mode, hide phases 8 & 9 (Chapter Execution & Editor) as "advanced"
+  // Also filter Bridge phase for decomposed projects
+  let visiblePhases = isDecomposed ? phases.filter(p => p.num !== '⟡') : phases;
+  if (userMode === 'simple') {
+    visiblePhases = visiblePhases.filter(p => ![8, 9].includes(p.num));
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

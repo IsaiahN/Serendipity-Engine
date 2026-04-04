@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import Button from '../components/Button';
+import WritingProfile from '../components/WritingProfile';
 import { useLlmStore } from '../stores/llmStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProjectStore } from '../stores/projectStore';
-import { LLM_PROVIDERS } from '../lib/constants';
+import SessionCostTracker from '../components/SessionCostTracker';
+import { LLM_PROVIDERS, STANDARD_ROLES } from '../lib/constants';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
   ExternalLink, Trash2, Download, Heart, RefreshCw, Key, ArrowLeft,
@@ -205,7 +207,7 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
     <>
       <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>General</h2>
 
-      <SettingRow label="Mode" desc="Controls complexity of the interface">
+      <SettingRow label="Mode" desc="Controls complexity of the interface. Simple mode hides advanced modes (Timeline, Relationships, World Building, Comparison) and focuses on essentials.">
         <Select
           options={['simple', 'advanced']}
           value={mode}
@@ -296,6 +298,8 @@ function AISettings({ onSettingChange }) {
     auditTrail: s.auditTrail,
     costTracking: s.costTracking,
     ttsAutoRead: s.ttsAutoRead,
+    roleAssignment: s.roleAssignment,
+    roles: s.roles,
   }));
 
   const [selectedProvider, setSelectedProvider] = useState('anthropic');
@@ -309,7 +313,8 @@ function AISettings({ onSettingChange }) {
   const [oauthProvider, setOauthProvider] = useState('google');
   const [oauthClientId, setOauthClientId] = useState('');
   const [oauthStatus, setOauthStatus] = useState(null); // null | 'pending' | 'success' | 'error'
-  const [roleMode, setRoleMode] = useState('standard');
+  const [roleMode, setRoleMode] = useState(settings.roleAssignment || 'simple');
+  const [roles, setRoles] = useState(settings.roles || {});
   const [auditTrail, setAuditTrail] = useState(settings.auditTrail);
   const [costTracking, setCostTracking] = useState(settings.costTracking);
   const [ttsEngine, setTtsEngine] = useState('Piper TTS (local)');
@@ -318,10 +323,12 @@ function AISettings({ onSettingChange }) {
   const [autoRead, setAutoRead] = useState(settings.ttsAutoRead);
 
   useEffect(() => {
+    setRoleMode(settings.roleAssignment || 'simple');
+    setRoles(settings.roles || {});
     setAuditTrail(settings.auditTrail);
     setCostTracking(settings.costTracking);
     setAutoRead(settings.ttsAutoRead);
-  }, [settings.auditTrail, settings.costTracking, settings.ttsAutoRead]);
+  }, [settings.roleAssignment, settings.roles, settings.auditTrail, settings.costTracking, settings.ttsAutoRead]);
 
   // Load providers on mount
   useEffect(() => {
@@ -431,9 +438,16 @@ function AISettings({ onSettingChange }) {
     setApiKeyInput('');
   };
 
-  const handleRoleModeChange = (newMode) => {
+  const handleRoleModeChange = async (newMode) => {
     setRoleMode(newMode);
+    await updateSettings({ roleAssignment: newMode });
     onSettingChange('roleAssignmentMode', newMode);
+  };
+
+  const handleRoleAssignment = async (roleKey, providerKey) => {
+    const newRoles = { ...roles, [roleKey]: providerKey || null };
+    setRoles(newRoles);
+    await updateSettings({ roles: newRoles });
   };
 
   const handleAuditTrail = async (val) => {
@@ -843,6 +857,44 @@ function AISettings({ onSettingChange }) {
         />
       </SettingRow>
 
+      {(roleMode === 'standard' || roleMode === 'granular') && activeProviders.length > 0 && (
+        <div style={{ marginTop: 16, padding: 16, background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
+            Role → Provider Assignment
+          </div>
+          {STANDARD_ROLES.map(role => (
+            <div key={role.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border)', gap: 12 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--text-primary)' }}>{role.label}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{role.description}</div>
+              </div>
+              <select
+                value={roles[role.key] || ''}
+                onChange={e => handleRoleAssignment(role.key, e.target.value || null)}
+                style={{
+                  padding: '6px 10px',
+                  fontSize: '0.8rem',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  minWidth: '150px',
+                }}
+              >
+                <option value="">Auto (first available)</option>
+                {activeProviders.map(p => {
+                  const def = LLM_PROVIDERS.find(prov => prov.key === p);
+                  return (
+                    <option key={p} value={p}>{def?.label || p}</option>
+                  );
+                })}
+              </select>
+            </div>
+          ))}
+        </div>
+      )}
+
       <SettingRow label="Model Audit Trail" desc="Track which model generated each piece of content">
         <Toggle checked={auditTrail} onChange={handleAuditTrail} />
       </SettingRow>
@@ -850,6 +902,12 @@ function AISettings({ onSettingChange }) {
       <SettingRow label="Cost Tracking" desc="Show estimated token costs per operation">
         <Toggle checked={costTracking} onChange={handleCostTracking} />
       </SettingRow>
+
+      {costTracking && (
+        <div style={{ marginTop: 16 }}>
+          <SessionCostTracker variant="full" />
+        </div>
+      )}
 
       <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginTop: 24, marginBottom: 10, fontWeight: 600 }}>
         Text-to-Speech
@@ -1095,21 +1153,17 @@ function WritingSettings({ onSettingChange }) {
         <Toggle checked={conversationalTeacher} onChange={handleConversationalTeacher} />
       </SettingRow>
 
-      <SettingRow label="Character Guide Mode" desc="How character information is presented">
-        <Select
-          options={['interactive', 'list', 'card', 'timeline']}
-          value={characterGuideMode}
-          onChange={handleCharacterGuideMode}
-        />
+      <SettingRow label="Character Guide Mode" desc="Get guidance from a character's perspective">
+        <Toggle checked={characterGuideMode} onChange={handleCharacterGuideMode} />
       </SettingRow>
 
       <SettingRow label="Active Deconstruction" desc="Break down text analysis into layers">
         <Toggle checked={activeDeconstruction} onChange={handleActiveDeconstruction} />
       </SettingRow>
 
-      <SettingRow label="Emotion Wheel Default" desc="Default view for emotional analysis">
+      <SettingRow label="Emotion Wheel Default" desc="Auto-suggest or manual selection mode">
         <Select
-          options={['active', 'muted', 'minimized']}
+          options={['engine', 'picker']}
           value={emotionWheelDefault}
           onChange={handleEmotionWheel}
         />
@@ -1463,6 +1517,7 @@ function PrivacySettings({ navigate, onSettingChange }) {
 // ─── Writing Profile Settings ───
 function WritingProfileSettings({ onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
+  const activeProjectId = useProjectStore(s => s.activeProjectId);
   const settings = useSettingsStore(s => ({
     silentAssessment: s.silentAssessment,
     trackAcrossProjects: s.trackAcrossProjects,
@@ -1488,48 +1543,50 @@ function WritingProfileSettings({ onSettingChange }) {
     onSettingChange('trackAcrossProjects', val);
   };
 
-  const handleViewProfile = () => {
-    onSettingChange('viewProfile', true);
-  };
-
-  const handleResetJourney = () => {
-    onSettingChange('resetJourney', true);
+  const handleResetJourney = async () => {
+    if (window.confirm('Clear all writing profile data and start fresh? This cannot be undone.')) {
+      try {
+        const db = (await import('../lib/db')).default;
+        await db.writingProfile.clear();
+        onSettingChange('resetJourney', true);
+      } catch (err) {
+        console.error('Failed to reset journey:', err);
+      }
+    }
   };
 
   return (
     <>
       <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>Writing Profile</h2>
 
-      <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Your Writing Profile</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>View your growth and achievements</div>
-          </div>
-          <Button size="sm" variant="secondary" onClick={handleViewProfile}>
-            View Profile →
-          </Button>
-        </div>
+      <div style={{ marginBottom: 24 }}>
+        <WritingProfile projectId={trackAcrossProjects ? null : activeProjectId} compact={false} showAnalyzeButton={true} />
       </div>
 
-      <SettingRow label="Silent Assessment" desc="Receive feedback without interruptions">
-        <Toggle checked={silentAssessment} onChange={handleSilentAssessment} />
-      </SettingRow>
+      <div style={{ marginTop: 32 }}>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 16 }}>
+          Settings
+        </h3>
 
-      <SettingRow label="Track Across Projects" desc="Maintain writing statistics across all projects">
-        <Toggle checked={trackAcrossProjects} onChange={handleTrackAcrossProjects} />
-      </SettingRow>
+        <SettingRow label="Silent Assessment" desc="Receive feedback without interruptions">
+          <Toggle checked={silentAssessment} onChange={handleSilentAssessment} />
+        </SettingRow>
 
-      <SettingRow label="Reset Your Journey" desc="Clear all profile data and start fresh">
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={handleResetJourney}
-          style={{ color: '#f97316' }}
-        >
-          Reset Journey
-        </Button>
-      </SettingRow>
+        <SettingRow label="Track Across Projects" desc="Maintain writing statistics across all projects">
+          <Toggle checked={trackAcrossProjects} onChange={handleTrackAcrossProjects} />
+        </SettingRow>
+
+        <SettingRow label="Reset Your Journey" desc="Clear all profile data and start fresh">
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleResetJourney}
+            style={{ color: '#f97316' }}
+          >
+            Reset Journey
+          </Button>
+        </SettingRow>
+      </div>
     </>
   );
 }
@@ -1708,7 +1765,7 @@ export default function SettingsScreen() {
         message = `Conversational teacher ${value ? 'enabled' : 'disabled'}`;
         break;
       case 'characterGuideMode':
-        message = `Character guide mode set to ${value}`;
+        message = `Character guide mode ${value ? 'enabled' : 'disabled'}`;
         break;
       case 'defaultApprovalMode':
         message = `Default approval mode set to ${value}`;

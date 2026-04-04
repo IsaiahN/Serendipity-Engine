@@ -26,6 +26,13 @@ import { PROMPTS, STORY_GLOSSARY } from '../lib/promptRegistry';
 import { useUndoRedo, useUndoRedoKeys } from '../hooks/useUndoRedo';
 import VersionHistory from '../components/VersionHistory';
 import SearchPanel from '../components/SearchPanel';
+import TokenEstimate from '../components/TokenEstimate';
+import DeconstructionOverlay from '../components/DeconstructionOverlay';
+import EmotionWheel from '../components/EmotionWheel';
+import CharacterGuide from '../components/CharacterGuide';
+import TonalArcDesigner from '../components/TonalArcDesigner';
+import SubproblemTracker from '../components/SubproblemTracker';
+import SceneMetadataEditor from '../components/SceneMetadataEditor';
 import { countWords } from '../services/exportEngine';
 import { STORY_MEDIUMS } from '../lib/constants';
 
@@ -432,6 +439,7 @@ function ChapterExecutionMode() {
   const [generatedContent, setGeneratedContent] = useState('');
   const [error, setError] = useState(null);
   const [userNotes, setUserNotes] = useState('');
+  const [emotionalBeats, setEmotionalBeats] = useState([]);
   const [progressDetail, setProgressDetail] = useState('');
   const [duration, setDuration] = useState(null);
 
@@ -439,6 +447,10 @@ function ChapterExecutionMode() {
   const updateFile = useProjectStore(s => s.updateFile);
   const logSession = useProjectStore(s => s.logSession);
   const sendMessage = useLlmStore.getState().sendMessage;
+  const providers = useLlmStore(s => s.providers);
+  const activeProviders = useLlmStore(s => s.activeProviders);
+  const emotionWheelDefault = useSettingsStore(s => s.emotionWheelDefault);
+  const activeProject = useProjectStore(s => s.activeProject);
 
   // Detect next chapter number from existing files
   useEffect(() => {
@@ -465,6 +477,7 @@ function ChapterExecutionMode() {
         updateFile,
         logSession,
         userNotes,
+        emotionalBeats,
         onProgress: ({ stage: s, detail }) => {
           setStage(s === 'complete' ? 'complete' : s === 'error' ? 'error' : s);
           setProgressDetail(detail);
@@ -559,14 +572,33 @@ function ChapterExecutionMode() {
             fontFamily: 'var(--font-sans)', fontSize: '0.85rem', resize: 'vertical',
           }}
         />
+
+        {/* Scene Metadata for this chapter */}
+        <div style={{ marginTop: 16 }}>
+          <SceneMetadataEditor chapterNum={chapterNum} />
+        </div>
+
+        {/* Emotion Wheel for emotional beats */}
+        <div style={{ marginTop: 16 }}>
+          <EmotionWheel
+            selectedEmotions={emotionalBeats}
+            onSelect={setEmotionalBeats}
+            defaultMode={emotionWheelDefault}
+            storyContext={activeProject?.description || ''}
+            chapterNotes={userNotes}
+          />
+        </div>
       </div>
 
-      {/* Generate button */}
+      {/* Generate button with token estimate */}
       {stage === 'idle' && (
-        <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem' }}>
-          <Sparkles size={16} style={{ marginRight: 8 }} />
-          Generate Chapter {chapterNum}
-        </Button>
+        <div>
+          <TokenEstimate files={files} chapterNum={chapterNum} model={providers[activeProviders?.[0]]?.model || 'claude-sonnet-4-5-20250514'} showDetails={true} />
+          <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem' }}>
+            <Sparkles size={16} style={{ marginRight: 8 }} />
+            Generate Chapter {chapterNum}
+          </Button>
+        </div>
       )}
 
       {/* Progress states */}
@@ -1573,6 +1605,7 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
   const content = editedContent !== undefined ? editedContent : fallbackText;
   const [saved, setSaved] = useState(editedContent === undefined);
   const [showMinimap, setShowMinimap] = useState(true);
+  const [showDeconstruction, setShowDeconstruction] = useState(false);
 
   // Undo/redo for editor content
   const undoRedo = useUndoRedo(content, { debounceMs: 500 });
@@ -1675,6 +1708,15 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
           }}>
             <Search size={11} /> Run Editor
           </button>
+          <button onClick={() => setShowDeconstruction(!showDeconstruction)} style={{
+            display: 'flex', alignItems: 'center', gap: 4,
+            padding: '4px 10px', borderRadius: 'var(--radius-sm)',
+            border: '1px solid var(--border)', background: showDeconstruction ? 'rgba(139,92,246,0.2)' : 'var(--bg-card)',
+            color: showDeconstruction ? '#8b5cf6' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem',
+            transition: 'var(--transition)',
+          }}>
+            <Sparkles size={11} /> Deconstruct
+          </button>
           <button onClick={handleSave} style={{
             display: 'flex', alignItems: 'center', gap: 4,
             padding: '4px 10px', borderRadius: 'var(--radius-sm)',
@@ -1686,6 +1728,13 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
           </button>
         </div>
       </div>
+
+      {/* Deconstruction overlay */}
+      {showDeconstruction && (
+        <div style={{ padding: '0 12px', paddingTop: 12, background: 'var(--bg-secondary)', overflow: 'auto', borderBottom: '1px solid var(--border)' }}>
+          <DeconstructionOverlay content={content} onClose={() => setShowDeconstruction(false)} />
+        </div>
+      )}
 
       {/* Editor body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -2911,6 +2960,11 @@ function TimelineMode() {
           timelineCharacters={timelineCharacters}
         />
       )}
+
+      {/* Narrative Threads / Subproblem Tracker */}
+      <div style={{ marginTop: 24 }}>
+        <SubproblemTracker />
+      </div>
 
       {/* Legend indicator — adapts to dataView */}
       <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: '0.65rem', color: 'var(--text-muted)' }}>
@@ -4919,6 +4973,7 @@ function WorldBuildingMode() {
     { key: 'culture', label: `Culture & Rules${cultureRules.length ? ` (${cultureRules.length})` : ''}` },
     { key: 'history', label: `History${history.length ? ` (${history.length})` : ''}` },
     { key: 'hallmarks', label: `Hallmarks${hallmarks.length ? ` (${hallmarks.length})` : ''}` },
+    { key: 'tonal', label: 'Tonal Arc' },
   ];
 
   const tensionColor = (t) => t === 'critical' ? '#ef4444' : t === 'high' ? '#f97316' : t === 'medium' ? '#fbbf24' : '#4ade80';
@@ -5084,6 +5139,21 @@ function WorldBuildingMode() {
                 </div>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* Tonal Arc */}
+        {activeTab === 'tonal' && (
+          <div>
+            <TonalArcDesigner />
+            <Card style={{ padding: 16, marginTop: 16 }}>
+              <h3 style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>About Tonal Arc</h3>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                <p style={{ marginBottom: 8 }}>The tonal arc is the sequence of dominant authorial tones across your story's acts. It is not the story's emotional events — it is the frame the author places around those events.</p>
+                <p style={{ marginBottom: 8 }}><strong>Tone</strong> is the author's consistent attitude toward the material, expressed through every sentence-level decision: word choice, syntax, what is named and what is withheld, how violence or tenderness or absurdity is framed.</p>
+                <p>Design your arc by choosing a tone for each major story point. The visual curve shows the intensity progression — higher positions indicate more intense, volatile, or incandescent tones, while lower positions represent quieter, more restrained tones.</p>
+              </div>
+            </Card>
           </div>
         )}
       </div>
@@ -8416,30 +8486,36 @@ export default function WorkspaceScreen() {
             borderBottom: '1px solid var(--border)',
             overflowX: 'auto',
           }}>
-            {centerStageModes.map((m) => {
-              const Icon = m.icon;
-              const isActive = activeMode === m.key;
-              return (
-                <button
-                  key={m.key}
-                  onClick={() => {
-                    setActiveMode(m.key);
-                    if (m.key === 'reader' || m.key === 'file-editor') setLeftTab('files');
-                  }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 4,
-                    padding: '6px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap',
-                    background: isActive ? 'var(--accent-glow)' : 'transparent',
-                    color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-                    fontWeight: isActive ? 600 : 400,
-                  }}
-                >
-                  <Icon size={13} />
-                  {m.label}
-                </button>
-              );
-            })}
+            {(() => {
+              const userMode = useSettingsStore(s => s.mode) || 'advanced';
+              const visibleModes = userMode === 'simple'
+                ? centerStageModes.filter(m => ['guided', 'chat', 'reader', 'editor', 'board'].includes(m.key))
+                : centerStageModes;
+              return visibleModes.map((m) => {
+                const Icon = m.icon;
+                const isActive = activeMode === m.key;
+                return (
+                  <button
+                    key={m.key}
+                    onClick={() => {
+                      setActiveMode(m.key);
+                      if (m.key === 'reader' || m.key === 'file-editor') setLeftTab('files');
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 4,
+                      padding: '6px 12px', border: 'none', borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem', cursor: 'pointer', whiteSpace: 'nowrap',
+                      background: isActive ? 'var(--accent-glow)' : 'transparent',
+                      color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  >
+                    <Icon size={13} />
+                    {m.label}
+                  </button>
+                );
+              });
+            })()}
           </div>
 
           {/* Content */}
@@ -9161,6 +9237,11 @@ export default function WorkspaceScreen() {
             </div>
           </div>
         </ModalOverlay>
+      )}
+
+      {/* Character Guide Mode */}
+      {useSettingsStore(s => s.characterGuideMode) && (
+        <CharacterGuide currentFile={activeFile} currentContent={editedFiles[activeFile] || useProjectStore(s => s.files)?.[activeFile]} />
       )}
     </div>
   );

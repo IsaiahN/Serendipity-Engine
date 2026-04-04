@@ -136,11 +136,11 @@ export async function runPreFlight(sendMessage, files, chapterNum) {
  * @param {Function} sendMessage - llmStore.sendMessage
  * @param {object} files - all project files
  * @param {number} chapterNum - chapter to generate
- * @param {object} options - { maxTokens, userNotes }
+ * @param {object} options - { maxTokens, userNotes, emotionalBeats }
  * @returns {{ success, content, usage, trimmed }}
  */
 export async function generateChapter(sendMessage, files, chapterNum, options = {}) {
-  const { maxTokens = 128000, userNotes = '' } = options;
+  const { maxTokens = 128000, userNotes = '', emotionalBeats = [] } = options;
 
   const ctx = buildChapterContext(files, chapterNum, { maxTokens });
 
@@ -148,6 +148,16 @@ export async function generateChapter(sendMessage, files, chapterNum, options = 
   if (userNotes.trim()) {
     const lastMsg = ctx.messages[ctx.messages.length - 1];
     lastMsg.content += `\n\n## Author Notes for This Chapter\n\n${userNotes}`;
+  }
+
+  // Inject emotional beats if provided
+  if (emotionalBeats.length > 0) {
+    const lastMsg = ctx.messages[ctx.messages.length - 1];
+    const emotionLabels = emotionalBeats.map(beat => {
+      // Format: "primary:secondary:tertiary" -> "tertiary"
+      return beat.split(':').pop();
+    }).join(', ');
+    lastMsg.content += `\n\n## Emotional Beats\n\nFocus on these emotional tones: ${emotionLabels}`;
   }
 
   const result = await sendMessage({
@@ -236,6 +246,7 @@ export async function runPostFlight(sendMessage, files, chapterNum) {
  * @param {Function} params.logSession - projectStore.logSession
  * @param {Function} params.onProgress - callback({ stage, detail })
  * @param {string} params.userNotes - optional author notes
+ * @param {array} params.emotionalBeats - selected emotions from the wheel (array of strings)
  * @returns {{ success, chapter, preflight, postflight, error }}
  */
 export async function runChapterPipeline({
@@ -246,6 +257,7 @@ export async function runChapterPipeline({
   logSession,
   onProgress = () => {},
   userNotes = '',
+  emotionalBeats = [],
 }) {
   const startTime = Date.now();
 
@@ -266,7 +278,7 @@ export async function runChapterPipeline({
 
     // ── Stage 2: Generate chapter ──
     onProgress({ stage: 'generating', detail: `Generating Chapter ${chapterNum}...` });
-    const genResult = await generateChapter(sendMessage, files, chapterNum, { userNotes });
+    const genResult = await generateChapter(sendMessage, files, chapterNum, { userNotes, emotionalBeats });
 
     if (!genResult.success) {
       return { success: false, error: genResult.error, preflight, postflight: null };

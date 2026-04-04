@@ -1133,6 +1133,20 @@ function StepMaterials({ formData, setFormData, fileInputRef }) {
 }
 
 function StepStartingPhase({ formData, setFormData }) {
+  const userMode = useSettingsStore(s => s.mode) || 'advanced';
+
+  const allOptions = [
+    { id: 1, label: 'Phase 1: Author', desc: 'From your vision' },
+    { id: 6, label: 'Phase 6: Story', desc: 'From the ending' },
+    { id: 8, label: 'Phase 8: Execution', desc: 'Start drafting' },
+    { id: 0, label: 'Custom', desc: 'Pick later' },
+  ];
+
+  // In simple mode, hide Phase 8 (Execution)
+  const visibleOptions = userMode === 'simple'
+    ? allOptions.filter(opt => opt.id !== 8)
+    : allOptions;
+
   return (
     <>
       <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Starting Point</h2>
@@ -1141,12 +1155,7 @@ function StepStartingPhase({ formData, setFormData }) {
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {[
-          { id: 1, label: 'Phase 1: Author', desc: 'From your vision' },
-          { id: 6, label: 'Phase 6: Story', desc: 'From the ending' },
-          { id: 8, label: 'Phase 8: Execution', desc: 'Start drafting' },
-          { id: 0, label: 'Custom', desc: 'Pick later' },
-        ].map(opt => (
+        {visibleOptions.map(opt => (
           <Card
             key={opt.id}
             active={formData.startingPhase === opt.id}

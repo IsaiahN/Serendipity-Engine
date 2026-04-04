@@ -31,6 +31,9 @@ const defaultSettings = {
     analyst: null,
   },
 
+  // Task-level overrides (for granular mode)
+  taskOverrides: {},
+
   // ── Workspace ────────────────────
   autoSaveInterval: 30000,      // ms (0 = off)
   crashRecovery: true,
