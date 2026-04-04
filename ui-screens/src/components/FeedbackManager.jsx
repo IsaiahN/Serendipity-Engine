@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { useProjectStore } from '../stores/projectStore';
+import { analyzeFeedbackHealth } from '../services/healthScoring';
 
 export default function FeedbackManager() {
   const files = useProjectStore(s => s.files);
@@ -34,6 +35,57 @@ export default function FeedbackManager() {
       .filter(f => f.count > 0)
       .sort((a, b) => b.count - a.count);
   }, [feedbackFiles]);
+
+  // Analyze feedback health impact
+  const feedbackHealthAnalysis = useMemo(() => {
+    if (feedbackFiles.length === 0) return null;
+    const feedbackMap = {};
+    feedbackFiles.forEach(f => {
+      feedbackMap[f.path] = f.content;
+    });
+    return analyzeFeedbackHealth(feedbackMap);
+  }, [feedbackFiles]);
+
+  // Map dimension names to display labels
+  const dimensionLabels = {
+    pacing: 'Pacing',
+    dialogueQuality: 'Dialogue',
+    thematicCoherence: 'Coherence',
+    characterDepth: 'Character Depth',
+    readerEngagement: 'Engagement',
+    worldBuilding: 'Worldbuilding',
+    plotConsistency: 'Consistency',
+    proseQuality: 'Prose Quality',
+    narrativeArc: 'Narrative Arc',
+    emotionalResonance: 'Emotional Resonance',
+  };
+
+  // Get impact color and label
+  const getImpactStyle = (impact) => {
+    const absImpact = Math.abs(impact);
+    if (absImpact > 0.10) {
+      return {
+        background: 'rgba(239, 68, 68, 0.15)',
+        color: '#ef4444',
+        borderColor: 'rgba(239, 68, 68, 0.3)',
+        label: 'Strong',
+      };
+    } else if (absImpact > 0.05) {
+      return {
+        background: 'rgba(251, 191, 36, 0.15)',
+        color: '#fbbf24',
+        borderColor: 'rgba(251, 191, 36, 0.3)',
+        label: 'Moderate',
+      };
+    } else {
+      return {
+        background: 'rgba(234, 179, 8, 0.15)',
+        color: '#eab308',
+        borderColor: 'rgba(234, 179, 8, 0.3)',
+        label: 'Mild',
+      };
+    }
+  };
 
   const handleAddFeedback = async () => {
     if (!feedbackContent.trim()) return;
@@ -154,6 +206,51 @@ export default function FeedbackManager() {
                 border: `1px solid ${f.count > 5 ? '#ef444433' : f.count > 2 ? '#fbbf2433' : '#4ade8033'}`,
               }}>{f.label} ({f.count})</span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Health Impact */}
+      {feedbackHealthAnalysis && feedbackHealthAnalysis.themes.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Health Impact</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {feedbackHealthAnalysis.themes.map((theme, idx) => {
+              const impactStyle = getImpactStyle(theme.impact);
+              const dimensionLabel = dimensionLabels[theme.dimension] || theme.dimension;
+              return (
+                <div
+                  key={`${theme.theme}-${idx}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '6px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    background: impactStyle.background,
+                    border: `1px solid ${impactStyle.borderColor}`,
+                    fontSize: '0.72rem',
+                  }}
+                >
+                  <div style={{ flex: 1 }}>
+                    <span style={{ fontWeight: 600, color: impactStyle.color }}>
+                      {theme.theme.charAt(0).toUpperCase() + theme.theme.slice(1)}
+                    </span>
+                    <span style={{ color: 'var(--text-secondary)', marginLeft: 6 }}>
+                      ({theme.count}x)
+                    </span>
+                  </div>
+                  <div style={{ textAlign: 'right', minWidth: 110 }}>
+                    <div style={{ color: impactStyle.color, fontWeight: 600 }}>
+                      {dimensionLabel}
+                    </div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.65rem' }}>
+                      {impactStyle.label} impact
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

@@ -99,7 +99,7 @@ const DIALOGUE_TAGS = [
  * @param {Object} files - Map of file paths to content strings
  * @param {Object} phaseAnswers - Story planning phase answers
  * @param {Object} project - Project metadata
- * @returns {Object} Health dimensions object with scores 0-5
+ * @returns {Object} Health dimensions object with scores 0-5, plus optional feedback analysis
  */
 export function computeHealthDimensions(files = {}, phaseAnswers = {}, project = {}) {
   const dimensions = {
@@ -114,6 +114,22 @@ export function computeHealthDimensions(files = {}, phaseAnswers = {}, project =
     plotConsistency: computePlotConsistency(files),
     readerEngagement: computeReaderEngagement(files)
   };
+
+  // Apply feedback adjustments if feedback files exist
+  const feedbackFiles = filterFeedbackFiles(files);
+  if (Object.keys(feedbackFiles).length > 0) {
+    const feedbackAnalysis = analyzeFeedbackHealth(feedbackFiles);
+    if (feedbackAnalysis) {
+      // Apply adjustments to dimensions
+      Object.entries(feedbackAnalysis.adjustments).forEach(([dimension, adjustment]) => {
+        if (dimension in dimensions) {
+          dimensions[dimension] = Math.max(0, Math.min(5, dimensions[dimension] + adjustment));
+        }
+      });
+      // Store feedback themes for UI display
+      dimensions._feedbackThemes = feedbackAnalysis.themes;
+    }
+  }
 
   return dimensions;
 }
@@ -774,6 +790,129 @@ export const HEALTH_LABELS_EXPORT = HEALTH_LABELS;
 
 // Export constants for reference
 export { HEALTH_LABELS };
+
+// ============================================================================
+// FEEDBACK-TO-HEALTH MAPPING
+// ============================================================================
+
+/**
+ * Maps feedback themes to health dimensions and impact weights
+ * Maps recurring feedback concerns to health dimension decreases
+ */
+const FEEDBACK_TO_HEALTH_MAP = {
+  pacing: { dimension: 'pacing', weight: -0.15 },
+  dialogue: { dimension: 'dialogueQuality', weight: -0.12 },
+  clarity: { dimension: 'thematicCoherence', weight: -0.15 },
+  character: { dimension: 'characterDepth', weight: -0.12 },
+  tension: { dimension: 'readerEngagement', weight: -0.15 },
+  ending: { dimension: 'thematicCoherence', weight: -0.10 },
+  worldbuilding: { dimension: 'worldBuilding', weight: -0.10 },
+  motivation: { dimension: 'characterDepth', weight: -0.10 },
+  consistency: { dimension: 'plotConsistency', weight: -0.12 },
+  predictable: { dimension: 'readerEngagement', weight: -0.10 },
+  confusing: { dimension: 'thematicCoherence', weight: -0.15 },
+  slow: { dimension: 'pacing', weight: -0.12 },
+  rushed: { dimension: 'pacing', weight: -0.12 },
+  flat: { dimension: 'characterDepth', weight: -0.10 },
+  repetitive: { dimension: 'proseQuality', weight: -0.10 },
+};
+
+/**
+ * Feedback pattern recognition for theme detection
+ * Each pattern maps keywords to a feedback theme
+ */
+const FEEDBACK_PATTERNS = {
+  pacing: { pattern: /\b(pacing|pace|slow|dragging|drag|rushed|rushed-feeling|sluggish)\b/gi, theme: 'pacing' },
+  dialogue: { pattern: /\b(dialogue|dialog|conversation|speech|talking|dialogue-heavy)\b/gi, theme: 'dialogue' },
+  clarity: { pattern: /\b(clarity|clear|unclear|confusing|confused|lost|hard to follow|unclear|opaque)\b/gi, theme: 'clarity' },
+  character: { pattern: /\b(character|character development|motivation|believable|inconsistent character|flat character)\b/gi, theme: 'character' },
+  tension: { pattern: /\b(tension|suspense|stakes|stakes feel|dramatic|gripping|tense)\b/gi, theme: 'tension' },
+  ending: { pattern: /\b(ending|resolution|climax|conclusion|denouement|resolved|wraps up)\b/gi, theme: 'ending' },
+  worldbuilding: { pattern: /\b(worldbuilding|world-building|world building|setting|setting details|worldbuild)\b/gi, theme: 'worldbuilding' },
+  motivation: { pattern: /\b(motivation|motivated|why would|doesn't make sense|unrealistic)\b/gi, theme: 'motivation' },
+  consistency: { pattern: /\b(consistency|consistent|inconsistent|contradiction|contradicts|changes his mind)\b/gi, theme: 'consistency' },
+  predictable: { pattern: /\b(predictable|obvious|saw it coming|expected|formulaic|cliché|cliche)\b/gi, theme: 'predictable' },
+  confusing: { pattern: /\b(confusing|confused|bewildering|unclear|hard to understand|lost me)\b/gi, theme: 'confusing' },
+  slow: { pattern: /\b(slow|slow-paced|slow paced|sluggish|drags)\b/gi, theme: 'slow' },
+  rushed: { pattern: /\b(rushed|rushed-paced|rushed paced|too fast|whirlwind)\b/gi, theme: 'rushed' },
+  flat: { pattern: /\b(flat|one-dimensional|cardboard|lifeless|underdeveloped|weak)\b/gi, theme: 'flat' },
+  repetitive: { pattern: /\b(repetitive|repeating|repeated|same|redundant|monotonous)\b/gi, theme: 'repetitive' },
+};
+
+/**
+ * Filters feedback files from a file map
+ * @param {Object} files - File map
+ * @returns {Object} Feedback files only
+ */
+function filterFeedbackFiles(files) {
+  const feedbackFiles = {};
+  for (const [path, content] of Object.entries(files)) {
+    if (path.startsWith('feedback/') && path.endsWith('.md')) {
+      feedbackFiles[path] = content;
+    }
+  }
+  return feedbackFiles;
+}
+
+/**
+ * Analyzes feedback files and maps themes to health dimension impacts
+ * @param {Object} feedbackFiles - Map of feedback file paths to content
+ * @returns {Object|null} { adjustments: { [dimension]: number }, themes: [...] } or null if no feedback
+ */
+export function analyzeFeedbackHealth(feedbackFiles = {}) {
+  const feedbackPaths = Object.keys(feedbackFiles);
+  if (feedbackPaths.length === 0) return null;
+
+  // Combine all feedback content
+  const allContent = feedbackPaths.map(path => feedbackFiles[path]).join('\n');
+  if (!allContent.trim()) return null;
+
+  // Count theme occurrences across all feedback
+  const themeCounts = {};
+  const themes = [];
+
+  Object.entries(FEEDBACK_PATTERNS).forEach(([patternKey, { theme, pattern }]) => {
+    const matches = allContent.match(pattern) || [];
+    if (matches.length > 0) {
+      themeCounts[theme] = matches.length;
+    }
+  });
+
+  // Calculate health adjustments
+  const adjustments = {};
+  Object.entries(themeCounts).forEach(([theme, count]) => {
+    if (FEEDBACK_TO_HEALTH_MAP[theme]) {
+      const mapping = FEEDBACK_TO_HEALTH_MAP[theme];
+      // Diminishing returns: log-based multiplier for occurrence count
+      const multiplier = Math.log2(count + 1);
+      const adjustment = mapping.weight * multiplier;
+      const dimension = mapping.dimension;
+
+      // Accumulate adjustments per dimension
+      if (!(dimension in adjustments)) {
+        adjustments[dimension] = 0;
+      }
+      adjustments[dimension] += adjustment;
+
+      themes.push({
+        theme,
+        count,
+        dimension,
+        impact: adjustment,
+      });
+    }
+  });
+
+  // Clamp adjustments to reasonable range (-2.5 to 0)
+  Object.keys(adjustments).forEach(dim => {
+    adjustments[dim] = Math.max(-2.5, adjustments[dim]);
+  });
+
+  // Sort themes by impact (strongest first)
+  themes.sort((a, b) => a.impact - b.impact);
+
+  return { adjustments, themes };
+}
 
 // ============================================================================
 // LLM-POWERED HEALTH ASSESSMENT (optional enhancement)
