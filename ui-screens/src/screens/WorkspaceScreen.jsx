@@ -2105,6 +2105,34 @@ function ChatMode({ phasePcts = {} }) {
         scope: 'full-project',
       });
 
+      // Check if characterGuideMode is enabled and a character is selected
+      const characterGuideModeEnabled = useSettingsStore.getState().characterGuideMode;
+      if (characterGuideModeEnabled && selectedCharacter) {
+        // Find the selected character's file content
+        const charSlug = selectedCharacter.toLowerCase().replace(/\s+/g, '-');
+        const characterPath = `characters/${charSlug}.md`;
+        let characterContent = files[characterPath];
+
+        // Try alternate path if first doesn't exist
+        if (!characterContent) {
+          const altPath = Object.keys(files || {}).find(
+            p => p.startsWith('characters/') && p.endsWith('.md') &&
+            p.replace('characters/', '').replace('.md', '').toLowerCase() === charSlug.toLowerCase()
+          );
+          if (altPath) characterContent = files[altPath];
+        }
+
+        if (characterContent) {
+          // Inject character instruction into the system message
+          const charInstruction = `You are ${selectedCharacter}, a character in a story. Respond in character, using their voice and perspective. Here is your character sheet:\n\n${characterContent}\n\nProvide guidance and responses as this character would, drawing from their personality, motivations, and knowledge. Keep responses focused and in-character.`;
+
+          // Insert character instruction as first system message if not already present
+          if (ctx.messages[0]?.role !== 'system' || !ctx.messages[0]?.content?.includes(selectedCharacter)) {
+            ctx.messages.unshift({ role: 'system', content: charInstruction });
+          }
+        }
+      }
+
       const result = await useLlmStore.getState().sendMessage({
         messages: ctx.messages,
         role: persona === 'editor' ? 'editor' : (persona === 'character' ? 'creative' : 'assistant'),
@@ -2166,14 +2194,14 @@ function ChatMode({ phasePcts = {} }) {
               onClick={() => setShowPersonaMenu(!showPersonaMenu)}
               style={{
                 padding: '4px 12px', fontSize: '0.72rem', borderRadius: 100,
-                border: `1px solid ${persona === 'character' ? personaConfig.character.color : 'var(--border)'}`,
-                background: persona === 'character' ? `${personaConfig.character.color}18` : 'transparent',
-                color: persona === 'character' ? personaConfig.character.color : 'var(--text-muted)',
+                border: `1px solid ${selectedCharacter ? personaConfig.character.color : 'var(--border)'}`,
+                background: selectedCharacter ? `${personaConfig.character.color}18` : 'transparent',
+                color: selectedCharacter ? personaConfig.character.color : 'var(--text-muted)',
                 cursor: 'pointer', transition: 'var(--transition)',
                 display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
-              Character <ChevronDown size={10} />
+              {selectedCharacter || 'Character'} <ChevronDown size={10} />
             </button>
 
             {showPersonaMenu && characterNames.length > 0 && (
@@ -2186,7 +2214,15 @@ function ChatMode({ phasePcts = {} }) {
                 {characterNames.map(name => (
                   <button
                     key={name}
-                    onClick={() => switchPersona('character', name)}
+                    onClick={() => {
+                      if (persona === 'character') {
+                        switchPersona('character', name);
+                      } else {
+                        // In assistant mode, just set the character
+                        setSelectedCharacter(name);
+                        setShowPersonaMenu(false);
+                      }
+                    }}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left',
                       padding: '8px 12px', fontSize: '0.8rem', border: 'none',
@@ -5207,13 +5243,13 @@ function RelationshipGraph() {
   // Count connections per character
   const connectionCounts = {};
   Object.keys(characters).forEach(k => {
-    connectionCounts[k] = relationships.filter(r => r.from === k || r.to === k).length;
+    connectionCounts[k] = relationships.filter(r => r && (r.from === k || r.to === k)).length;
   });
   const mostConnected = Object.entries(connectionCounts).sort((a, b) => b[1] - a[1])[0];
-  const strongestBond = [...relationships].sort((a, b) => b.strength - a.strength)[0];
+  const strongestBond = relationships.filter(Boolean).sort((a, b) => (b?.strength || 0) - (a?.strength || 0))[0];
 
   // Filter relationships by type if filter is active
-  const visibleRels = filterType ? relationships.filter(r => r.type === filterType) : relationships;
+  const visibleRels = filterType ? relationships.filter(r => r && r.type === filterType) : relationships.filter(Boolean);
 
   if (Object.keys(characters).length === 0) {
     return (
@@ -5288,7 +5324,8 @@ function RelationshipGraph() {
           >
           <g transform={`translate(${300 + pan.x / zoom}, ${240 + pan.y / zoom}) scale(${zoom}) translate(${-300}, ${-240})`}>
             {/* Draw relationship lines */}
-            {visibleRels.map(rel => {
+            {visibleRels.filter(Boolean).map(rel => {
+              if (!rel || !rel.from || !rel.to) return null;
               const f = positions[rel.from];
               const t = positions[rel.to];
               if (!f || !t) return null;
@@ -5378,9 +5415,10 @@ function RelationshipGraph() {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {relationships.filter(r => r.from === centerCharacter || r.to === centerCharacter).map(rel => {
+              {relationships.filter(r => r && r.from && r.to && (r.from === centerCharacter || r.to === centerCharacter)).map(rel => {
                 const otherKey = rel.from === centerCharacter ? rel.to : rel.from;
                 const other = characters[otherKey];
+                if (!other) return null;
                 return (
                   <div key={`${rel.from}-${rel.to}`} onClick={() => setCenterCharacter(otherKey)}
                     style={{
@@ -5422,18 +5460,22 @@ function RelationshipGraph() {
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Connections</div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent)' }}>{relationships.length}</div>
               </div>
+              {strongestBond && characters[strongestBond.from] && characters[strongestBond.to] && (
               <div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Strongest</div>
                 <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>
                   {characters[strongestBond.from].name.split(' ')[0]} ↔ {characters[strongestBond.to].name.split(' ')[0]}
                 </div>
               </div>
+              )}
+              {mostConnected && characters[mostConnected[0]] && (
               <div>
                 <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Most Connected</div>
                 <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>
                   {characters[mostConnected[0]].name.split(' ')[0]} ({mostConnected[1]})
                 </div>
               </div>
+              )}
             </div>
           </Card>
         </div>
@@ -7524,9 +7566,6 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);
-  const sendMessage = useLlmStore(s => s.sendMessage);
-  const updateFile = useProjectStore(s => s.updateFile);
-  const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
 
   const toggleGroup = (idx) => {
@@ -7569,6 +7608,8 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
       }
 
       const { redecomposeSteps } = await import('../services/decomposition');
+      const { sendMessage } = useLlmStore.getState();
+      const { updateFile, loadProjectFiles: loadFiles } = useProjectStore.getState();
 
       const { files: newFiles, metadata } = await redecomposeSteps(
         sendMessage,
@@ -7627,7 +7668,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
       }
 
       // Reload project files to update UI
-      await loadProjectFiles(activeProjectId);
+      await loadFiles(activeProjectId);
 
       const failedSteps = metadata.steps.filter(s => !s.success);
       setResult({
@@ -8392,24 +8433,38 @@ export default function WorkspaceScreen() {
     }
   };
 
-  // Keyboard shortcut: Ctrl/Cmd+/ to open shortcuts modal
-  useEffect(() => {
-    const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === '/') {
-        e.preventDefault();
-        setShowShortcutsModal(true);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, []);
-
   // Collapsible + resizable sidebars
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
   const [leftWidth, setLeftWidth] = useState(240);
   const [rightWidth, setRightWidth] = useState(280);
   const [dragging, setDragging] = useState(null); // 'left' | 'right' | null
+
+  // Keyboard shortcuts: Ctrl+F (search), Ctrl+/ (shortcuts modal), Ctrl+, (settings), Ctrl+Shift+E (toggle sidebar)
+  useEffect(() => {
+    const handler = (e) => {
+      const isMod = e.ctrlKey || e.metaKey;
+      if (isMod && e.key === '/') {
+        e.preventDefault();
+        setShowShortcutsModal(true);
+      } else if (isMod && e.key === 'f') {
+        e.preventDefault();
+        if (activeMode === 'search') {
+          setActiveMode('guided');
+        } else {
+          setActiveMode('search');
+        }
+      } else if (isMod && e.key === ',') {
+        e.preventDefault();
+        setShowSettingsModal(true);
+      } else if (isMod && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
+        e.preventDefault();
+        setLeftCollapsed(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeMode]);
 
   const handleMouseDown = (side) => (e) => {
     e.preventDefault();

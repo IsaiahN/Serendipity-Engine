@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useShallow } from 'zustand/react/shallow';
 import TopBar from '../components/TopBar';
 import Button from '../components/Button';
 import WritingProfile from '../components/WritingProfile';
@@ -151,13 +152,13 @@ function Select({ options, value, onChange }) {
 // ─── General Settings ───
 function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     mode: s.mode,
     fontSize: s.fontSize,
     editorFont: s.editorFont,
     language: s.language,
     sidebarPosition: s.sidebarPosition,
-  }));
+  })));
 
   const [mode, setMode] = useState(settings.mode);
   const [fontSize, setFontSize] = useState(settings.fontSize);
@@ -292,15 +293,16 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
 
 // ─── AI Models Settings ───
 function AISettings({ onSettingChange }) {
-  const { providers, activeProviders, loadProviders, connectProvider, testConnection, disconnectProvider } = useLlmStore();
+  const providers = useLlmStore(s => s.providers);
+  const activeProviders = useLlmStore(s => s.activeProviders);
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     auditTrail: s.auditTrail,
     costTracking: s.costTracking,
     ttsAutoRead: s.ttsAutoRead,
     roleAssignment: s.roleAssignment,
     roles: s.roles,
-  }));
+  })));
 
   const [selectedProvider, setSelectedProvider] = useState('anthropic');
   const [selectedModel, setSelectedModel] = useState('');
@@ -332,8 +334,9 @@ function AISettings({ onSettingChange }) {
 
   // Load providers on mount
   useEffect(() => {
+    const { loadProviders } = useLlmStore.getState();
     loadProviders();
-  }, [loadProviders]);
+  }, []);
 
   // When selected provider changes, update model to match
   useEffect(() => {
@@ -401,6 +404,7 @@ function AISettings({ onSettingChange }) {
     setSaving(true);
     setTestResult(null);
     try {
+      const { connectProvider } = useLlmStore.getState();
       await connectProvider({
         provider: selectedProvider,
         apiKey: apiKeyInput.trim(),
@@ -419,6 +423,7 @@ function AISettings({ onSettingChange }) {
     setTesting(true);
     setTestResult(null);
     try {
+      const { testConnection } = useLlmStore.getState();
       const result = await testConnection(selectedProvider);
       if (result.success) {
         setTestResult({ success: true, message: `Connected! Response time: ${result.responseTime}ms` });
@@ -433,6 +438,7 @@ function AISettings({ onSettingChange }) {
   };
 
   const handleDisconnect = async () => {
+    const { disconnectProvider } = useLlmStore.getState();
     await disconnectProvider(selectedProvider);
     setTestResult(null);
     setApiKeyInput('');
@@ -947,14 +953,14 @@ function AISettings({ onSettingChange }) {
 // ─── Workspace Settings ───
 function WorkspaceSettings({ onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     autoSaveInterval: s.autoSaveInterval,
     crashRecovery: s.crashRecovery,
     defaultExportFormat: s.defaultExportFormat,
     backupReminder: s.backupReminder,
     showWordCount: s.showWordCount,
     defaultWordGoal: s.defaultWordGoal,
-  }));
+  })));
 
   // Map store values to display values
   const autoSaveMap = { 30000: 'Every 30 seconds', 60000: 'Every minute', 300000: 'Every 5 minutes', 0: 'Manual only' };
@@ -1066,7 +1072,7 @@ function WorkspaceSettings({ onSettingChange }) {
 // ─── Writing Settings ───
 function WritingSettings({ onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     teachingTips: s.teachingTips,
     conversationalTeacher: s.conversationalTeacher,
     characterGuideMode: s.characterGuideMode,
@@ -1074,7 +1080,7 @@ function WritingSettings({ onSettingChange }) {
     emotionWheelDefault: s.emotionWheelDefault,
     contentRating: s.contentRating,
     ttsHighlight: s.ttsHighlight,
-  }));
+  })));
 
   // Map store values to display values
   const teachingTipsMap = { 'on': true, 'collapsed': 'partial', 'off': false };
@@ -1191,7 +1197,7 @@ function WritingSettings({ onSettingChange }) {
 // ─── Editor Settings ───
 function EditorSettings({ onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     defaultApprovalMode: s.defaultApprovalMode,
     maxEditorPasses: s.maxEditorPasses,
     qualityThreshold: s.qualityThreshold,
@@ -1199,7 +1205,7 @@ function EditorSettings({ onSettingChange }) {
     editorSeverityDisplay: s.editorSeverityDisplay,
     autoGenerateFeedback: s.autoGenerateFeedback,
     recurringFlagDetection: s.recurringFlagDetection,
-  }));
+  })));
 
   // Map store values to display values
   const approvalModeMap = { 'auto': 'Auto-Approve', 'per-chapter': 'Per Chapter', 'per-arc': 'Per Arc', 'multi-pass': 'Multi-Pass' };
@@ -1327,9 +1333,9 @@ function EditorSettings({ onSettingChange }) {
 // ─── Privacy & Data Settings ───
 function PrivacySettings({ navigate, onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     showKeys: s.showKeys,
-  }));
+  })));
 
   const [showKeys, setShowKeys] = useState(settings.showKeys);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -1518,10 +1524,10 @@ function PrivacySettings({ navigate, onSettingChange }) {
 function WritingProfileSettings({ onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
-  const settings = useSettingsStore(s => ({
+  const settings = useSettingsStore(useShallow(s => ({
     silentAssessment: s.silentAssessment,
     trackAcrossProjects: s.trackAcrossProjects,
-  }));
+  })));
 
   const [silentAssessment, setSilentAssessment] = useState(settings.silentAssessment);
   const [trackAcrossProjects, setTrackAcrossProjects] = useState(settings.trackAcrossProjects);
