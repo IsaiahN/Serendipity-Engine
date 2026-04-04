@@ -303,10 +303,66 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
           role: 'analyst',
           maxTokens: 4000, // Generous — big casts with collectives + societies
         });
-        if (scanResult.success) {
+        if (scanResult.success && scanResult.content) {
           characterList = removeEmdashes(scanResult.content);
-          scanLines = characterList.split('\n').filter(l => l.trim() && l.includes('|'));
+          console.log('[Decomposition] Raw scan response (first 800 chars):', characterList.substring(0, 800));
+
+          // Strip code fence markers (```...```) that LLMs sometimes wrap output in
+          const stripped = characterList
+            .replace(/```[\w]*\n?/g, '')  // opening code fence
+            .replace(/```/g, '');          // closing code fence
+
+          // Primary parse: lines with pipe separator
+          scanLines = stripped.split('\n').filter(l => l.trim() && l.includes('|'));
+
+          // Fallback: if no pipe lines, try lines that look like character entries
+          // (e.g. "Dorothy Gale - protagonist - Chapter 1" or "1. Dorothy Gale (protagonist)")
+          if (scanLines.length === 0) {
+            console.log('[Decomposition] No pipe-separated lines found, trying fallback parsing...');
+            const allLines = stripped.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            // Try dash separator
+            const dashLines = allLines.filter(l => l.includes(' - ') && !l.startsWith('#') && !l.startsWith('*'));
+            if (dashLines.length >= 3) {
+              // Convert "Name - tier - context" to "Name | tier | context"
+              scanLines = dashLines.map(l => l.replace(/\s*-\s*/g, ' | '));
+              console.log('[Decomposition] Fallback: converted dash-separated lines:', scanLines.length);
+            }
+          }
+
+          // Fallback 2: numbered or bulleted list lines with parenthetical tiers
+          if (scanLines.length === 0) {
+            const listLines = stripped.split('\n')
+              .map(l => l.trim())
+              .filter(l => /^[\d\-\*\•]+[\.\)]\s+\w/.test(l) || /^[A-Z][\w\s]+\(/.test(l));
+            if (listLines.length >= 3) {
+              // Try to extract "Name (tier)" pattern and convert to pipe format
+              scanLines = listLines.map(l => {
+                const clean = l.replace(/^[\d\-\*\•]+[\.\)]\s*/, '');
+                const tierMatch = clean.match(/^(.+?)\s*\((\w+)\)\s*[,\-—]?\s*(.*)/);
+                if (tierMatch) return `${tierMatch[1].trim()} | ${tierMatch[2]} | ${tierMatch[3] || ''}`;
+                return clean.includes('|') ? clean : null;
+              }).filter(Boolean);
+              console.log('[Decomposition] Fallback 2: converted list lines:', scanLines.length);
+            }
+          }
+
+          // Clean up scan lines — remove any that are headers, blank, or metadata
+          scanLines = scanLines.filter(l => {
+            const trimmed = l.trim();
+            if (!trimmed) return false;
+            if (trimmed.startsWith('#')) return false;
+            if (trimmed.startsWith('---')) return false;
+            if (/^(example|note|where|output|format)/i.test(trimmed)) return false;
+            // Must have at least one letter (filter out pure separator lines)
+            return /[a-zA-Z]/.test(trimmed);
+          });
+
           console.log('[Decomposition] Character scan found:', scanLines.length, 'characters');
+          if (scanLines.length > 0 && scanLines.length <= 3) {
+            console.log('[Decomposition] Scan lines:', scanLines);
+          }
+        } else {
+          console.warn('[Decomposition] Scan returned empty or failed:', scanResult.error || 'empty content');
         }
       } catch (scanErr) {
         console.warn('[Decomposition] Character scan pass failed, proceeding with single-pass:', scanErr);

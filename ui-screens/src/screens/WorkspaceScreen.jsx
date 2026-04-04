@@ -1847,8 +1847,57 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
   const societalChars = allChars.filter(([, c]) => c.tier === 'societal');
   const collectiveChars = allChars.filter(([, c]) => c.tier === 'collective');
 
+  // Tier change handler — updates the character's markdown file
+  const updateCharacterTier = async (charSlug, newTier) => {
+    const filePath = `characters/${charSlug}.md`;
+    const content = fcFiles[filePath];
+    if (!content) return;
+
+    // Map tier to display label
+    const tierLabels = { main: 'protagonist', minor: 'minor', societal: 'societal', collective: 'collective' };
+    const newTierLabel = tierLabels[newTier] || newTier;
+
+    // Update the Tier field in the markdown content
+    let updated = content;
+    // Try replacing existing Tier field
+    if (updated.match(/\*\*Tier\*\*\s*:/i)) {
+      updated = updated.replace(/(\*\*Tier\*\*\s*:\s*).+/i, `$1${newTierLabel}`);
+    } else {
+      // If no Tier field, add one after the first heading
+      const firstHeadingEnd = updated.indexOf('\n');
+      if (firstHeadingEnd > -1) {
+        updated = updated.slice(0, firstHeadingEnd + 1) + `- **Tier**: ${newTierLabel}\n` + updated.slice(firstHeadingEnd + 1);
+      }
+    }
+
+    // Also update any parenthetical tier in the heading (e.g. "## Dorothy (protagonist)")
+    updated = updated.replace(
+      /^(#{1,3}\s+.+?)\s*\((protagonist|deuteragonist|antagonist|supporting|minor|catalyst|collective|societal|extra|mentioned)\)/im,
+      `$1 (${newTierLabel})`
+    );
+
+    try {
+      const { updateFile, loadProjectFiles } = useProjectStore.getState();
+      const projectId = useProjectStore.getState().activeProjectId;
+      await updateFile(projectId, filePath, updated);
+      await loadProjectFiles(projectId);
+    } catch (err) {
+      console.error('Failed to update character tier:', err);
+    }
+  };
+
+  const TIER_OPTIONS = [
+    { value: 'main', label: 'Main', color: 'var(--accent)' },
+    { value: 'minor', label: 'Minor', color: 'var(--text-muted)' },
+    { value: 'societal', label: 'Society', color: '#f97316' },
+    { value: 'collective', label: 'Collective', color: '#60a5fa' },
+  ];
+
   const CharCard = ({ name, char }) => {
     const isMinor = char.tier === 'minor';
+    const [showTierMenu, setShowTierMenu] = useState(false);
+    const charSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
     return (
       <div
         onClick={() => onCharacterClick(name)}
@@ -1866,12 +1915,60 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
           }}>
             {name[0]}
           </div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontSize: isMinor ? '0.9rem' : '1rem', fontWeight: 700 }}>{char.name}</div>
-            <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+            <div style={{ display: 'flex', gap: 4, marginTop: 4, alignItems: 'center' }}>
               <Badge variant="accent" style={{ fontSize: '0.65rem' }}>{char.role}</Badge>
               {char.type && <Badge variant="muted" style={{ fontSize: '0.65rem' }}>{char.type}</Badge>}
             </div>
+          </div>
+          {/* Tier recategorization button */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowTierMenu(!showTierMenu); }}
+              title="Change character tier"
+              style={{
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)', padding: '3px 8px', cursor: 'pointer',
+                fontSize: '0.6rem', color: 'var(--text-muted)', fontWeight: 600,
+                textTransform: 'uppercase', letterSpacing: '0.03em',
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}
+            >
+              {char.tier === 'societal' ? 'Society' : char.tier === 'collective' ? 'Collective' : char.tier === 'main' ? 'Main' : 'Minor'}
+              <ChevronDown size={10} />
+            </button>
+            {showTierMenu && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 4, zIndex: 50,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', overflow: 'hidden', minWidth: 120,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                }}
+              >
+                {TIER_OPTIONS.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (opt.value !== char.tier) updateCharacterTier(charSlug, opt.value);
+                      setShowTierMenu(false);
+                    }}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '8px 12px',
+                      background: opt.value === char.tier ? 'var(--accent-glow)' : 'transparent',
+                      border: 'none', cursor: 'pointer', fontSize: '0.75rem',
+                      color: opt.value === char.tier ? opt.color : 'var(--text-secondary)',
+                      fontWeight: opt.value === char.tier ? 600 : 400,
+                    }}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         {char.physicalDescription && (
@@ -7746,10 +7843,16 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
           {isRunning && progress && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{progress.label}...</span>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent',
+                    borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                  }} />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{progress.label}...</span>
+                </div>
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {progress.completed + 1} / {progress.total}
+                  Step {progress.completed + 1} of {progress.total}
                 </span>
               </div>
               <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
@@ -7821,7 +7924,22 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
   const [isRunning, setIsRunning] = useState(false);
   const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);
+  const [startTime, setStartTime] = useState(null);
+  const [elapsed, setElapsed] = useState(0);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
+
+  // Elapsed time ticker
+  useEffect(() => {
+    if (!isRunning || !startTime) return;
+    const timer = setInterval(() => setElapsed(Math.floor((Date.now() - startTime) / 1000)), 1000);
+    return () => clearInterval(timer);
+  }, [isRunning, startTime]);
+
+  const formatElapsed = (s) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  };
 
   const toggleGroup = (idx) => {
     setSelectedGroups(prev =>
@@ -7846,6 +7964,8 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
   const runRedecompose = async () => {
     setIsRunning(true);
     setResult(null);
+    setStartTime(Date.now());
+    setElapsed(0);
 
     try {
       // Get source text from project files
@@ -8027,22 +8147,50 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
 
         {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
-          {/* Progress bar */}
-          {isRunning && progress && (
+          {/* Progress bar with animation */}
+          {isRunning && (
             <div style={{ marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{progress.label}...</span>
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  {progress.completed + 1} / {progress.total}
-                </span>
-              </div>
-              <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
-                <div style={{
-                  width: `${((progress.completed) / progress.total) * 100}%`,
-                  height: '100%', borderRadius: 2, background: 'var(--accent)',
-                  transition: 'width 0.5s ease',
-                }} />
-              </div>
+              {progress ? (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent',
+                        borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                      }} />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{progress.label}...</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        Step {progress.completed + 1} of {progress.total}
+                      </span>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                        {formatElapsed(elapsed)}
+                      </span>
+                    </div>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${((progress.completed) / progress.total) * 100}%`,
+                      height: '100%', borderRadius: 2, background: 'var(--accent)',
+                      transition: 'width 0.5s ease',
+                    }} />
+                  </div>
+                </>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent',
+                    borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                  }} />
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Starting analysis...</span>
+                </div>
+              )}
+              {selectedStepKeys.includes('characters') && elapsed > 5 && (
+                <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: '8px 0 0', fontStyle: 'italic' }}>
+                  Character extraction uses multiple passes to catch every character. This may take a few minutes for longer works.
+                </p>
+              )}
             </div>
           )}
 
@@ -8055,7 +8203,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
               color: result.success ? '#34d399' : '#ef4444',
               border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}`,
             }}>
-              {result.message}
+              {result.message}{result.success && startTime ? ` (${formatElapsed(Math.floor((Date.now() - startTime) / 1000))})` : ''}
             </div>
           )}
 
@@ -8071,7 +8219,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
                 This will <strong>permanently overwrite</strong> the existing analysis for the selected categories.
                 {selectedGroups.some(idx => REDECOMPOSE_GROUPS[idx].steps.includes('characters')) &&
                   ' All current character files will be replaced with freshly generated ones.'}
-                {' '}Any manual edits you\'ve made to these files will be lost.
+                {' '}Any manual edits you{"'"}ve made to these files will be lost.
               </span>
             </div>
           )}
