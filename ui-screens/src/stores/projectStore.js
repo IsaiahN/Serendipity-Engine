@@ -7,7 +7,7 @@
 import { create } from 'zustand';
 import db from '../lib/db';
 import { v4 as uuid } from 'uuid';
-import { PROJECT_FILE_TEMPLATE, PHASES } from '../lib/constants';
+import { PROJECT_FILE_TEMPLATE, PHASES, STORY_MEDIUMS } from '../lib/constants';
 
 /**
  * Create a slug from a title
@@ -121,6 +121,10 @@ export const useProjectStore = create((set, get) => ({
     seed = null,
     metadata = {},
   } = {}) => {
+    // Derive default word goal from the medium's upper word range
+    const mediumDef = STORY_MEDIUMS.find(m => m.key === medium);
+    const defaultWordGoal = mediumDef ? mediumDef.wordRange[1] : 80000;
+
     const project = {
       id: uuid(),
       slug: slugify(title),
@@ -135,7 +139,7 @@ export const useProjectStore = create((set, get) => ({
       healthDimensions: {},
       health: 0,
       wordCount: 0,
-      wordGoal: 80000,
+      wordGoal: defaultWordGoal,
       contentRating: 'PG-13',
       lastAction: 'Project created.',
       ...metadata,

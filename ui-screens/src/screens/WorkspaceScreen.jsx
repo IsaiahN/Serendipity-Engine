@@ -27,6 +27,7 @@ import { useUndoRedo, useUndoRedoKeys } from '../hooks/useUndoRedo';
 import VersionHistory from '../components/VersionHistory';
 import SearchPanel from '../components/SearchPanel';
 import { countWords } from '../services/exportEngine';
+import { STORY_MEDIUMS } from '../lib/constants';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
 /* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
@@ -5444,13 +5445,26 @@ const phaseNames = {
   9: 'Phase 9 — Editor',
 };
 
-function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onOverLimitClick }) {
-  const isOver = wordCount > wordLimit;
+function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onOverLimitClick, isDecomposed, healthRevealed, projectMeta }) {
   const pColor = phaseColors[currentPhase] || 'var(--text-muted)';
   const pName = phaseNames[currentPhase] || `Phase ${currentPhase}`;
-
   const fmtCount = wordCount.toLocaleString();
+
+  // For decomposed projects: only show limit/color when user has opted in to health scores
+  const showLimit = !isDecomposed || healthRevealed;
+  const isOver = showLimit && wordCount > wordLimit;
   const fmtLimit = wordLimit.toLocaleString();
+
+  // Build dynamic project descriptor from metadata
+  const mediumDef = (STORY_MEDIUMS || []).find(m => m.key === projectMeta?.medium);
+  const mediumLabel = mediumDef?.label || projectMeta?.medium || '';
+  const ratingLabel = projectMeta?.contentRating || '';
+  const genreLabel = [projectMeta?.genre, projectMeta?.secondaryGenre].filter(Boolean).join(' + ');
+  const descriptorParts = [
+    mediumLabel + (ratingLabel ? ` (${ratingLabel})` : ''),
+    genreLabel,
+  ].filter(Boolean);
+  const descriptor = descriptorParts.join(' · ');
 
   return (
     <div style={{
@@ -5476,7 +5490,7 @@ function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onO
 
       <span style={{ color: 'var(--border)' }}>|</span>
 
-      {/* Word Count — turns red when over limit */}
+      {/* Word Count — shows limit only when appropriate */}
       {isOver ? (
         <span
           onClick={onOverLimitClick}
@@ -5486,14 +5500,16 @@ function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onO
           <AlertTriangle size={11} />
           {fmtCount} / {fmtLimit} words (+{(wordCount - wordLimit).toLocaleString()} over)
         </span>
-      ) : (
+      ) : showLimit ? (
         <span>{fmtCount} / {fmtLimit} words</span>
+      ) : (
+        <span>{fmtCount} words</span>
       )}
 
       <span style={{ color: 'var(--border)' }}>|</span>
       <span>Auto-saved</span>
       <div style={{ flex: 1 }} />
-      <span>Novel (Adult) · Literary Fiction + Thriller</span>
+      {descriptor && <span>{descriptor}</span>}
     </div>
   );
 }
@@ -5952,7 +5968,8 @@ export default function WorkspaceScreen() {
   const [selectedCharacter, setSelectedCharacter] = useState(null); // for character profile view
   // Shared editable file contents — persists across editor/reader mode switches
   const [editedFiles, setEditedFiles] = useState({});
-  const [activePhase, setActivePhase] = useState(3); // which phase is being viewed in Guide
+  const [activePhase, setActivePhase] = useState(null); // set dynamically after project loads
+  const phaseInitRef = useRef(false); // tracks whether we've set initial phase for this project
   const [showGateWarning, setShowGateWarning] = useState(false); // modal for locked phases
   const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
@@ -5990,6 +6007,8 @@ export default function WorkspaceScreen() {
     setEditedFiles({});
     setActiveFile(null);
     setActiveMode('guided');
+    setActivePhase(null);
+    phaseInitRef.current = false; // allow re-initialization for new project
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
     // Switch to new project
@@ -6183,6 +6202,31 @@ export default function WorkspaceScreen() {
   // Derive current active phase = first incomplete non-gated phase
   const derivedCurrentPhase = currentActivePhase(phasePcts);
 
+  // ── Set initial activePhase & activeMode on first load / project switch ──
+  // For decomposed projects: highlight the last completed phase (usually 8) and open StoryAssistant.
+  // For normal projects: highlight the first incomplete phase and open Guide.
+  useEffect(() => {
+    if (phaseInitRef.current === activeProject?.id) return; // already initialized for this project
+    if (!activeProject?.id) return;
+
+    // Find the best starting phase
+    if (isDecomposed) {
+      // Last completed phase — walk backwards to find the last one at 100%
+      const completed = phases.filter(p => (phasePcts[p.num] || 0) === 100);
+      const lastDone = completed.length > 0 ? completed[completed.length - 1].num : 8;
+      setActivePhase(lastDone);
+      // Default to StoryAssistant for decomposed projects (unless URL param overrides)
+      if (!searchParams.get('mode')) {
+        setActiveMode('chat');
+      }
+    } else {
+      // First incomplete phase
+      setActivePhase(derivedCurrentPhase);
+    }
+
+    phaseInitRef.current = activeProject.id;
+  }, [activeProject?.id, isDecomposed, derivedCurrentPhase]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Compute health dimensions from real project data
   const projectFiles = useProjectStore(s => s.files);
   const [healthDimensions, setHealthDimensions] = useState(defaultHealthDimensions.map(d => ({ ...d, rating: 0 })));
@@ -6281,7 +6325,12 @@ export default function WorkspaceScreen() {
   const wordCount = Object.entries(projectFiles || {})
     .filter(([path]) => path.startsWith('story/') && path.endsWith('.md'))
     .reduce((total, [, content]) => total + countWords(content), 0);
-  const wordLimit = activeProject?.wordGoal || 70000;
+  // Word limit: prefer explicit wordGoal (from wizard), then metadata.wordGoal,
+  // then derive from medium's upper range, then fall back to 80k
+  const mediumDef = STORY_MEDIUMS.find(m => m.key === activeProject?.medium);
+  const wordLimit = activeProject?.wordGoal
+    || activeProject?.metadata?.wordGoal
+    || (mediumDef ? mediumDef.wordRange[1] : 80000);
 
   const openFile = (fileName, parentFolder) => {
     const fullPath = parentFolder ? `${parentFolder}${fileName}` : fileName;
@@ -6300,7 +6349,7 @@ export default function WorkspaceScreen() {
         // Phase 8 gets a dedicated chapter execution UI
         if (activePhase === 8) return <ChapterExecutionMode />;
         return <GuidedFlow
-            phase={activePhase}
+            phase={activePhase || derivedCurrentPhase}
             answers={phaseAnswers}
             onAnswer={(phase, qId, value) => {
               setPhaseAnswers(prev => ({ ...prev, [phase]: { ...prev[phase], [qId]: value } }));
@@ -7229,6 +7278,14 @@ export default function WorkspaceScreen() {
         currentPhase={derivedCurrentPhase}
         wordCount={wordCount}
         wordLimit={wordLimit}
+        isDecomposed={isDecomposed}
+        healthRevealed={decomposedHealthRevealed}
+        projectMeta={{
+          medium: activeProject?.medium,
+          contentRating: activeProject?.contentRating || activeProject?.metadata?.contentRating,
+          genre: activeProject?.genre || activeProject?.metadata?.primaryGenre,
+          secondaryGenre: activeProject?.metadata?.secondaryGenre,
+        }}
         onPhaseClick={() => { setLeftCollapsed(false); setLeftTab('phases'); setActiveMode('guided'); }}
         onOverLimitClick={() => { setActiveMode('chat'); setOverLimitPrompt(true); }}
       />
