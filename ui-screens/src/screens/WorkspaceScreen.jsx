@@ -22,7 +22,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useLlmStore } from '../stores/llmStore';
 import { useTTS } from '../hooks/useTTS';
 import { removeEmdashes } from '../lib/randomEngine';
-import { PROMPTS } from '../lib/promptRegistry';
+import { PROMPTS, STORY_GLOSSARY } from '../lib/promptRegistry';
 import { useUndoRedo, useUndoRedoKeys } from '../hooks/useUndoRedo';
 import VersionHistory from '../components/VersionHistory';
 import SearchPanel from '../components/SearchPanel';
@@ -6198,6 +6198,420 @@ const REDECOMPOSE_GROUPS = [
   },
 ];
 
+/* ─── Enrich Project Groups ─── */
+const ENRICH_GROUPS = [
+  {
+    key: 'characters',
+    label: 'Enrich Characters',
+    description: 'Fill missing fields on existing characters (tier, voice notes, stream A/B, network role, etc.). Preserves everything you wrote.',
+    icon: '🎭',
+    outputs: ['characters/*.md (updated in-place)'],
+  },
+  {
+    key: 'hallmarks',
+    label: 'World Hallmarks',
+    description: 'Generate 5-15 signature details that make your world feel real and lived-in (recurring sensory details, cultural rituals, etc.).',
+    icon: '🌍',
+    outputs: ['world/hallmarks.md'],
+  },
+  {
+    key: 'relationships',
+    label: 'Relationship Map (CSV)',
+    description: 'Build an asymmetric perception matrix: how each character sees every other character, in one sentence each.',
+    icon: '🔗',
+    outputs: ['relationships/relationship-graph.csv'],
+  },
+  {
+    key: 'storyDna',
+    label: 'Story DNA Analysis',
+    description: 'Theme-as-Question, planted/paid-off threads, author voice fingerprint, and deep narrator analysis.',
+    icon: '🧬',
+    outputs: ['story/questions-answered.md', 'author.md (appended)', 'narrator.md (appended)'],
+  },
+];
+
+/* ─── Enrich Project Modal ─── */
+function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [result, setResult] = useState(null);
+  const sendMessage = useLlmStore(s => s.sendMessage);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
+  const activeProjectId = useProjectStore(s => s.activeProjectId);
+
+  const toggleGroup = (idx) => {
+    setSelectedGroups(prev =>
+      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    );
+  };
+
+  const selectAll = () => {
+    if (selectedGroups.length === ENRICH_GROUPS.length) {
+      setSelectedGroups([]);
+    } else {
+      setSelectedGroups(ENRICH_GROUPS.map((_, i) => i));
+    }
+  };
+
+  // ── Gather common story context from project files ──
+  const gatherStoryContext = () => {
+    const parts = [];
+    if (projectFiles['author.md']) parts.push(`## Author Profile\n${projectFiles['author.md']}`);
+    if (projectFiles['narrator.md']) parts.push(`## Narrator\n${projectFiles['narrator.md']}`);
+    if (projectFiles['world-building.md']) parts.push(`## World Building\n${projectFiles['world-building.md']}`);
+    if (projectFiles['outline.md']) parts.push(`## Outline\n${projectFiles['outline.md']}`);
+    if (projectFiles['story/questions-answered.md']) parts.push(`## Story Analysis\n${projectFiles['story/questions-answered.md']}`);
+    // Gather existing characters
+    const charFiles = Object.entries(projectFiles)
+      .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md'))
+      .sort(([a], [b]) => a.localeCompare(b));
+    if (charFiles.length > 0) {
+      parts.push(`## Existing Characters\n${charFiles.map(([, c]) => c).join('\n\n---\n\n')}`);
+    }
+    // Gather relationship files
+    const relFiles = Object.entries(projectFiles)
+      .filter(([p]) => p.startsWith('relationships/') && p.endsWith('.md'))
+      .sort(([a], [b]) => a.localeCompare(b));
+    if (relFiles.length > 0) {
+      parts.push(`## Relationships\n${relFiles.map(([, c]) => c).join('\n\n')}`);
+    }
+    return parts.join('\n\n');
+  };
+
+  // ── Run selected enrichments ──
+  const runEnrich = async () => {
+    setIsRunning(true);
+    setResult(null);
+    const selectedKeys = selectedGroups.map(idx => ENRICH_GROUPS[idx].key);
+    const totalSteps = selectedKeys.length;
+    let completedSteps = 0;
+    let savedCount = 0;
+    let errorMessages = [];
+    const storyContext = gatherStoryContext();
+
+    try {
+      // ── 1. Enrich Characters ──
+      if (selectedKeys.includes('characters')) {
+        setProgress({ label: 'Enriching characters', completed: completedSteps, total: totalSteps });
+        const charFiles = Object.entries(projectFiles)
+          .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md'))
+          .sort(([a], [b]) => a.localeCompare(b));
+
+        if (charFiles.length === 0) {
+          errorMessages.push('No character files found to enrich.');
+        } else {
+          const existingCharacters = charFiles.map(([, c]) => c).join('\n\n---\n\n');
+          const prompt = PROMPTS.PROJECT_ENRICH_CHARACTERS.build({ existingCharacters, storyContext });
+          const resp = await sendMessage({
+            messages: [{ role: 'user', content: prompt }],
+            role: 'system',
+            maxTokens: 6000,
+          });
+          if (resp.success && resp.content) {
+            // The prompt returns individual character blocks separated by ## headings.
+            // Parse them back into individual files using the same heading-based approach.
+            const sections = resp.content.replace(/^```(?:markdown|md)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim()
+              .split(/^## /m).slice(1);
+            for (const section of sections) {
+              const lines = section.split('\n');
+              const charName = lines[0].trim();
+              if (!charName) continue;
+              const nameForSlug = charName.replace(/\s*\(.*?\)\s*/g, '').trim();
+              const safeName = (nameForSlug || charName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+              if (!safeName) continue;
+              const filePath = `characters/${safeName}.md`;
+              await updateFile(filePath, `## ${section}`.trim());
+              savedCount++;
+            }
+          } else {
+            errorMessages.push(`Character enrichment failed: ${resp.error || 'No response'}`);
+          }
+        }
+        completedSteps++;
+      }
+
+      // ── 2. World Hallmarks ──
+      if (selectedKeys.includes('hallmarks')) {
+        setProgress({ label: 'Generating world hallmarks', completed: completedSteps, total: totalSteps });
+        const worldBuilding = projectFiles['world-building.md'] || '';
+        const prompt = PROMPTS.PROJECT_ENRICH_WORLD_HALLMARKS.build({ worldBuilding, storyContext });
+        const resp = await sendMessage({
+          messages: [{ role: 'user', content: prompt }],
+          role: 'system',
+          maxTokens: 4000,
+        });
+        if (resp.success && resp.content) {
+          await updateFile('world/hallmarks.md', resp.content.replace(/^```(?:markdown|md)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim());
+          savedCount++;
+        } else {
+          errorMessages.push(`World hallmarks failed: ${resp.error || 'No response'}`);
+        }
+        completedSteps++;
+      }
+
+      // ── 3. Relationship CSV ──
+      if (selectedKeys.includes('relationships')) {
+        setProgress({ label: 'Building relationship map', completed: completedSteps, total: totalSteps });
+        const charFiles = Object.entries(projectFiles)
+          .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md'));
+        const characters = charFiles.map(([, c]) => c).join('\n\n---\n\n');
+        const relFiles = Object.entries(projectFiles)
+          .filter(([p]) => p.startsWith('relationships/') && p.endsWith('.md'));
+        const relationships = relFiles.map(([, c]) => c).join('\n\n');
+        const prompt = PROMPTS.PROJECT_ENRICH_RELATIONSHIP_CSV.build({ characters, relationships });
+        const resp = await sendMessage({
+          messages: [{ role: 'user', content: prompt }],
+          role: 'system',
+          maxTokens: 4000,
+        });
+        if (resp.success && resp.content) {
+          // Strip markdown fences if present
+          let csv = resp.content.replace(/^```(?:csv)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
+          await updateFile('relationships/relationship-graph.csv', csv);
+          savedCount++;
+        } else {
+          errorMessages.push(`Relationship map failed: ${resp.error || 'No response'}`);
+        }
+        completedSteps++;
+      }
+
+      // ── 4. Story DNA Analysis ──
+      if (selectedKeys.includes('storyDna')) {
+        setProgress({ label: 'Analyzing story DNA', completed: completedSteps, total: totalSteps });
+        // Gather phase answers for context
+        const store = useProjectStore.getState();
+        const phaseAnswers = store.phaseAnswers || {};
+        const phaseAnswerStr = Object.entries(phaseAnswers)
+          .filter(([, v]) => v && typeof v === 'object')
+          .map(([phase, answers]) => {
+            const fields = Object.entries(answers)
+              .filter(([k]) => !k.startsWith('_'))
+              .map(([k, v]) => `${k}: ${typeof v === 'string' ? v : JSON.stringify(v)}`)
+              .join('\n');
+            return fields ? `### Phase ${phase}\n${fields}` : '';
+          })
+          .filter(Boolean)
+          .join('\n\n');
+
+        const prompt = PROMPTS.PROJECT_ENRICH_STORY_ANALYSIS.build({
+          storyContext,
+          phaseAnswers: phaseAnswerStr || '(No phase answers available)',
+        });
+        const resp = await sendMessage({
+          messages: [{ role: 'user', content: prompt }],
+          role: 'system',
+          maxTokens: 6000,
+        });
+        if (resp.success && resp.content) {
+          const cleaned = resp.content.replace(/^```(?:markdown|md)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
+          const sections = cleaned.split(/---SECTION_BREAK---/);
+          // Section 1: Story Questions Answered
+          if (sections[0]?.trim()) {
+            await updateFile('story/questions-answered.md', sections[0].trim());
+            savedCount++;
+          }
+          // Section 2: Author Voice Fingerprint — append to author.md
+          if (sections[1]?.trim()) {
+            const existing = projectFiles['author.md'] || '';
+            const divider = '\n\n---\n\n## Author Voice Fingerprint\n\n';
+            // Replace existing fingerprint section if present, otherwise append
+            const fpRegex = /\n*---\n*\n*## Author Voice Fingerprint[\s\S]*/;
+            const updated = fpRegex.test(existing)
+              ? existing.replace(fpRegex, divider + sections[1].trim())
+              : existing + divider + sections[1].trim();
+            await updateFile('author.md', updated);
+            savedCount++;
+          }
+          // Section 3: Narrator Deep Analysis — append to narrator.md
+          if (sections[2]?.trim()) {
+            const existing = projectFiles['narrator.md'] || '';
+            const divider = '\n\n---\n\n## Narrator Deep Analysis\n\n';
+            const naRegex = /\n*---\n*\n*## Narrator Deep Analysis[\s\S]*/;
+            const updated = naRegex.test(existing)
+              ? existing.replace(naRegex, divider + sections[2].trim())
+              : existing + divider + sections[2].trim();
+            await updateFile('narrator.md', updated);
+            savedCount++;
+          }
+        } else {
+          errorMessages.push(`Story DNA analysis failed: ${resp.error || 'No response'}`);
+        }
+        completedSteps++;
+      }
+
+      // Reload project files
+      await loadProjectFiles(activeProjectId);
+
+      const msg = `Enriched ${savedCount} file${savedCount !== 1 ? 's' : ''}.`
+        + (errorMessages.length > 0 ? ` Warnings: ${errorMessages.join('; ')}` : '');
+      setResult({ success: errorMessages.length === 0, message: msg });
+
+    } catch (err) {
+      console.error('Enrich project failed:', err);
+      setResult({ success: false, message: `Enrichment failed: ${err.message}` });
+    } finally {
+      setIsRunning(false);
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', animation: 'fadeIn 0.2s ease' }}
+      onClick={(e) => { if (e.target === e.currentTarget && !isRunning) onClose(); }}>
+      <div style={{
+        background: 'var(--bg-primary)', borderRadius: 'var(--radius-lg, 12px)', padding: 0,
+        width: 540, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+        border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
+              Enrich Project
+            </h2>
+            {!isRunning && (
+              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.5 }}>
+            Let the AI fill gaps in your project. It will <strong style={{ color: '#22c55e' }}>add</strong> missing details without overwriting anything you've already written.
+          </p>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '12px 24px', overflowY: 'auto', flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <button onClick={selectAll} style={{
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,
+              color: 'var(--accent)', padding: 0,
+            }}>
+              {selectedGroups.length === ENRICH_GROUPS.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {selectedGroups.length} of {ENRICH_GROUPS.length} selected
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {ENRICH_GROUPS.map((group, idx) => {
+              const checked = selectedGroups.includes(idx);
+              return (
+                <div key={idx} onClick={() => !isRunning && toggleGroup(idx)} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                  borderRadius: 'var(--radius-sm)', cursor: isRunning ? 'default' : 'pointer',
+                  border: checked ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  background: checked ? 'var(--accent-glow)' : 'transparent',
+                  transition: 'all 0.15s', opacity: isRunning ? 0.6 : 1,
+                }}>
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 1,
+                    border: checked ? '2px solid var(--accent)' : '2px solid var(--border)',
+                    background: checked ? 'var(--accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}>
+                    {checked && <span style={{ color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>&#10003;</span>}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '0.75rem' }}>{group.icon}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: checked ? 'var(--accent)' : 'var(--text-primary)' }}>
+                        {group.label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      {group.description}
+                    </div>
+                    {checked && (
+                      <div style={{ fontSize: '0.65rem', color: '#22c55e', marginTop: 4, lineHeight: 1.3, fontStyle: 'italic' }}>
+                        Output: {group.outputs.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+          {isRunning && progress && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{progress.label}...</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  {progress.completed + 1} / {progress.total}
+                </span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${((progress.completed) / progress.total) * 100}%`,
+                  height: '100%', borderRadius: 2, background: 'var(--accent)',
+                  transition: 'width 0.5s ease',
+                }} />
+              </div>
+            </div>
+          )}
+
+          {result && (
+            <div style={{
+              padding: '8px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
+              fontSize: '0.78rem', lineHeight: 1.5,
+              background: result.success ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
+              color: result.success ? '#34d399' : '#ef4444',
+              border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            }}>
+              {result.message}
+            </div>
+          )}
+
+          {selectedGroups.length > 0 && !isRunning && !result?.success && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+              background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
+              marginBottom: 12, fontSize: '0.75rem', color: '#34d399', lineHeight: 1.5,
+            }}>
+              <Lightbulb size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>
+                Enrichment <strong>adds</strong> missing details to your project files. Your existing content is preserved.
+                {selectedGroups.some(idx => ENRICH_GROUPS[idx].key === 'storyDna') &&
+                  ' Story DNA sections will be appended to author.md and narrator.md.'}
+              </span>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            {!isRunning && (
+              <Button variant="secondary" onClick={onClose} style={{ padding: '8px 20px' }}>
+                {result?.success ? 'Done' : 'Cancel'}
+              </Button>
+            )}
+            {!result?.success && (
+              <Button
+                variant="primary"
+                onClick={runEnrich}
+                disabled={selectedGroups.length === 0 || isRunning}
+                style={{ padding: '8px 24px', opacity: selectedGroups.length === 0 ? 0.5 : 1 }}
+              >
+                {isRunning ? (
+                  <><Brain size={13} style={{ marginRight: 6, animation: 'pulse 1.5s infinite' }} /> Enriching...</>
+                ) : (
+                  <><Brain size={13} style={{ marginRight: 6 }} /> Enrich{selectedGroups.length > 0 ? ` (${selectedGroups.length} tasks)` : ''}</>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -6654,7 +7068,7 @@ export default function WorkspaceScreen() {
   const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
-  const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null });
+  const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
   // ── Project switching dirty-state detection ──
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [pendingSwitchId, setPendingSwitchId] = useState(null);
@@ -6963,6 +7377,7 @@ export default function WorkspaceScreen() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showSearchPanel, setShowSearchPanel] = useState(false);
   const [showRedecomposeModal, setShowRedecomposeModal] = useState(false);
+  const [showEnrichModal, setShowEnrichModal] = useState(false);
 
   // Apply theme to document
   const applyTheme = (themeKey) => {
@@ -7400,6 +7815,22 @@ export default function WorkspaceScreen() {
                     <Sparkles size={12} /> Regenerate Analysis
                   </button>
                 )}
+                {/* Enrich Project button — available for all projects that have some content */}
+                <button
+                  onClick={() => setShowEnrichModal(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    width: '100%', padding: '7px 12px', marginBottom: 10,
+                    background: 'none', border: '1px dashed var(--border)',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    fontSize: '0.73rem', color: 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.color = '#22c55e'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                >
+                  <Brain size={12} /> Enrich Project
+                </button>
                 {leftTab === 'phases' && (
                   <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
                     if (isLocked) {
@@ -8003,6 +8434,13 @@ export default function WorkspaceScreen() {
           projectMeta={{ title: activeProject?.title, medium: activeProject?.medium }}
         />
       )}
+      {showEnrichModal && (
+        <EnrichProjectModal
+          onClose={() => setShowEnrichModal(false)}
+          projectFiles={projectFiles}
+          projectMeta={{ title: activeProject?.title, medium: activeProject?.medium }}
+        />
+      )}
 
       {/* ── Project Switch Confirmation Modal ── */}
       {showSwitchConfirm && (
@@ -8074,9 +8512,101 @@ export default function WorkspaceScreen() {
 
       {/* Quality Warning Modal — low health scores */}
       {/* Add Character Modal */}
-      {showAddCharModal && (
-        <ModalOverlay onClose={() => { setShowAddCharModal(false); setNewChar({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null }); }}>
-          <div style={{ maxWidth: 480 }}>
+      {showAddCharModal && (() => {
+        /* ── Tooltip helper for glossary terms ── */
+        const GlossaryTip = ({ termKey, children }) => {
+          const [show, setShow] = useState(false);
+          const entry = STORY_GLOSSARY[termKey];
+          if (!entry) return children;
+          return (
+            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              {children}
+              <span
+                onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}
+                style={{ cursor: 'help', color: 'var(--accent)', fontSize: '0.65rem', opacity: 0.8 }}
+              >?</span>
+              {show && (
+                <div style={{
+                  position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, zIndex: 999,
+                  background: 'var(--bg-secondary)', border: '1px solid var(--border)', borderRadius: 8,
+                  padding: '10px 14px', width: 300, boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--accent)', marginBottom: 4 }}>{entry.term}</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{entry.long}</div>
+                </div>
+              )}
+            </span>
+          );
+        };
+
+        /* ── Tier options with glossary descriptions ── */
+        const tierOptions = [
+          { value: 'protagonist', label: 'Protagonist', desc: STORY_GLOSSARY.protagonist?.short },
+          { value: 'deuteragonist', label: 'Deuteragonist', desc: STORY_GLOSSARY.deuteragonist?.short },
+          { value: 'antagonist', label: 'Antagonist', desc: STORY_GLOSSARY.antagonist?.short },
+          { value: 'supporting', label: 'Supporting', desc: STORY_GLOSSARY.supporting?.short },
+          { value: 'minor', label: 'Minor', desc: STORY_GLOSSARY.minor?.short },
+          { value: 'mentioned', label: 'Mentioned', desc: STORY_GLOSSARY.mentioned?.short },
+        ];
+        const selectedTierInfo = tierOptions.find(t => t.value === newChar.tier);
+
+        /* ── AI-generate full profile ── */
+        const handleAIGenerate = async () => {
+          if (!newChar.name.trim()) return;
+          setNewChar(prev => ({ ...prev, isGenerating: true }));
+          try {
+            // Gather story context from existing project files
+            const pFiles = projectFiles || {};
+            const contextParts = [];
+            if (pFiles['author.md']) contextParts.push(`Author: ${pFiles['author.md'].substring(0, 500)}`);
+            if (pFiles['world/world-building.md']) contextParts.push(`World: ${pFiles['world/world-building.md'].substring(0, 500)}`);
+            if (pFiles['outline.md']) contextParts.push(`Outline: ${pFiles['outline.md'].substring(0, 500)}`);
+            const charFiles = Object.entries(pFiles).filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered'));
+            if (charFiles.length > 0) contextParts.push(`Existing cast:\n${charFiles.map(([p, c]) => `- ${p}: ${(c || '').substring(0, 150)}`).join('\n')}`);
+
+            const prompt = PROMPTS.CHARACTER_ENRICHMENT.build({
+              characterName: newChar.name.trim(),
+              role: newChar.role,
+              tier: newChar.tier,
+              type: newChar.type,
+              bio: newChar.bio,
+              existingContent: '',
+              storyContext: contextParts.join('\n\n') || 'No story context yet — generate a compelling standalone character.',
+            });
+            const result = await sendMessage({
+              messages: [{ role: 'user', content: prompt }],
+              role: 'analyst',
+              maxTokens: 3000,
+            });
+            if (result.success && result.content) {
+              // Save the AI-generated content directly as the character file
+              const slug = newChar.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+              const filePath = `characters/${slug}.md`;
+              const { updateFile } = useProjectStore.getState();
+              await updateFile(filePath, result.content.trim());
+              setShowAddCharModal(false);
+              setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
+              return;
+            }
+          } catch (err) {
+            console.warn('AI character generation failed:', err);
+          }
+          setNewChar(prev => ({ ...prev, isGenerating: false }));
+        };
+
+        const inputStyle = {
+          width: '100%', padding: '8px 12px', fontSize: '0.85rem',
+          background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
+        };
+        const labelStyle = {
+          fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block',
+          marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em',
+        };
+
+        return (
+        <ModalOverlay onClose={() => { setShowAddCharModal(false); setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false }); }}>
+          <div style={{ maxWidth: 520, maxHeight: '80vh', overflowY: 'auto' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 16 }}>Add New Character</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {/* Avatar upload area */}
@@ -8110,115 +8640,141 @@ export default function WorkspaceScreen() {
 
               {/* Name */}
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Character Name *</label>
+                <label style={labelStyle}>Character Name *</label>
                 <input
                   value={newChar.name}
                   onChange={(e) => setNewChar(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. Sarah, The Bishop, Dr. Chen..."
-                  style={{
-                    width: '100%', padding: '8px 12px', fontSize: '0.85rem',
-                    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
-                  }}
+                  style={inputStyle}
                 />
               </div>
 
-              {/* Role + Tier row */}
-              <div style={{ display: 'flex', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Role</label>
-                  <select
-                    value={newChar.role}
-                    onChange={(e) => setNewChar(prev => ({ ...prev, role: e.target.value }))}
-                    style={{
-                      width: '100%', padding: '8px 12px', fontSize: '0.85rem',
-                      background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
-                    }}
-                  >
-                    <option value="Protagonist">Protagonist</option>
-                    <option value="Deuteragonist">Deuteragonist</option>
-                    <option value="Antagonist">Antagonist</option>
-                    <option value="Supporting">Supporting</option>
-                    <option value="Minor">Minor</option>
-                    <option value="Mentor">Mentor</option>
-                    <option value="Love Interest">Love Interest</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tier</label>
-                  <select
-                    value={newChar.tier}
-                    onChange={(e) => setNewChar(prev => ({ ...prev, tier: e.target.value }))}
-                    style={{
-                      width: '100%', padding: '8px 12px', fontSize: '0.85rem',
-                      background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
-                    }}
-                  >
-                    <option value="main">Main</option>
-                    <option value="minor">Minor</option>
-                  </select>
+              {/* Tier (replaces old Role + Tier row) */}
+              <div>
+                <label style={labelStyle}>
+                  <GlossaryTip termKey={newChar.tier}>Tier</GlossaryTip>
+                </label>
+                <select
+                  value={newChar.tier}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    // Auto-set role to match tier for common cases
+                    const roleMap = { protagonist: 'Protagonist', deuteragonist: 'Deuteragonist', antagonist: 'Antagonist', supporting: 'Supporting', minor: 'Minor', mentioned: 'Mentioned' };
+                    setNewChar(prev => ({ ...prev, tier: val, role: roleMap[val] || prev.role }));
+                  }}
+                  style={inputStyle}
+                >
+                  {tierOptions.map(t => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+                {selectedTierInfo && (
+                  <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic', lineHeight: 1.5 }}>
+                    {selectedTierInfo.desc}
+                  </div>
+                )}
+              </div>
+
+              {/* Role (narrative function) */}
+              <div>
+                <label style={labelStyle}>Narrative Role</label>
+                <input
+                  value={newChar.role}
+                  onChange={(e) => setNewChar(prev => ({ ...prev, role: e.target.value }))}
+                  placeholder="e.g. Reluctant mentor, Comic relief, Love interest, Foil to [character]..."
+                  style={inputStyle}
+                />
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 3, opacity: 0.7 }}>
+                  What function do they serve in the story?
                 </div>
               </div>
 
-              {/* Type */}
+              {/* Type (optional archetype) */}
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Character Type (optional)</label>
+                <label style={labelStyle}>Character Type (optional)</label>
                 <input
                   value={newChar.type}
                   onChange={(e) => setNewChar(prev => ({ ...prev, type: e.target.value }))}
-                  placeholder="e.g. Antihero, Foil, Trickster, Mentor..."
-                  style={{
-                    width: '100%', padding: '8px 12px', fontSize: '0.85rem',
-                    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
-                  }}
+                  placeholder="e.g. Antihero, Trickster, Chosen One, Everyman..."
+                  style={inputStyle}
                 />
               </div>
 
               {/* Bio */}
               <div>
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Brief Description</label>
+                <label style={labelStyle}>Brief Description</label>
                 <textarea
                   value={newChar.bio}
                   onChange={(e) => setNewChar(prev => ({ ...prev, bio: e.target.value }))}
-                  placeholder="A short description of who they are, what they want, and why they matter to the story..."
-                  rows={3}
-                  style={{
-                    width: '100%', padding: '8px 12px', fontSize: '0.85rem',
-                    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)', outline: 'none',
-                    resize: 'vertical', fontFamily: 'inherit',
-                  }}
+                  placeholder="Who they are, what they want, and why they matter..."
+                  rows={2}
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
                 />
+              </div>
+
+              {/* Voice Notes */}
+              <div>
+                <label style={labelStyle}>
+                  <GlossaryTip termKey="voiceNotes">Voice Notes</GlossaryTip>
+                </label>
+                <textarea
+                  value={newChar.voiceNotes}
+                  onChange={(e) => setNewChar(prev => ({ ...prev, voiceNotes: e.target.value }))}
+                  placeholder="How do they talk? Speech patterns, vocabulary level, verbal tics, dialect... e.g. 'Uses formal language as armor. Never contracts words. Says &quot;one might consider&quot; instead of &quot;maybe&quot;.'"
+                  rows={2}
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+                />
+                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: 3, opacity: 0.7 }}>
+                  Used for character chat and dialogue generation. The more specific, the better.
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
-              <Button variant="ghost" onClick={() => { setShowAddCharModal(false); setNewChar({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null }); }}>Cancel</Button>
-              <Button variant="primary" onClick={async () => {
-                if (!newChar.name.trim()) return;
-                const slug = newChar.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-                const filePath = `characters/${slug}.md`;
-                const roleLabel = newChar.role || 'Supporting';
-                const tierLabel = newChar.tier === 'main' ? 'Main character' : 'Minor character';
-                const typeLabel = newChar.type ? `\n**Type:** ${newChar.type}` : '';
-                const bioBlock = newChar.bio ? `\n\n${newChar.bio}` : '';
-                const content = `# ${newChar.name.trim()} (${roleLabel})\n\n## Profile\n\n**Role:** ${roleLabel}\n**Tier:** ${tierLabel}${typeLabel}${bioBlock}\n`;
-                try {
-                  const { updateFile } = useProjectStore.getState();
-                  await updateFile(filePath, content);
-                } catch (err) {
-                  console.warn('Failed to save character:', err);
-                }
-                setShowAddCharModal(false);
-                setNewChar({ name: '', role: 'Supporting', tier: 'main', type: '', bio: '', avatar: null });
-              }} style={{ opacity: newChar.name.trim() ? 1 : 0.5 }}>Add Character</Button>
+            {/* Action buttons */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
+              <button
+                onClick={handleAIGenerate}
+                disabled={!newChar.name.trim() || newChar.isGenerating}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', fontSize: '0.75rem',
+                  background: 'none', border: '1px dashed var(--accent)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--accent)',
+                  cursor: newChar.name.trim() && !newChar.isGenerating ? 'pointer' : 'not-allowed',
+                  opacity: newChar.name.trim() && !newChar.isGenerating ? 1 : 0.4,
+                  transition: 'all 0.15s',
+                }}
+              >
+                <Sparkles size={13} />
+                {newChar.isGenerating ? 'Generating...' : 'AI: Build Full Profile'}
+              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Button variant="ghost" onClick={() => { setShowAddCharModal(false); setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false }); }}>Cancel</Button>
+                <Button variant="primary" onClick={async () => {
+                  if (!newChar.name.trim()) return;
+                  const slug = newChar.name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+                  const filePath = `characters/${slug}.md`;
+                  const tierVal = newChar.tier || 'supporting';
+                  const roleVal = newChar.role || 'Supporting';
+                  const typeLabel = newChar.type ? `\n- **Type:** ${newChar.type}` : '';
+                  const voiceBlock = newChar.voiceNotes ? `\n- **Voice Notes:** ${newChar.voiceNotes}` : '';
+                  const bioBlock = newChar.bio ? `\n- **Motivations:** ${newChar.bio}` : '';
+                  const content = `## ${newChar.name.trim()}\n- **Tier:** ${tierVal}\n- **Role:** ${roleVal}${typeLabel}${bioBlock}${voiceBlock}\n`;
+                  try {
+                    const { updateFile } = useProjectStore.getState();
+                    await updateFile(filePath, content);
+                  } catch (err) {
+                    console.warn('Failed to save character:', err);
+                  }
+                  setShowAddCharModal(false);
+                  setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
+                }} style={{ opacity: newChar.name.trim() ? 1 : 0.5 }}>Add Character</Button>
+              </div>
             </div>
           </div>
         </ModalOverlay>
-      )}
+        );
+      })()}
 
       {showQualityWarning && (
         <ModalOverlay onClose={() => setShowQualityWarning(null)}>

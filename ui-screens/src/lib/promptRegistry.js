@@ -1202,6 +1202,322 @@ Evaluate the quality of this ${contentType || 'content'}${contentTitle ? ` ("${c
 `,
   },
 
+  // ═════════════════════════════════════════════════════════════════════
+  //  22. CHARACTER ENRICHMENT — AI-assisted character profile generation
+  // ═════════════════════════════════════════════════════════════════════
+  CHARACTER_ENRICHMENT: {
+    build: ({ characterName, role, tier, type, bio, existingContent, storyContext }) => GOLDEN_RULES + `
+## Your Role: Character Architect
+
+You are building a deep character profile for **${characterName}** in the author's story. Generate a rich, structured character file that the author can edit.
+
+### What the author told you:
+- **Role:** ${role || 'Not specified'}
+- **Tier:** ${tier || 'Not specified'}
+${type ? `- **Type:** ${type}` : ''}
+${bio ? `- **Brief description:** ${bio}` : ''}
+${existingContent ? `\n### Existing profile content:\n${existingContent}` : ''}
+${storyContext ? `\n### Story context (from other project files):\n${storyContext}` : ''}
+
+### Generate a complete character profile in this EXACT markdown format:
+
+## ${characterName}
+- **Tier**: ${tier || 'supporting'}
+- **Role**: [Their narrative function — be specific, e.g. "Reluctant mentor who embodies the cost of inaction"]
+- **Physical Description**: [Age, appearance, distinctive features. Be vivid.]
+- **Personality**: [Key traits, temperament, contradictions]
+- **Motivations**: [What drives them — surface desire AND deeper need]
+- **Relationships**: [Key connections to other characters in this story]
+- **Arc**: [How they change over the story, or why they stay static]
+- **Conflicts**: [Internal struggles AND external obstacles]
+- **Voice Notes**: [How they talk — speech patterns, vocabulary level, verbal tics, dialect, communication style. This is CRITICAL for dialogue generation. Examples: "Speaks in clipped military jargon, avoids contractions", "Rambling academic who can't finish a sentence without a parenthetical", "Uses old-fashioned politeness as a weapon"]
+- **Stream A (Private)**: [What they know/believe that they hide from others]
+- **Stream B (Public)**: [The face they show the world, what they want others to believe]
+- **Network Role**: [Pioneer (explores new ground) | Hub (connects everyone) | Bridge (links separate groups) | Isolate (exists outside the social web) | Gatekeeper (controls access to something)]
+- **What the story loses without them**: [1-2 sentences on their structural necessity]
+
+### Rules:
+- Be SPECIFIC and creative. No generic traits like "brave and loyal."
+- Voice Notes must be detailed enough to write dialogue from — include example phrases if possible.
+- Make the character feel like a real person with contradictions.
+- If story context is provided, make the character fit that world.
+- Output ONLY the markdown profile, no preamble or commentary.
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  23. PROJECT ENRICHMENT — Fill structural gaps in a project
+  // ═════════════════════════════════════════════════════════════════════
+  PROJECT_ENRICH_CHARACTERS: {
+    build: ({ existingCharacters, storyContext }) => GOLDEN_RULES + `
+## Your Role: Cast Analyst
+
+The author has created characters but they may be missing key fields. For each character, fill in any missing fields while preserving everything the author already wrote.
+
+### Existing character files:
+${existingCharacters}
+
+### Story context:
+${storyContext}
+
+### For each character, output a COMPLETE updated profile using this format:
+
+## [Character Name]
+- **Tier**: protagonist | deuteragonist | antagonist | supporting | minor | mentioned
+- **Role**: [Narrative function]
+- **Physical Description**: [Details]
+- **Personality**: [Traits]
+- **Motivations**: [Drives]
+- **Relationships**: [Connections]
+- **Arc**: [Change over story]
+- **Conflicts**: [Struggles]
+- **Voice Notes**: [Speech patterns, verbal tics, dialect, vocabulary level — CRITICAL for dialogue]
+- **Stream A (Private)**: [Hidden knowledge/beliefs]
+- **Stream B (Public)**: [Public face]
+- **Network Role**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
+- **What the story loses without them**: [Structural necessity]
+
+### Rules:
+- PRESERVE everything the author already wrote — only ADD missing fields
+- If a field exists but is thin, expand it while keeping the author's intent
+- Voice Notes are the highest priority missing field — always generate detailed ones
+- Tier must use exact values: protagonist, deuteragonist, antagonist, supporting, minor, mentioned
+- Output ALL characters, even if they're already complete (so we can do a clean overwrite)
+- Separate each character with a blank line between sections
+`,
+  },
+
+  PROJECT_ENRICH_WORLD_HALLMARKS: {
+    build: ({ worldBuilding, storyContext }) => GOLDEN_RULES + `
+## Your Role: World Detail Architect
+
+Generate the "World Hallmarks" file — signature objects, places, forces, and recurring elements that give this story's world its identity. These are the things a reader would recognize and associate with this story.
+
+### Existing world building:
+${worldBuilding}
+
+### Story context:
+${storyContext}
+
+### Output format (markdown):
+
+# World Hallmarks
+
+For each hallmark, use this structure:
+
+## [Hallmark Name]
+- **Category**: Object | Place | Force | Creature | Custom/Tradition | Technology | Symbol
+- **First Appearance**: [When/where it first shows up in the story]
+- **Resonance**: [What it means emotionally/thematically to the story]
+- **Function**: [Plot function vs. identity function — does it drive events or define the world?]
+- **Recurrence**: [How often and in what contexts it reappears]
+- **Theme Echo**: [Which theme(s) it reinforces]
+- **Memorable Factor**: [Why a reader would remember this]
+
+### Rules:
+- Generate 5-15 hallmarks depending on world complexity
+- Include a mix of categories (not all objects, not all places)
+- Even mundane elements can be hallmarks if they carry meaning (a recurring meal, a type of weather, a sound)
+- Be specific to THIS story, not generic fantasy/sci-fi tropes
+- Output ONLY the markdown, no preamble
+`,
+  },
+
+  PROJECT_ENRICH_RELATIONSHIP_CSV: {
+    build: ({ characters, relationships }) => GOLDEN_RULES + `
+## Your Role: Relationship Mapper
+
+Generate a CSV matrix showing how each character perceives every other character. This is a From/To matrix where each cell describes how the "From" character sees/feels about the "To" character.
+
+### Characters in this story:
+${characters}
+
+### Existing relationship notes:
+${relationships}
+
+### Output format:
+A CSV with these rules:
+- First row: header with "From" then each character name
+- Each subsequent row: a character's name, then how they see each other character
+- Diagonal cells (self): "SELF"
+- Each cell: 1-2 sentence description of the relationship FROM that character's perspective
+- Use "N/A" for characters who have never interacted
+- Wrap cell content in quotes if it contains commas
+
+Example:
+"From","Alice","Bob","Carol"
+"Alice","SELF","Trusts completely, sees as her anchor","Suspects of hiding something"
+"Bob","Loves deeply but fears losing her","SELF","Old friend, growing apart"
+"Carol","Envies her freedom","Childhood crush, never acted on","SELF"
+
+### Rules:
+- Relationships are ASYMMETRIC — Alice's view of Bob may differ from Bob's view of Alice
+- Be psychologically specific, not generic ("respects" → "respects grudgingly, still bitter about the betrayal")
+- Include characters with meaningful interactions only (skip truly disconnected pairs with N/A)
+- Output ONLY the CSV, no preamble or markdown fences
+`,
+  },
+
+  PROJECT_ENRICH_STORY_ANALYSIS: {
+    build: ({ storyContext, phaseAnswers }) => GOLDEN_RULES + `
+## Your Role: Story Structure Analyst
+
+Analyze this story's deeper structural elements and generate enrichment files. Based on everything the author has built so far, extract and articulate the structural DNA of their story.
+
+### Story context (all project files):
+${storyContext}
+
+${phaseAnswers ? `### Author's phase answers:\n${phaseAnswers}` : ''}
+
+### Generate THREE sections, separated by the exact delimiter "---SECTION_BREAK---":
+
+**SECTION 1: Story Questions Answered** (for story/questions-answered.md)
+Answer these 10 questions about the story:
+1. **Inciting Incident**: What event disrupts the status quo and sets the story in motion?
+2. **Central Dramatic Question**: What single question does the reader need answered? (Frame as a yes/no question)
+3. **Climax**: What is the highest point of tension where the central question is answered?
+4. **Resolution**: How does the world settle after the climax?
+5. **Tonal Arc**: Describe the emotional trajectory chapter by chapter or act by act (e.g., "Whimsical → Darkening → Desperate → Bittersweet")
+6. **Pacing Strategy**: Where does the story breathe? Where does it sprint?
+7. **Planted Threads**: List every Chekhov's gun, foreshadowing element, or setup that needs a payoff
+8. **Paid-Off Threads**: Which planted elements get resolved, and how?
+9. **Theme as Question**: Reframe the theme as a question the story must answer (not a statement). E.g., not "Love conquers all" but "Can love survive when both people are fundamentally changed by trauma?"
+10. **Big Picture Finding**: What is the author trying to say that they cannot say directly? What truth emerges from the story's events?
+
+---SECTION_BREAK---
+
+**SECTION 2: Author Voice Fingerprint** (appended to author.md)
+Analyze or extrapolate the author's voice across these 6 dimensions:
+- **Speech Rhythm**: Short punchy sentences vs. flowing complex ones? Mixed?
+- **Vocabulary Register**: Casual/colloquial, literary, technical, poetic?
+- **Dialogue Tic**: Any recurring patterns in how characters speak?
+- **Metaphor Family**: What domain do metaphors draw from? (nature, war, music, food, machinery...)
+- **Defensive Speech Pattern**: How do characters deflect when uncomfortable?
+- **Subtext Default**: Is meaning usually on the surface or buried? How many layers deep?
+
+---SECTION_BREAK---
+
+**SECTION 3: Narrator Deep Analysis** (appended to narrator.md)
+- **Reliability**: Reliable | Unreliable | Partially Reliable — and why
+- **Narrative Distance**: Intimate (inside character's head) | Close | Medium | Distant (camera-like)
+- **Information Control**: What does the narrator withhold? When do they reveal?
+- **Tonal Signature**: The narrator's default emotional register (wry, earnest, detached, warm, etc.)
+
+### Rules:
+- Be specific to THIS story. Reference actual characters, events, and themes from the context.
+- Theme as Question is the single most important item — make it penetrating and specific.
+- If information is missing, make your best creative inference and flag it with [inferred].
+- Output the three sections separated by ---SECTION_BREAK--- with no other commentary.
+`,
+  },
+
+};
+
+// ═════════════════════════════════════════════════════════════════════
+//  STORY TERMINOLOGY GLOSSARY
+// ═════════════════════════════════════════════════════════════════════
+/**
+ * Human-readable explanations for story-building terminology.
+ * Used in tooltips, help popovers, and the character creation modal.
+ */
+export const STORY_GLOSSARY = {
+  // Character Tiers
+  protagonist: {
+    term: 'Protagonist',
+    short: 'The main character whose journey drives the story',
+    long: 'The central character the audience follows. Their choices, growth, and conflicts form the backbone of the narrative. A story can have multiple protagonists (ensemble cast), but each should have their own arc. Examples: Harry Potter, Katniss Everdeen, Walter White.',
+  },
+  deuteragonist: {
+    term: 'Deuteragonist',
+    short: 'The second most important character — the protagonist\'s closest ally or mirror',
+    long: 'From Greek "second actor." This character is nearly as important as the protagonist and often serves as their closest companion, confidant, or foil. They have their own arc but it intertwines with the protagonist\'s. They often represent an alternative path or worldview. Examples: Ron Weasley to Harry, Samwise to Frodo, Jesse Pinkman to Walter White.',
+  },
+  antagonist: {
+    term: 'Antagonist',
+    short: 'The primary force opposing the protagonist',
+    long: 'Not necessarily a villain — the antagonist is whatever or whoever creates the central conflict. This can be a person, institution, force of nature, or even an internal struggle. A great antagonist believes they\'re the hero of their own story. Examples: Voldemort, the Capitol (Hunger Games), society itself (1984).',
+  },
+  supporting: {
+    term: 'Supporting',
+    short: 'Characters who help advance the plot or develop the main characters',
+    long: 'Supporting characters have recurring roles and may have their own subplots, but the story doesn\'t center on them. They serve functions like mentor, love interest, comic relief, or catalyst. They make the world feel populated and real. Examples: Hagrid, Haymitch, Hermione\'s parents.',
+  },
+  minor: {
+    term: 'Minor',
+    short: 'Characters who appear briefly but serve a specific purpose',
+    long: 'Minor characters may only appear in one or two scenes, but every one should serve a purpose — delivering information, creating atmosphere, or catalyzing a decision. Even a shopkeeper with one line can be memorable if well-drawn.',
+  },
+  mentioned: {
+    term: 'Mentioned',
+    short: 'Characters referenced but who never appear on-page',
+    long: 'These characters exist in the story\'s world and affect events or relationships, but the reader never meets them directly. They\'re important for worldbuilding and backstory. Examples: a character\'s deceased parent, a legendary historical figure, an offscreen ruler.',
+  },
+
+  // Character Roles
+  mentor: {
+    term: 'Mentor',
+    short: 'A guide who helps the protagonist grow — often flawed themselves',
+    long: 'The mentor provides wisdom, training, or resources the protagonist needs. Classic mentors eventually step back (or die) so the protagonist must stand alone. The best mentors have their own blind spots. Examples: Gandalf, Dumbledore, Mr. Miyagi.',
+  },
+  foil: {
+    term: 'Foil',
+    short: 'A character who contrasts with another to highlight their qualities',
+    long: 'A foil makes another character\'s traits more visible through contrast. They might share a similar background but make opposite choices, or have opposite personalities in a similar role. Examples: Draco Malfoy (foil to Harry), Tom Buchanan (foil to Gatsby).',
+  },
+
+  // Network Archetypes
+  networkPioneer: {
+    term: 'Pioneer',
+    short: 'Explores new territory and brings back discoveries',
+    long: 'In the story\'s social network, the Pioneer ventures where others won\'t — geographically, ideologically, or emotionally. They introduce new information, challenge assumptions, and expand the group\'s world. They\'re often the first to change.',
+  },
+  networkHub: {
+    term: 'Hub',
+    short: 'The social center who connects everyone else',
+    long: 'The Hub is the character everyone knows and talks to. Remove them and the social network fragments. They hold the group together, spread information, and often mediate conflicts. Their scenes tend to involve multiple other characters.',
+  },
+  networkBridge: {
+    term: 'Bridge',
+    short: 'Connects two groups that otherwise wouldn\'t interact',
+    long: 'The Bridge moves between separate social circles — maybe they\'re the noble who also knows the criminals, or the human who can speak to the magical beings. They\'re essential for cross-pollinating plot threads.',
+  },
+  networkIsolate: {
+    term: 'Isolate',
+    short: 'Exists outside the social web — a loner or outsider',
+    long: 'The Isolate operates independently of the main social network. Their isolation might be chosen or forced, and it often gives them a unique perspective. When an Isolate finally connects with others, it carries dramatic weight.',
+  },
+  networkGatekeeper: {
+    term: 'Gatekeeper',
+    short: 'Controls access to something valuable — information, places, people',
+    long: 'The Gatekeeper decides who gets in and who stays out. They guard knowledge, territory, or social access. They create natural obstacles and power dynamics. Examples: the secretary who decides who sees the boss, the oracle who speaks in riddles.',
+  },
+
+  // Story Structure Terms
+  streamA: {
+    term: 'Stream A (Private Knowledge)',
+    short: 'What the character knows or believes but hides from others',
+    long: 'Stream A is the character\'s inner world — their secret beliefs, hidden knowledge, private fears, and unspoken desires. The gap between Stream A and Stream B creates dramatic tension and drives character development. When Stream A finally surfaces, it creates revelation moments.',
+  },
+  streamB: {
+    term: 'Stream B (Public Face)',
+    short: 'The version of themselves they present to the world',
+    long: 'Stream B is the character\'s social performance — what they want others to believe about them. It might be a carefully crafted persona, an unconscious mask, or an aspirational identity they haven\'t earned yet. The tension between who they really are (Stream A) and who they pretend to be (Stream B) is one of the richest sources of character drama.',
+  },
+  themeAsQuestion: {
+    term: 'Theme as Question',
+    short: 'Reframing your theme as a question the story must answer',
+    long: 'Instead of stating a theme like "Love conquers all," frame it as a question: "Can love survive when both people are fundamentally changed by trauma?" This turns your theme from a lecture into an investigation. The story\'s events become evidence for and against the answer. The climax should decisively answer (or deliberately refuse to answer) this question.',
+  },
+  plantedThread: {
+    term: 'Planted Thread (Chekhov\'s Gun)',
+    short: 'A detail introduced early that must pay off later',
+    long: 'Named after Chekhov\'s principle: "If you show a gun on the wall in Act 1, it must fire by Act 3." Planted threads are setups that create expectations in the reader. They include foreshadowing, mysterious objects, unexplained behaviors, and prophecies. Every planted thread should pay off, and the best payoffs feel both surprising and inevitable.',
+  },
+  voiceNotes: {
+    term: 'Voice Notes',
+    short: 'How a character actually talks — their speech patterns, vocabulary, and verbal habits',
+    long: 'Voice Notes capture everything about how a character communicates: their vocabulary level, sentence structure, verbal tics ("you know," "actually," "listen—"), dialect or accent markers, whether they use contractions, how they handle emotions verbally, and any catchphrases. Strong Voice Notes let you write dialogue that\'s recognizable without a dialogue tag. Example: "Clipped military speech, never uses two words when one will do. Says \'copy that\' instead of \'okay.\' Swears only when truly shocked."',
+  },
 };
 
 
