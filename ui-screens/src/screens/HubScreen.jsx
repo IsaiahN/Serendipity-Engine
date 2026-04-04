@@ -4,11 +4,13 @@ import Button from '../components/Button';
 import Card from '../components/Card';
 import HealthBar from '../components/HealthBar';
 import Badge from '../components/Badge';
+import SeriesOrderManager from '../components/SeriesOrderManager';
 import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pencil, Check, X, Trash2, Download, FileText } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { PHASES } from '../lib/constants';
 import { activateDemoMode, isDemoActive, getDemoProjectId } from '../services/demoMode';
+import db from '../lib/db';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #818cf8, #f97316)',
@@ -57,13 +59,55 @@ export default function HubScreen() {
   const [renameValue, setRenameValue] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [editingSeries, setEditingSeries] = useState(false);
+  const [seriesValue, setSeriesValue] = useState('');
+  const [managingSeries, setManagingSeries] = useState(null);
+  const [sessionSummary, setSessionSummary] = useState(null);
   const renameInputRef = useRef(null);
 
   const selectedProject = projects[selectedIdx] || null;
+  const existingSeriesNames = [...new Set(projects.map(p => p.series).filter(Boolean))];
 
   useEffect(() => {
     if (renamingId !== null) renameInputRef.current?.focus();
   }, [renamingId]);
+
+  useEffect(() => {
+    if (!selectedProject?.id) { setSessionSummary(null); return; }
+    (async () => {
+      try {
+        const logs = await db.sessionLogs
+          .where('projectId').equals(selectedProject.id)
+          .reverse().sortBy('timestamp');
+
+        if (!logs?.length) { setSessionSummary(null); return; }
+
+        // Find the most recent session boundary (gap > 30 minutes)
+        let sessionStart = 0;
+        for (let i = 1; i < logs.length; i++) {
+          if (logs[i - 1].timestamp - logs[i].timestamp > 30 * 60 * 1000) {
+            sessionStart = i - 1; // logs are reverse-sorted
+            break;
+          }
+        }
+
+        const sessionLogs = logs.slice(0, sessionStart + 1);
+        const filesEdited = [...new Set(sessionLogs.map(l => l.filename || l.path).filter(Boolean))];
+        const totalDelta = sessionLogs.reduce((sum, l) => sum + (l.delta || 0), 0);
+        const fileCreates = sessionLogs.filter(l => l.type === 'file-create').length;
+        const fileEdits = sessionLogs.filter(l => l.type === 'file-edit').length;
+
+        setSessionSummary({
+          filesEdited,
+          totalDelta,
+          fileCreates,
+          fileEdits,
+          count: sessionLogs.length,
+          duration: sessionLogs.length > 1 ? sessionLogs[0].timestamp - sessionLogs[sessionLogs.length - 1].timestamp : 0,
+        });
+      } catch (e) { setSessionSummary(null); }
+    })();
+  }, [selectedProject?.id]);
 
   const startRename = (e, p) => {
     e.stopPropagation();
@@ -119,6 +163,81 @@ export default function HubScreen() {
     if (days < 7) return `${days}d ago`;
     return `${Math.floor(days / 7)}w ago`;
   };
+
+  const saveSeries = async () => {
+    if (selectedProject) {
+      const store = useProjectStore.getState();
+      await store.setActiveProject(selectedProject.id);
+      await store.updateProject({ series: seriesValue.trim() || null });
+      await store.loadProjects();
+      setEditingSeries(false);
+    }
+  };
+
+  // Helper function to render project item
+  const renderProjectItem = (p, idx) => (
+    <div
+      key={p.id}
+      onClick={() => handleSelectProject(idx)}
+      style={{
+        padding: '10px 12px',
+        borderRadius: 'var(--radius-sm)',
+        cursor: 'pointer',
+        background: selectedIdx === idx ? 'var(--accent-glow)' : 'transparent',
+        borderLeft: selectedIdx === idx ? '2px solid var(--accent)' : '2px solid transparent',
+        marginBottom: 2,
+        transition: 'var(--transition)',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <div style={{
+          width: 24, height: 24, borderRadius: 4,
+          background: getGradient(idx),
+          flexShrink: 0,
+        }} />
+        {renamingId === p.id ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
+            <input
+              ref={renameInputRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') commitRename(p.id); if (e.key === 'Escape') setRenamingId(null); }}
+              style={{
+                flex: 1, background: 'var(--bg-primary)', border: '1px solid var(--accent)',
+                borderRadius: 4, color: 'var(--text-primary)', fontSize: '0.85rem',
+                padding: '2px 6px', outline: 'none', minWidth: 0,
+              }}
+            />
+            <button onClick={() => commitRename(p.id)} style={{ background: 'none', border: 'none', color: 'var(--health-strong)', cursor: 'pointer', padding: 2 }} title="Save">
+              <Check size={12} />
+            </button>
+            <button onClick={() => setRenamingId(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} title="Cancel">
+              <X size={12} />
+            </button>
+          </div>
+        ) : (
+          <>
+            <span style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+              {p.title}
+            </span>
+            <button
+              onClick={(e) => startRename(e, p)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, opacity: 0.5, flexShrink: 0 }}
+              title="Rename project"
+            >
+              <Pencil size={12} />
+            </button>
+          </>
+        )}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 32 }}>
+        <HealthBar rating={p.health || 0} size="sm" showLabel={false} style={{ flex: 1 }} />
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+          {getLastModifiedLabel(p)}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex' }}>
@@ -213,69 +332,65 @@ export default function HubScreen() {
               <div style={{ fontSize: '0.7rem', color: 'var(--accent)', marginTop: 4 }}>Create your first story to get started</div>
             </div>
           ) : (
-            projects.map((p, idx) => (
-              <div
-                key={p.id}
-                onClick={() => handleSelectProject(idx)}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                  background: selectedIdx === idx ? 'var(--accent-glow)' : 'transparent',
-                  borderLeft: selectedIdx === idx ? '2px solid var(--accent)' : '2px solid transparent',
-                  marginBottom: 2,
-                  transition: 'var(--transition)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <div style={{
-                    width: 24, height: 24, borderRadius: 4,
-                    background: getGradient(idx),
-                    flexShrink: 0,
-                  }} />
-                  {renamingId === p.id ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }} onClick={(e) => e.stopPropagation()}>
-                      <input
-                        ref={renameInputRef}
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') commitRename(p.id); if (e.key === 'Escape') setRenamingId(null); }}
-                        style={{
-                          flex: 1, background: 'var(--bg-primary)', border: '1px solid var(--accent)',
-                          borderRadius: 4, color: 'var(--text-primary)', fontSize: '0.85rem',
-                          padding: '2px 6px', outline: 'none', minWidth: 0,
-                        }}
-                      />
-                      <button onClick={() => commitRename(p.id)} style={{ background: 'none', border: 'none', color: 'var(--health-strong)', cursor: 'pointer', padding: 2 }} title="Save">
-                        <Check size={12} />
-                      </button>
-                      <button onClick={() => setRenamingId(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2 }} title="Cancel">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
-                        {p.title}
-                      </span>
-                      <button
-                        onClick={(e) => startRename(e, p)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, opacity: 0.5, flexShrink: 0 }}
-                        title="Rename project"
-                      >
-                        <Pencil size={12} />
-                      </button>
-                    </>
-                  )}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 32 }}>
-                  <HealthBar rating={p.health || 0} size="sm" showLabel={false} style={{ flex: 1 }} />
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                    {getLastModifiedLabel(p)}
-                  </span>
-                </div>
-              </div>
-            ))
+            <>
+              {/* Group projects: series projects grouped together, standalone at top */}
+              {(() => {
+                const seriesGroups = {};
+                const standalone = [];
+                projects.forEach((p, idx) => {
+                  if (p.series) {
+                    if (!seriesGroups[p.series]) seriesGroups[p.series] = [];
+                    seriesGroups[p.series].push({ ...p, _idx: idx });
+                  } else {
+                    standalone.push({ ...p, _idx: idx });
+                  }
+                });
+
+                return (
+                  <>
+                    {/* Standalone projects */}
+                    {standalone.map(p => renderProjectItem(p, p._idx))}
+
+                    {/* Series groups */}
+                    {Object.entries(seriesGroups).map(([seriesName, seriesProjects]) => (
+                      <div key={seriesName}>
+                        <div style={{
+                          fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+                          color: 'var(--accent)', padding: '12px 12px 4px', fontWeight: 600,
+                          display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'space-between',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <span style={{ fontSize: '0.7rem' }}>📚</span> {seriesName}
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setManagingSeries(seriesName);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              padding: '2px 4px',
+                              fontSize: '0.65rem',
+                              opacity: 0.6,
+                              transition: 'var(--transition)',
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.color = 'var(--accent)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.6'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                            title="Manage series order"
+                          >
+                            ⚙️ Manage Order
+                          </button>
+                        </div>
+                        {seriesProjects.map(p => renderProjectItem(p, p._idx))}
+                      </div>
+                    ))}
+                  </>
+                );
+              })()}
+            </>
           )}
 
           <div style={{ height: 1, background: 'var(--border)', margin: '12px 12px' }} />
@@ -360,8 +475,43 @@ export default function HubScreen() {
                   {selectedProject.genre && <Badge variant="accent">{selectedProject.genre}</Badge>}
                   <Badge variant="muted">{getPhaseLabel(selectedProject)}</Badge>
                   {selectedProject.medium && <Badge variant="muted">{selectedProject.medium}</Badge>}
+                  {selectedProject.series && <Badge variant="accent" style={{ background: 'var(--accent)22', color: 'var(--accent)' }}>📚 {selectedProject.series}</Badge>}
                 </div>
                 <HealthBar rating={selectedProject.health || 0} style={{ marginBottom: 12 }} />
+
+                {/* Series Tag */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Series:</span>
+                  {editingSeries ? (
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <input
+                        value={seriesValue}
+                        onChange={e => setSeriesValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveSeries(); if (e.key === 'Escape') setEditingSeries(false); }}
+                        placeholder="e.g., Game of Thrones"
+                        style={{
+                          padding: '3px 8px', background: 'var(--bg-tertiary)', border: '1px solid var(--accent)',
+                          borderRadius: 4, color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', width: 180,
+                        }}
+                        autoFocus
+                        list="series-suggestions"
+                      />
+                      <datalist id="series-suggestions">
+                        {existingSeriesNames.map(s => <option key={s} value={s} />)}
+                      </datalist>
+                      <button onClick={saveSeries} style={{ background: 'none', border: 'none', color: 'var(--health-strong)', cursor: 'pointer' }}><Check size={12} /></button>
+                      <button onClick={() => setEditingSeries(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={12} /></button>
+                    </div>
+                  ) : (
+                    <button onClick={() => { setSeriesValue(selectedProject.series || ''); setEditingSeries(true); }} style={{
+                      background: 'none', border: '1px dashed var(--border)', borderRadius: 4,
+                      color: selectedProject.series ? 'var(--accent)' : 'var(--text-muted)',
+                      cursor: 'pointer', fontSize: '0.8rem', padding: '2px 8px',
+                    }}>
+                      {selectedProject.series || '+ Add to series'}
+                    </button>
+                  )}
+                </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                   <Clock size={13} color="var(--text-muted)" />
                   <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Last session: {getLastModifiedLabel(selectedProject)}</span>
@@ -380,10 +530,23 @@ export default function HubScreen() {
                 }}>
                   <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>Last Session Summary</div>
                   <div style={{ color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                    {selectedProject.lastAction ? (
-                      <div>● {selectedProject.lastAction}</div>
+                    {sessionSummary ? (
+                      <>
+                        <div>● {sessionSummary.fileEdits} file edit{sessionSummary.fileEdits !== 1 ? 's' : ''}, {sessionSummary.fileCreates} new file{sessionSummary.fileCreates !== 1 ? 's' : ''}</div>
+                        <div>● {sessionSummary.totalDelta >= 0 ? '+' : ''}{sessionSummary.totalDelta} words net change</div>
+                        {sessionSummary.filesEdited.length > 0 && (
+                          <div>● Files touched: {sessionSummary.filesEdited.slice(0, 4).map(f => f.split('/').pop()).join(', ')}{sessionSummary.filesEdited.length > 4 ? ` +${sessionSummary.filesEdited.length - 4} more` : ''}</div>
+                        )}
+                        {sessionSummary.duration > 0 && (
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 4 }}>
+                            Session duration: ~{Math.round(sessionSummary.duration / 60000)} min
+                          </div>
+                        )}
+                      </>
                     ) : (
-                      <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No session history yet. Open this project to start building.</div>
+                      <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                        {selectedProject?.lastAction || 'No session history yet. Open this project to start building.'}
+                      </div>
                     )}
                   </div>
                 </div>
@@ -440,6 +603,14 @@ export default function HubScreen() {
           </div>
         </div>
       </div>
+
+      {/* Series Order Manager Modal */}
+      {managingSeries && (
+        <SeriesOrderManager
+          seriesName={managingSeries}
+          onClose={() => setManagingSeries(null)}
+        />
+      )}
     </div>
   );
 }

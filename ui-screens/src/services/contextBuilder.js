@@ -20,6 +20,7 @@
  */
 
 import { GOLDEN_RULES, PROMPTS } from '../lib/promptRegistry.js';
+import { loadSeriesData, buildSeriesContext } from './seriesContext.js';
 
 /**
  * Improved token estimation using word-based heuristic
@@ -53,7 +54,7 @@ function estimateTokens(text) {
  * @returns {{ messages: Array, tokenCount: number, trimmed: string[] }}
  */
 export function buildChapterContext(files, chapterNum, options = {}) {
-  const { maxTokens = 128000, model = 'claude-sonnet-4-5-20250514' } = options;
+  const { maxTokens = 128000, model = 'claude-sonnet-4-5-20250514', seriesContext = '' } = options;
   const trimmed = [];
   const parts = [];
 
@@ -64,6 +65,16 @@ export function buildChapterContext(files, chapterNum, options = {}) {
     content: GOLDEN_RULES,
     label: 'Golden Rules',
   });
+
+  // 1.5. Series context (if provided)
+  if (seriesContext) {
+    parts.push({
+      role: 'system',
+      priority: 0,
+      content: seriesContext,
+      label: 'Series Context',
+    });
+  }
 
   // 2. Always included (never trimmed)
   const neverTrim = [
@@ -209,7 +220,7 @@ export function buildChapterContext(files, chapterNum, options = {}) {
  * Build context for a chat message (Story Assistant, Editor, Talk to Character)
  */
 export function buildChatContext(files, chatHistory, options = {}) {
-  const { persona = 'assistant', characterName = null, scope = 'full-project' } = options;
+  const { persona = 'assistant', characterName = null, scope = 'full-project', seriesContext = '' } = options;
 
   let systemPrompt = '';
 
@@ -229,6 +240,11 @@ export function buildChatContext(files, chatHistory, options = {}) {
       break;
     default:
       systemPrompt = GOLDEN_RULES + '\n\n';
+  }
+
+  // Add series context if provided
+  if (seriesContext) {
+    systemPrompt += seriesContext + '\n\n';
   }
 
   // Add relevant context based on scope
@@ -289,6 +305,15 @@ export function buildPreFlightContext(files, chapterNum) {
       },
     ],
   };
+}
+
+/**
+ * Load series context for a project and build the context string
+ */
+export async function getSeriesContextForProject(project) {
+  if (!project?.series) return '';
+  const seriesData = await loadSeriesData(project.series);
+  return buildSeriesContext(seriesData, project.id);
 }
 
 // Export estimateTokens for use in token display components

@@ -1106,6 +1106,100 @@ ${workBContext || '(No additional context)'}
   },
 
   // ═════════════════════════════════════════════════════════════════════
+  //  19c. SERIES EVOLUTION — Multi-book series analysis
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * ROLE:        A series evolution analyst examining how a dimension evolves across multiple books.
+   * USE MODE:    Fires when user selects a series for evolution analysis, once per dimension.
+   * BOUNDARIES:  Focus on single dimension evolution across chronological book order.
+   * CONTEXT:     Receives: series name, total book count, evolution dimension, all book contents.
+   * OUTPUT:      JSON with per-book scores, summaries, trajectory arc.
+   * DESTINATION: Collected and displayed in Series Evolution results tabs.
+   */
+  SERIES_EVOLUTION: {
+    build: ({ seriesName, totalBooks, evolutionDimension, booksData }) => GOLDEN_RULES + `
+## Your Role: Series Evolution Analyst
+
+You are analyzing the evolution of a multi-book series called "${seriesName}" (${totalBooks} books) across the dimension of **${evolutionDimension}**.
+
+For each book in chronological order, analyze how this dimension evolves. Track:
+- What's introduced or established
+- What changes, deepens, or subverts
+- Patterns, escalations, and regressions
+- How the author's handling matures across entries
+
+## Books Data (Chronological Order):
+${booksData}
+
+### Required output format (JSON):
+\`\`\`json
+{
+  "dimension": "${evolutionDimension}",
+  "trajectory": "ascending" | "descending" | "wave" | "plateau" | "volatile",
+  "perBook": [
+    {
+      "title": "Book Title",
+      "order": 1,
+      "role": "mainline|prequel|sequel|spinoff",
+      "score": 1-10,
+      "summary": "2-3 sentence analysis of this dimension in this book",
+      "keyDevelopments": ["development 1", "development 2"],
+      "comparedToPrevious": "How this evolved from the previous entry (null for first book)"
+    }
+  ],
+  "overallArc": "3-4 sentence summary of how this dimension evolved across the entire series",
+  "hallmarks": ["recurring pattern 1", "recurring pattern 2"],
+  "subversions": ["expectation subverted 1"],
+  "peakMoment": "The strongest expression of this dimension and which book it's in"
+}
+\`\`\`
+
+### Rules:
+- Score on a 1-10 scale based on strength/depth of this dimension in each book
+- Trajectory must be one of: ascending, descending, wave, plateau, volatile
+- Key developments should be specific and textually grounded
+- Peak moment should reference the specific book title
+- Respond ONLY with the JSON object
+`,
+  },
+
+  SERIES_EVOLUTION_SYNTHESIS: {
+    build: ({ seriesName, totalBooks, dimensionResults }) => GOLDEN_RULES + `
+## Your Role: Series Evolution Synthesizer
+
+Synthesize the per-dimension evolution analysis for the series "${seriesName}" (${totalBooks} books).
+
+## Dimension Analysis Results:
+${dimensionResults}
+
+### Required output format (JSON):
+\`\`\`json
+{
+  "seriesName": "${seriesName}",
+  "totalBooks": ${totalBooks},
+  "overallTrajectory": "Brief description of the series' overall evolution arc",
+  "authorGrowth": "How the author's craft evolved across the series",
+  "worldExpansion": "How the world grew and deepened across entries",
+  "characterEvolution": "Major character development patterns across the series",
+  "toneShift": "How tone and atmosphere shifted across entries",
+  "qualityArc": "ascending" | "descending" | "peak-middle" | "consistent",
+  "hallmarkSignatures": ["The series' most distinctive recurring elements"],
+  "biggestSubversions": ["Most significant moments where the series defied expectations"],
+  "strongestEntry": { "title": "Book Title", "why": "Specific reasons this entry is strongest" },
+  "weakestEntry": { "title": "Book Title", "why": "Specific areas for improvement in this entry" },
+  "recommendations": ["Suggestions for the next entry in the series"]
+}
+\`\`\`
+
+### Rules:
+- Quality arc must be one of: ascending, descending, peak-middle, consistent
+- All insights should be grounded in the dimension results provided
+- Recommendations should be constructive and based on identified patterns
+- Respond ONLY with the JSON object
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
   //  20. CHAT CONTEXT SUGGESTIONS (UI — conversation starters)
   // ═════════════════════════════════════════════════════════════════════
   /**

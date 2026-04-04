@@ -427,6 +427,7 @@ export default function WizardScreen() {
         title: formData.title,
         medium: formData.medium,
         genre: formData.primaryGenre,
+        series: formData.series || null,
         seed,
         metadata: {
           secondaryGenre: formData.secondaryGenre,
@@ -1199,6 +1200,9 @@ function StepWorkspaceStyle({ formData, setFormData }) {
 }
 
 function StepTitleAuthor({ formData, setFormData }) {
+  const projects = useProjectStore(s => s.projects);
+  const existingSeriesNames = [...new Set(projects.map(p => p.series).filter(Boolean))];
+
   return (
     <>
       <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Final Details</h2>
@@ -1256,6 +1260,35 @@ function StepTitleAuthor({ formData, setFormData }) {
         />
       </div>
 
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+          Series (optional)
+        </label>
+        <input
+          type="text"
+          placeholder="e.g., Game of Thrones"
+          value={formData.series || ''}
+          onChange={(e) => setFormData(prev => ({ ...prev, series: e.target.value }))}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            fontSize: '0.95rem',
+            fontFamily: 'var(--font-sans)',
+            outline: 'none',
+          }}
+          onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+          onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          list="series-suggestions"
+        />
+        <datalist id="series-suggestions">
+          {existingSeriesNames.map(s => <option key={s} value={s} />)}
+        </datalist>
+      </div>
+
       <Card style={{ padding: 16, background: 'var(--bg-tertiary)' }}>
         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 8 }}>
           <strong>Your Seed:</strong>
@@ -1269,6 +1302,9 @@ function StepTitleAuthor({ formData, setFormData }) {
 }
 
 function StepSimpleTitleAuthor({ formData, setFormData }) {
+  const projects = useProjectStore(s => s.projects);
+  const existingSeriesNames = [...new Set(projects.map(p => p.series).filter(Boolean))];
+
   return (
     <>
       <h2 style={{ fontSize: '1.3rem', fontWeight: 700, marginBottom: 8 }}>Your Story Details</h2>
@@ -1325,6 +1361,35 @@ function StepSimpleTitleAuthor({ formData, setFormData }) {
           onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
           onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
         />
+      </div>
+
+      <div style={{ marginBottom: 20 }}>
+        <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+          Series (optional)
+        </label>
+        <input
+          type="text"
+          placeholder="e.g., Game of Thrones"
+          value={formData.series || ''}
+          onChange={(e) => setFormData(prev => ({ ...prev, series: e.target.value }))}
+          style={{
+            width: '100%',
+            padding: '10px 12px',
+            background: 'var(--bg-tertiary)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-primary)',
+            fontSize: '0.95rem',
+            fontFamily: 'var(--font-sans)',
+            outline: 'none',
+          }}
+          onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+          onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          list="series-suggestions"
+        />
+        <datalist id="series-suggestions">
+          {existingSeriesNames.map(s => <option key={s} value={s} />)}
+        </datalist>
       </div>
 
       <Card style={{ padding: 16, background: 'var(--accent-glow)', textAlign: 'center' }}>

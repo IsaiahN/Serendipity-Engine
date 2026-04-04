@@ -15,7 +15,7 @@ import {
   Compass, Edit3, BookOpen, GitCompare, Network, MessageSquare,
   Clock, Palette, Settings, Download, Volume2, Search,
   Lightbulb, AlertTriangle, Pencil, ChevronUp, Send, SendHorizontal, ChevronsLeft, ChevronsRight, Globe,
-  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X,
+  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X, Copy,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -33,6 +33,13 @@ import CharacterGuide from '../components/CharacterGuide';
 import TonalArcDesigner from '../components/TonalArcDesigner';
 import SubproblemTracker from '../components/SubproblemTracker';
 import SceneMetadataEditor from '../components/SceneMetadataEditor';
+import ConversationalTeacher from '../components/ConversationalTeacher';
+import SceneDynamicsForecast from '../components/SceneDynamicsForecast';
+import ReaderExperienceReport from '../components/ReaderExperienceReport';
+import VoiceCasting from '../components/VoiceCasting';
+import FeedbackManager from '../components/FeedbackManager';
+import SandboxMode from '../components/SandboxMode';
+import GenreShiftDashboard from '../components/GenreShiftDashboard';
 import { countWords } from '../services/exportEngine';
 import { STORY_MEDIUMS } from '../lib/constants';
 
@@ -88,6 +95,10 @@ const centerStageModes = [
   { key: 'world', icon: Globe, label: 'World Building' },
   { key: 'comparison', icon: GitCompare, label: 'Comparison' },
   { key: 'board', icon: Palette, label: 'Drawing Board' },
+  { key: 'voice-casting', icon: Music, label: 'Voice Casting' },
+  { key: 'feedback', icon: BarChart3, label: 'Feedback' },
+  { key: 'genre-shift', icon: Sparkles, label: 'Genre Shift' },
+  { key: 'sandbox', icon: Copy, label: 'Sandbox' },
   { key: 'search', icon: Search, label: 'Search' },
 ];
 
@@ -578,6 +589,11 @@ function ChapterExecutionMode() {
           <SceneMetadataEditor chapterNum={chapterNum} />
         </div>
 
+        {/* Scene Dynamics Forecast */}
+        <div style={{ marginTop: 16 }}>
+          <SceneDynamicsForecast chapterNum={chapterNum} />
+        </div>
+
         {/* Emotion Wheel for emotional beats */}
         <div style={{ marginTop: 16 }}>
           <EmotionWheel
@@ -988,6 +1004,8 @@ function EditorMode({ file }) {
             </Button>
             <Button variant="ghost" onClick={() => { setEditorItems([]); setHasRun(false); }}>Clear</Button>
           </div>
+          {/* Reader Experience Report integrated below editor review */}
+          {file && <ReaderExperienceReport chapterPath={file} />}
         </>
       )}
     </div>
@@ -3619,6 +3637,13 @@ function ComparisonMode() {
   const [charComparisonData, setCharComparisonData] = useState(null);
   const [isComparingChars, setIsComparingChars] = useState(false);
   const [charComparisonProgress, setCharComparisonProgress] = useState('');
+  // Series Evolution state
+  const [seriesEvolutionData, setSeriesEvolutionData] = useState(null);
+  const [isEvolvingSeries, setIsEvolvingSeries] = useState(false);
+  const [evolutionProgress, setEvolutionProgress] = useState('');
+  const [selectedSeries, setSelectedSeries] = useState(null);
+  const [availableSeries, setAvailableSeries] = useState([]);
+  const [evolutionTab, setEvolutionTab] = useState('timeline'); // 'timeline' | 'dimensions' | 'synthesis'
   const worksLibrary = useWorksLibrary();
   const projectFiles = useProjectStore(s => s.files);
   const sendMessage = useLlmStore(s => s.sendMessage);
@@ -3642,6 +3667,38 @@ function ComparisonMode() {
       };
     });
   };
+
+  /**
+   * Load all series with 2+ books from the database.
+   */
+  const loadAvailableSeries = async () => {
+    try {
+      const { default: db } = await import('../lib/db');
+      const allProjects = await db.projects.toArray();
+      const seriesMap = {};
+      allProjects.forEach(p => {
+        if (p.series) {
+          if (!seriesMap[p.series]) seriesMap[p.series] = [];
+          seriesMap[p.series].push(p);
+        }
+      });
+      // Only show series with 2+ books
+      const seriesList = Object.entries(seriesMap)
+        .filter(([, projects]) => projects.length >= 2)
+        .map(([name, projects]) => ({
+          name,
+          count: projects.length,
+          projects: projects.sort((a, b) => (a.seriesOrder || 999) - (b.seriesOrder || 999)),
+        }));
+      setAvailableSeries(seriesList);
+    } catch (err) {
+      console.error('Failed to load series:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (comparisonType === 'series') loadAvailableSeries();
+  }, [comparisonType]);
 
   /**
    * Run character comparison via LLM
@@ -3836,6 +3893,127 @@ function ComparisonMode() {
     }
   };
 
+  // Run series evolution analysis
+  const runSeriesEvolution = async () => {
+    if (!selectedSeries) return;
+    setIsEvolvingSeries(true);
+    setSeriesEvolutionData(null);
+    setEvolutionProgress('Loading series data...');
+    setPhase('results');
+    setResultsTab('evolution');
+
+    try {
+      const { loadSeriesData } = await import('../services/seriesContext');
+      const seriesData = await loadSeriesData(selectedSeries.name);
+      if (!seriesData || seriesData.length < 2) throw new Error('Need at least 2 books');
+
+      // Evolution dimensions to analyze
+      const evolutionDimensions = [
+        { key: 'characters', label: 'Character Depth & Complexity' },
+        { key: 'world', label: 'World Building & Expansion' },
+        { key: 'tone', label: 'Tone & Atmosphere' },
+        { key: 'craft', label: 'Writing Quality & Craft' },
+        { key: 'themes', label: 'Thematic Depth' },
+        { key: 'structure', label: 'Structural Innovation' },
+        { key: 'tropes', label: 'Trope Usage & Subversion' },
+        { key: 'arcs', label: 'Narrative Arcs' },
+      ];
+
+      // Build books data string
+      const booksDataStr = seriesData.map((entry, i) => {
+        const { project, files } = entry;
+        const allContent = Object.entries(files)
+          .filter(([p]) => p.endsWith('.md'))
+          .map(([p, c]) => `--- ${p} ---\n${c}`)
+          .join('\n\n');
+        return `### Book ${i + 1}: "${project.title}" [${project.seriesRole || 'mainline'}]\nGenre: ${project.genre} | Medium: ${project.medium} | Words: ${project.wordCount || 0}\n\n${allContent.slice(0, 5000)}`;
+      }).join('\n\n---\n\n');
+
+      // Run per-dimension evolution analysis
+      const dimensionResults = {};
+      for (let i = 0; i < evolutionDimensions.length; i++) {
+        const dim = evolutionDimensions[i];
+        setEvolutionProgress(`Analyzing ${dim.label}... (${i + 1}/${evolutionDimensions.length})`);
+
+        try {
+          const { PROMPTS } = await import('../lib/promptRegistry');
+          const prompt = PROMPTS.SERIES_EVOLUTION.build({
+            seriesName: selectedSeries.name,
+            totalBooks: seriesData.length,
+            evolutionDimension: dim.label,
+            booksData: booksDataStr,
+          });
+
+          const response = await sendMessage({
+            messages: [
+              { role: 'system', content: prompt },
+              { role: 'user', content: `Analyze the evolution of ${dim.label} across the "${selectedSeries.name}" series. Respond with JSON only.` },
+            ],
+            role: 'analyst',
+            maxTokens: 3000,
+          });
+
+          if (!response.success) throw new Error(response.error);
+          const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) dimensionResults[dim.key] = JSON.parse(jsonMatch[0]);
+        } catch (dimErr) {
+          console.warn(`Evolution analysis failed for ${dim.key}:`, dimErr);
+          dimensionResults[dim.key] = {
+            dimension: dim.label,
+            trajectory: 'unknown',
+            perBook: seriesData.map((d, idx) => ({ title: d.project.title, order: idx + 1, score: 5, summary: 'Analysis unavailable', keyDevelopments: [], comparedToPrevious: null })),
+            overallArc: 'Analysis could not be completed.',
+            hallmarks: [],
+            subversions: [],
+            peakMoment: 'Unknown',
+          };
+        }
+      }
+
+      // Run synthesis
+      setEvolutionProgress('Synthesizing series evolution...');
+      let synthesis = null;
+      try {
+        const { PROMPTS } = await import('../lib/promptRegistry');
+        const synthPrompt = PROMPTS.SERIES_EVOLUTION_SYNTHESIS.build({
+          seriesName: selectedSeries.name,
+          totalBooks: seriesData.length,
+          dimensionResults: JSON.stringify(dimensionResults, null, 2),
+        });
+
+        const synthResponse = await sendMessage({
+          messages: [
+            { role: 'system', content: synthPrompt },
+            { role: 'user', content: 'Synthesize the evolution of this series across all dimensions. Respond with JSON only.' },
+          ],
+          role: 'analyst',
+          maxTokens: 3000,
+        });
+
+        if (synthResponse.success) {
+          const jsonMatch = synthResponse.content.match(/\{[\s\S]*\}/);
+          if (jsonMatch) synthesis = JSON.parse(jsonMatch[0]);
+        }
+      } catch (synthErr) {
+        console.warn('Synthesis failed:', synthErr);
+      }
+
+      setSeriesEvolutionData({
+        seriesName: selectedSeries.name,
+        books: seriesData.map(d => d.project),
+        dimensions: dimensionResults,
+        synthesis,
+        evolutionDimensions,
+      });
+    } catch (err) {
+      console.error('Series evolution failed:', err);
+      setEvolutionProgress('Analysis failed. Check your LLM connection.');
+    } finally {
+      setIsEvolvingSeries(false);
+      setEvolutionProgress('');
+    }
+  };
+
   const toggleDimension = (key) => {
     setActiveDimensions(prev =>
       prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
@@ -3920,6 +4098,309 @@ function ComparisonMode() {
     );
   };
 
+  // Evolution rendering helpers
+  const renderEvolutionTimeline = () => {
+    if (!seriesEvolutionData?.dimensions || !seriesEvolutionData?.books) return null;
+
+    const evolutionColors = {
+      characters: '#f472b6', world: '#34d399', tone: '#c084fc', craft: '#fbbf24',
+      themes: '#60a5fa', structure: '#fb923c', tropes: '#a78bfa', arcs: '#2dd4bf',
+    };
+
+    return (
+      <Card style={{ padding: 20, overflow: 'auto' }}>
+        <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 16 }}>
+          Evolution Timeline
+        </h4>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {Object.entries(seriesEvolutionData.dimensions).map(([dimKey, dimData]) => {
+            if (!dimData.perBook) return null;
+            return (
+              <div key={dimKey} style={{ borderLeft: `3px solid ${evolutionColors[dimKey]}`, paddingLeft: 12 }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 8, color: evolutionColors[dimKey] }}>
+                  {dimData.dimension}
+                </div>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {dimData.perBook.map((book, i) => (
+                    <div key={i} style={{
+                      fontSize: '0.75rem', padding: '4px 8px', background: evolutionColors[dimKey] + '20',
+                      color: evolutionColors[dimKey], borderRadius: 'var(--radius-xs)', fontWeight: 600,
+                      border: `1px solid ${evolutionColors[dimKey]}40`,
+                    }}>
+                      B{book.order}: {book.score}/10
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    );
+  };
+
+  const renderEvolutionDimensions = () => {
+    if (!seriesEvolutionData?.dimensions) return null;
+
+    const trajectoryColors = {
+      ascending: '#34d399', descending: '#ef4444', wave: '#60a5fa',
+      plateau: '#fbbf24', volatile: '#e879f9', unknown: '#94a3b8',
+    };
+    const trajectoryIcons = {
+      ascending: '📈', descending: '📉', wave: '🌊', plateau: '➡️', volatile: '⚡', unknown: '❓',
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {Object.entries(seriesEvolutionData.dimensions).map(([dimKey, dimData]) => {
+          const trajColor = trajectoryColors[dimData.trajectory] || '#94a3b8';
+          const trajIcon = trajectoryIcons[dimData.trajectory] || '❓';
+          return (
+            <Card key={dimKey} style={{ overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', background: trajColor + '10', borderLeft: `4px solid ${trajColor}`, display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '1.1rem' }}>{trajIcon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    {dimData.dimension}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    Trajectory: <span style={{ color: trajColor, fontWeight: 600 }}>{dimData.trajectory}</span>
+                  </div>
+                </div>
+                <Badge style={{ background: trajColor + '20', color: trajColor, fontSize: '0.7rem', padding: '3px 8px' }}>
+                  {dimData.trajectory}
+                </Badge>
+              </div>
+
+              {dimData.perBook && (
+                <div style={{ padding: '12px 16px' }}>
+                  {dimData.perBook.map((book, i) => (
+                    <div key={i} style={{ marginBottom: i < dimData.perBook.length - 1 ? 12 : 0, paddingBottom: i < dimData.perBook.length - 1 ? 12 : 0, borderBottom: i < dimData.perBook.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                        <Badge variant="secondary" style={{ fontSize: '0.7rem' }}>Book {book.order}</Badge>
+                        <span style={{ fontWeight: 600, fontSize: '0.82rem', flex: 1 }}>{book.title}</span>
+                        <Badge style={{ fontSize: '0.75rem', fontWeight: 700, background: trajColor + '20', color: trajColor }}>
+                          {book.score}/10
+                        </Badge>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 6 }}>
+                        {book.summary}
+                      </div>
+                      {book.keyDevelopments && book.keyDevelopments.length > 0 && (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          <span style={{ fontWeight: 600 }}>Key developments:</span> {book.keyDevelopments.join('; ')}
+                        </div>
+                      )}
+                      {book.comparedToPrevious && (
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontStyle: 'italic', marginTop: 4 }}>
+                          {book.comparedToPrevious}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(dimData.hallmarks?.length > 0 || dimData.subversions?.length > 0) && (
+                <div style={{ padding: '12px 16px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)' }}>
+                  {dimData.hallmarks && dimData.hallmarks.length > 0 && (
+                    <div style={{ marginBottom: dimData.subversions?.length > 0 ? 8 : 0 }}>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>HALLMARKS</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                        {dimData.hallmarks.join('; ')}
+                      </div>
+                    </div>
+                  )}
+                  {dimData.subversions && dimData.subversions.length > 0 && (
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4 }}>SUBVERSIONS</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                        {dimData.subversions.join('; ')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {dimData.overallArc && (
+                <div style={{ padding: '12px 16px', background: 'var(--accent-glow)', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>OVERALL ARC</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                    {dimData.overallArc}
+                  </div>
+                </div>
+              )}
+
+              {dimData.peakMoment && (
+                <div style={{ padding: '8px 16px', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  <span style={{ fontWeight: 600 }}>Peak Moment:</span> {dimData.peakMoment}
+                </div>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderEvolutionSynthesis = () => {
+    if (!seriesEvolutionData?.synthesis) {
+      return (
+        <Card style={{ padding: 20, textAlign: 'center' }}>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Synthesis data not available.</p>
+        </Card>
+      );
+    }
+
+    const syn = seriesEvolutionData.synthesis;
+    const qualityColors = { ascending: '#34d399', descending: '#ef4444', 'peak-middle': '#fbbf24', consistent: '#60a5fa' };
+    const qualityArc = syn.qualityArc || 'unknown';
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <Card style={{ padding: 16 }}>
+          <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 8 }}>
+            Overall Evolution Trajectory
+          </h4>
+          <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            {syn.overallTrajectory}
+          </div>
+        </Card>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {syn.authorGrowth && (
+            <Card style={{ padding: 12, background: 'var(--accent-glow)', border: '1px solid var(--accent)20' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Author Growth
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {syn.authorGrowth}
+              </div>
+            </Card>
+          )}
+          {syn.worldExpansion && (
+            <Card style={{ padding: 12, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#34d399', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                World Expansion
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {syn.worldExpansion}
+              </div>
+            </Card>
+          )}
+          {syn.characterEvolution && (
+            <Card style={{ padding: 12, background: 'rgba(244,114,182,0.08)', border: '1px solid rgba(244,114,182,0.2)' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#f472b6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Character Evolution
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {syn.characterEvolution}
+              </div>
+            </Card>
+          )}
+          {syn.toneShift && (
+            <Card style={{ padding: 12, background: 'rgba(192,132,252,0.08)', border: '1px solid rgba(192,132,252,0.2)' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#c084fc', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Tone Shift
+              </div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {syn.toneShift}
+              </div>
+            </Card>
+          )}
+        </div>
+
+        <Card style={{ padding: 16, background: qualityColors[qualityArc] + '10', border: `1px solid ${qualityColors[qualityArc]}30` }}>
+          <div style={{ fontSize: '0.7rem', fontWeight: 600, color: qualityColors[qualityArc], marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Quality Arc
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Badge style={{ background: qualityColors[qualityArc] + '30', color: qualityColors[qualityArc], fontSize: '0.75rem', padding: '4px 10px', fontWeight: 600 }}>
+              {qualityArc}
+            </Badge>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              The series showed a <span style={{ color: qualityColors[qualityArc], fontWeight: 600 }}>{qualityArc}</span> quality trajectory.
+            </span>
+          </div>
+        </Card>
+
+        {syn.hallmarkSignatures && syn.hallmarkSignatures.length > 0 && (
+          <Card style={{ padding: 16, background: 'var(--bg-secondary)' }}>
+            <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 10, margin: 0 }}>
+              Hallmark Signatures
+            </h4>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+              {syn.hallmarkSignatures.map((sig, i) => (
+                <Badge key={i} variant="secondary" style={{ fontSize: '0.75rem', padding: '4px 10px' }}>
+                  {sig}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {syn.biggestSubversions && syn.biggestSubversions.length > 0 && (
+          <Card style={{ padding: 16, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#ef4444', marginBottom: 10, margin: 0 }}>
+              Biggest Subversions
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+              {syn.biggestSubversions.map((sub, i) => (
+                <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <span style={{ color: '#ef4444', fontWeight: 600 }}>• </span>{sub}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {syn.strongestEntry && (
+            <Card style={{ padding: 14, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#34d399', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Strongest Entry
+              </div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                {syn.strongestEntry.title}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {syn.strongestEntry.why}
+              </div>
+            </Card>
+          )}
+          {syn.weakestEntry && (
+            <Card style={{ padding: 14, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#ef4444', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Weakest Entry
+              </div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                {syn.weakestEntry.title}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                {syn.weakestEntry.why}
+              </div>
+            </Card>
+          )}
+        </div>
+
+        {syn.recommendations && syn.recommendations.length > 0 && (
+          <Card style={{ padding: 16, background: 'var(--accent-glow)', border: '1px solid var(--accent)20' }}>
+            <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent)', marginBottom: 10, margin: 0 }}>
+              Recommendations for Next Entry
+            </h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+              {syn.recommendations.map((rec, i) => (
+                <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  <span style={{ color: 'var(--accent)', fontWeight: 600 }}>• </span>{rec}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  };
+
   /* ── Selection / Landing Screen ── */
   if (phase === 'select') {
     return (
@@ -3955,80 +4436,146 @@ function ComparisonMode() {
             })}
           </div>
 
-          {/* Work selection slots */}
-          {comparisonType && (
+          {/* Series picker OR Work selection slots */}
+          {comparisonType === 'series' ? (
             <div style={{ animation: 'fadeIn 0.25s ease' }}>
-              <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>Select Works to Compare</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, alignItems: 'center', marginBottom: 24 }}>
-                {/* Work A slot */}
-                <Card onClick={() => { setPickingSide('A'); setPhase('picking'); }} style={{
-                  padding: 20, cursor: 'pointer', textAlign: 'center', minHeight: 100,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  border: workA ? '1px solid var(--accent)' : '1px dashed var(--border)',
-                  background: workA ? 'var(--accent-glow)' : undefined,
-                }}>
-                  {workA ? (
-                    <>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>{workA.title}</div>
-                      <Badge variant="accent">{workA.type}</Badge>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={20} color="var(--text-muted)" style={{ marginBottom: 6 }} />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Select Work A</span>
-                    </>
-                  )}
+              <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>Select Series to Analyze</h3>
+              {availableSeries.length === 0 ? (
+                <Card style={{ padding: 32, textAlign: 'center', border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>No multi-book series found in your library.</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 8 }}>Create at least 2 books in a series to use Series Evolution analysis.</div>
                 </Card>
-
-                <div style={{ color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 700 }}>vs</div>
-
-                {/* Work B slot */}
-                <Card onClick={() => { setPickingSide('B'); setPhase('picking'); }} style={{
-                  padding: 20, cursor: 'pointer', textAlign: 'center', minHeight: 100,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  border: workB ? '1px solid #f472b6' : '1px dashed var(--border)',
-                  background: workB ? 'rgba(244,114,182,0.08)' : undefined,
-                }}>
-                  {workB ? (
-                    <>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f472b6', marginBottom: 4 }}>{workB.title}</div>
-                      <Badge variant="muted">{workB.type}</Badge>
-                    </>
-                  ) : (
-                    <>
-                      <Upload size={20} color="var(--text-muted)" style={{ marginBottom: 6 }} />
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Select Work B</span>
-                    </>
-                  )}
-                </Card>
-              </div>
-
-              {/* Run comparison button */}
-              <div style={{ textAlign: 'center' }}>
-                <Button
-                  variant={workA && workB ? 'primary' : 'secondary'}
-                  onClick={() => {
-                    if (workA && workB) {
-                      runDeepComparison();
-                      setComparisonValidation(null);
-                    } else {
-                      setComparisonValidation(!workA && !workB ? 'Select both works before running the comparison.' : !workA ? 'Select Work A to continue.' : 'Select Work B to continue.');
-                    }
-                  }}
-                  style={{ opacity: workA && workB ? 1 : 0.5, padding: '10px 32px' }}
-                >
-                  <Sparkles size={14} style={{ marginRight: 6 }} />
-                  Run Deep Comparison
-                </Button>
-                {comparisonValidation && (
-                  <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, animation: 'fadeIn 0.3s ease' }}>
-                    <AlertTriangle size={13} />
-                    {comparisonValidation}
+              ) : (
+                <>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, marginBottom: 24 }}>
+                    {availableSeries.map(series => (
+                      <Card
+                        key={series.name}
+                        onClick={() => setSelectedSeries(series)}
+                        style={{
+                          padding: 16, cursor: 'pointer', transition: 'all 0.2s',
+                          border: selectedSeries?.name === series.name ? '1px solid var(--accent)' : '1px solid var(--border)',
+                          background: selectedSeries?.name === series.name ? 'var(--accent-glow)' : undefined,
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.95rem', color: selectedSeries?.name === series.name ? 'var(--accent)' : 'var(--text-primary)' }}>{series.name}</span>
+                          <Badge variant={selectedSeries?.name === series.name ? 'accent' : 'secondary'}>{series.count} books</Badge>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {series.projects.map((proj, i) => (
+                            <div key={i} style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '3px 8px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-xs)' }}>
+                              {i + 1}. {proj.title}
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    ))}
                   </div>
-                )}
-              </div>
+
+                  {/* Run series evolution button */}
+                  <div style={{ textAlign: 'center' }}>
+                    <Button
+                      variant={selectedSeries ? 'primary' : 'secondary'}
+                      onClick={() => {
+                        if (selectedSeries) {
+                          runSeriesEvolution();
+                          setComparisonValidation(null);
+                        } else {
+                          setComparisonValidation('Select a series to analyze.');
+                        }
+                      }}
+                      style={{ opacity: selectedSeries ? 1 : 0.5, padding: '10px 32px' }}
+                    >
+                      <TrendingUp size={14} style={{ marginRight: 6 }} />
+                      Run Series Evolution
+                    </Button>
+                    {comparisonValidation && (
+                      <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, animation: 'fadeIn 0.3s ease' }}>
+                        <AlertTriangle size={13} />
+                        {comparisonValidation}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
               <ScrollIntoView />
             </div>
+          ) : (
+            comparisonType && (
+              <div style={{ animation: 'fadeIn 0.25s ease' }}>
+                <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>Select Works to Compare</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 12, alignItems: 'center', marginBottom: 24 }}>
+                  {/* Work A slot */}
+                  <Card onClick={() => { setPickingSide('A'); setPhase('picking'); }} style={{
+                    padding: 20, cursor: 'pointer', textAlign: 'center', minHeight: 100,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    border: workA ? '1px solid var(--accent)' : '1px dashed var(--border)',
+                    background: workA ? 'var(--accent-glow)' : undefined,
+                  }}>
+                    {workA ? (
+                      <>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--accent)', marginBottom: 4 }}>{workA.title}</div>
+                        <Badge variant="accent">{workA.type}</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={20} color="var(--text-muted)" style={{ marginBottom: 6 }} />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Select Work A</span>
+                      </>
+                    )}
+                  </Card>
+
+                  <div style={{ color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 700 }}>vs</div>
+
+                  {/* Work B slot */}
+                  <Card onClick={() => { setPickingSide('B'); setPhase('picking'); }} style={{
+                    padding: 20, cursor: 'pointer', textAlign: 'center', minHeight: 100,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    border: workB ? '1px solid #f472b6' : '1px dashed var(--border)',
+                    background: workB ? 'rgba(244,114,182,0.08)' : undefined,
+                  }}>
+                    {workB ? (
+                      <>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f472b6', marginBottom: 4 }}>{workB.title}</div>
+                        <Badge variant="muted">{workB.type}</Badge>
+                      </>
+                    ) : (
+                      <>
+                        <Upload size={20} color="var(--text-muted)" style={{ marginBottom: 6 }} />
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Select Work B</span>
+                      </>
+                    )}
+                  </Card>
+                </div>
+
+                {/* Run comparison button */}
+                <div style={{ textAlign: 'center' }}>
+                  <Button
+                    variant={workA && workB ? 'primary' : 'secondary'}
+                    onClick={() => {
+                      if (workA && workB) {
+                        runDeepComparison();
+                        setComparisonValidation(null);
+                      } else {
+                        setComparisonValidation(!workA && !workB ? 'Select both works before running the comparison.' : !workA ? 'Select Work A to continue.' : 'Select Work B to continue.');
+                      }
+                    }}
+                    style={{ opacity: workA && workB ? 1 : 0.5, padding: '10px 32px' }}
+                  >
+                    <Sparkles size={14} style={{ marginRight: 6 }} />
+                    Run Deep Comparison
+                  </Button>
+                  {comparisonValidation && (
+                    <div style={{ marginTop: 10, fontSize: '0.8rem', color: '#f97316', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, animation: 'fadeIn 0.3s ease' }}>
+                      <AlertTriangle size={13} />
+                      {comparisonValidation}
+                    </div>
+                  )}
+                </div>
+                <ScrollIntoView />
+              </div>
+            )
           )}
         </div>
       </div>
@@ -4160,6 +4707,7 @@ function ComparisonMode() {
         {[
           { key: 'dimensions', label: 'Dimension Analysis', icon: BarChart3 },
           { key: 'characters', label: 'Character Matchups', icon: Users },
+          ...(seriesEvolutionData ? [{ key: 'evolution', label: 'Series Evolution', icon: TrendingUp }] : []),
         ].map(tab => {
           const TabIcon = tab.icon;
           const active = resultsTab === tab.key;
@@ -4509,6 +5057,42 @@ function ComparisonMode() {
                   </div>
                 </Card>
               )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Series Evolution Tab ─── */}
+      {resultsTab === 'evolution' && seriesEvolutionData && (
+        <div style={{ animation: 'fadeIn 0.25s ease' }}>
+          {/* Evolution sub-tabs */}
+          <div style={{ display: 'flex', gap: 2, marginBottom: 16, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: 3, width: 'fit-content' }}>
+            {['timeline', 'dimensions', 'synthesis'].map(tab => (
+              <button key={tab} onClick={() => setEvolutionTab(tab)} style={{
+                padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
+                fontSize: '0.8rem', fontWeight: evolutionTab === tab ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6,
+                background: evolutionTab === tab ? 'var(--bg-primary)' : 'transparent',
+                color: evolutionTab === tab ? 'var(--accent)' : 'var(--text-muted)',
+                boxShadow: evolutionTab === tab ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s',
+              }}>
+                {tab === 'timeline' ? 'Timeline View' : tab === 'dimensions' ? 'By Dimension' : 'Synthesis'}
+              </button>
+            ))}
+          </div>
+
+          {/* Timeline View */}
+          {evolutionTab === 'timeline' && renderEvolutionTimeline?.()}
+
+          {/* Dimensions View */}
+          {evolutionTab === 'dimensions' && renderEvolutionDimensions?.()}
+
+          {/* Synthesis View */}
+          {evolutionTab === 'synthesis' && renderEvolutionSynthesis?.()}
+
+          {isEvolvingSeries && evolutionProgress && (
+            <div style={{ marginTop: 16, fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Sparkles size={12} color="var(--accent)" style={{ animation: 'pulse 1.5s infinite' }} /> {evolutionProgress}
             </div>
           )}
         </div>
@@ -7954,6 +8538,10 @@ export default function WorkspaceScreen() {
       case 'timeline': return <TimelineMode />;
       case 'board': return <DrawingBoard onOpenFile={openFile} boardItems={boardItems} setBoardItems={setBoardItems} />;
       case 'world': return <WorldBuildingMode />;
+      case 'voice-casting': return <VoiceCasting />;
+      case 'feedback': return <FeedbackManager />;
+      case 'genre-shift': return <GenreShiftDashboard />;
+      case 'sandbox': return <SandboxMode />;
       case 'character-profile': return <CharacterProfile
         characterName={selectedCharacter}
         onBack={() => setActiveMode('full-cast')}
@@ -9242,6 +9830,11 @@ export default function WorkspaceScreen() {
       {/* Character Guide Mode */}
       {useSettingsStore(s => s.characterGuideMode) && (
         <CharacterGuide currentFile={activeFile} currentContent={editedFiles[activeFile] || useProjectStore(s => s.files)?.[activeFile]} />
+      )}
+
+      {/* Conversational Teacher Mode */}
+      {useSettingsStore(s => s.conversationalTeacher) && (
+        <ConversationalTeacher context={editedFiles[activeFile] || useProjectStore(s => s.files)?.[activeFile]} topic={activeFile?.split('/').pop() || 'your story'} />
       )}
     </div>
   );

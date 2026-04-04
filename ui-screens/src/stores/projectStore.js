@@ -120,6 +120,7 @@ export const useProjectStore = create((set, get) => ({
     title = 'Untitled Story',
     medium = 'novel',
     genre = '',
+    series = null,
     seed = null,
     metadata = {},
   } = {}) => {
@@ -133,6 +134,9 @@ export const useProjectStore = create((set, get) => ({
       title,
       medium,
       genre,
+      series,
+      seriesOrder: null,
+      seriesRole: null,
       seed: seed ? seed.toString() : null,
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -486,5 +490,217 @@ export const useProjectStore = create((set, get) => ({
     await db.sessionLogs.add(logEntry);
     // Also update in-memory log so VersionHistory updates reactively
     set(state => ({ sessionLog: [logEntry, ...state.sessionLog] }));
+  },
+
+  /**
+   * Fork a project (create a deep copy for experimentation)
+   */
+  forkProject: async (projectId, { title, forkType = 'sandbox' } = {}) => {
+    const sourceProject = await db.projects.get(projectId);
+    if (!sourceProject) throw new Error('Project not found');
+
+    const sourceFiles = await db.projectFiles.where('projectId').equals(projectId).toArray();
+
+    const newProjectId = uuid();
+    const newTitle = title || `${sourceProject.title} (${forkType === 'sandbox' ? 'Sandbox' : 'Fork'})`;
+
+    const forkedProject = {
+      ...sourceProject,
+      id: newProjectId,
+      slug: slugify(newTitle),
+      title: newTitle,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      forkParent: projectId,
+      forkType,
+      forkCreatedAt: Date.now(),
+    };
+
+    const forkedFiles = sourceFiles.map(f => ({
+      projectId: newProjectId,
+      path: f.path,
+      content: f.content,
+      updatedAt: Date.now(),
+    }));
+
+    try {
+      await db.projects.add(forkedProject);
+      await db.projectFiles.bulkAdd(forkedFiles);
+
+      set(state => ({
+        projects: [forkedProject, ...state.projects],
+      }));
+
+      return forkedProject;
+    } catch (err) {
+      console.error('Failed to fork project:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * List all forks of a project
+   */
+  listForks: async (projectId) => {
+    try {
+      const forks = await db.projects.where('forkParent').equals(projectId).toArray();
+      return forks;
+    } catch (err) {
+      console.warn('Failed to list forks:', err);
+      return [];
+    }
+  },
+
+  /**
+   * Update series order and role for all projects in a series
+   */
+  updateSeriesOrder: async (seriesName, orderedEntries) => {
+    try {
+      for (const entry of orderedEntries) {
+        await db.projects.update(entry.projectId, {
+          seriesOrder: entry.order,
+          seriesRole: entry.role,
+          updatedAt: Date.now(),
+        });
+      }
+      // Refresh the projects list
+      const allProjects = await db.projects.toArray();
+      set({ projects: allProjects });
+      return true;
+    } catch (err) {
+      console.error('Failed to update series order:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Promote a single file from a fork to its parent project
+   */
+  promoteFromFork: async (forkId, filePath) => {
+    const fork = await db.projects.get(forkId);
+    if (!fork || !fork.forkParent) throw new Error('Not a valid fork');
+
+    const parentId = fork.forkParent;
+    const forkFile = await db.projectFiles
+      .where('[projectId+path]')
+      .equals([forkId, filePath])
+      .first();
+
+    if (!forkFile) throw new Error('File not found in fork');
+
+    try {
+      const existing = await db.projectFiles
+        .where('[projectId+path]')
+        .equals([parentId, filePath])
+        .first();
+
+      const previousContent = existing?.content || null;
+
+      if (existing) {
+        await db.projectFiles.update(existing.id, {
+          content: forkFile.content,
+          updatedAt: Date.now(),
+        });
+      } else {
+        await db.projectFiles.add({
+          projectId: parentId,
+          path: filePath,
+          content: forkFile.content,
+          updatedAt: Date.now(),
+        });
+      }
+
+      // Update parent project timestamp
+      await db.projects.update(parentId, { updatedAt: Date.now() });
+
+      // Refresh parent project if it's currently active
+      if (get().activeProjectId === parentId) {
+        await get().loadProjectFiles(parentId);
+      }
+
+      return { filePath, previousContent, newContent: forkFile.content };
+    } catch (err) {
+      console.error('Failed to promote file from fork:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Promote entire fork: replace all parent files with fork files, then delete fork
+   */
+  promoteFork: async (forkId) => {
+    const fork = await db.projects.get(forkId);
+    if (!fork || !fork.forkParent) throw new Error('Not a valid fork');
+
+    const parentId = fork.forkParent;
+    const forkFiles = await db.projectFiles.where('projectId').equals(forkId).toArray();
+
+    try {
+      // Delete all files from parent with these paths and recreate with fork versions
+      for (const forkFile of forkFiles) {
+        const existing = await db.projectFiles
+          .where('[projectId+path]')
+          .equals([parentId, forkFile.path])
+          .first();
+
+        if (existing) {
+          await db.projectFiles.update(existing.id, {
+            content: forkFile.content,
+            updatedAt: Date.now(),
+          });
+        } else {
+          await db.projectFiles.add({
+            projectId: parentId,
+            path: forkFile.path,
+            content: forkFile.content,
+            updatedAt: Date.now(),
+          });
+        }
+      }
+
+      // Update parent project timestamp
+      await db.projects.update(parentId, { updatedAt: Date.now() });
+
+      // Delete the fork entirely
+      await db.projectFiles.where('projectId').equals(forkId).delete();
+      await db.sessionLogs.where('projectId').equals(forkId).delete();
+      await db.fileHistory.where('projectId').equals(forkId).delete();
+      await db.projects.delete(forkId);
+
+      set(state => ({
+        projects: state.projects.filter(p => p.id !== forkId),
+      }));
+
+      // Refresh parent if it's currently active
+      if (get().activeProjectId === parentId) {
+        await get().loadProjectFiles(parentId);
+      }
+
+      return true;
+    } catch (err) {
+      console.error('Failed to promote fork:', err);
+      throw err;
+    }
+  },
+
+  /**
+   * Discard a fork (delete it entirely)
+   */
+  discardFork: async (forkId) => {
+    try {
+      await db.projectFiles.where('projectId').equals(forkId).delete();
+      await db.sessionLogs.where('projectId').equals(forkId).delete();
+      await db.fileHistory.where('projectId').equals(forkId).delete();
+      await db.projects.delete(forkId);
+
+      set(state => ({
+        projects: state.projects.filter(p => p.id !== forkId),
+      }));
+
+      return true;
+    } catch (err) {
+      console.error('Failed to discard fork:', err);
+      throw err;
+    }
   },
 }));
