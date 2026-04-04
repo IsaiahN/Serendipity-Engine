@@ -5976,6 +5976,17 @@ export default function WorkspaceScreen() {
     }
   }, [activeProject, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sanitize title — strip markdown heading markers (e.g. "##### Title" → "Title")
+  useEffect(() => {
+    if (activeProject?.title && /^#{1,6}\s+/.test(activeProject.title)) {
+      const cleanTitle = activeProject.title.replace(/^#{1,6}\s+/, '').trim();
+      if (cleanTitle !== activeProject.title) {
+        const updateProject = useProjectStore.getState().updateProject;
+        if (updateProject) updateProject({ title: cleanTitle });
+      }
+    }
+  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (activeProject?.phaseAnswers && Object.keys(activeProject.phaseAnswers).length > 0) {
       setPhaseAnswers(prev => {
@@ -5988,9 +5999,134 @@ export default function WorkspaceScreen() {
     }
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Hydrate decomposed phase answers from actual file content
+  useEffect(() => {
+    const files = useProjectStore.getState().files || {};
+    const pa = activeProject?.phaseAnswers;
+    if (!pa) return;
+    const anyDecomposed = Object.values(pa).some(a => a?._decomposed);
+    if (!anyDecomposed) return;
+
+    // Check if already hydrated (answers are not "(Decomposed)" placeholders)
+    const needsHydration = Object.values(pa).some(a =>
+      a?._decomposed && Object.values(a).some(v => typeof v === 'string' && v.startsWith('(Decomposed'))
+    );
+    if (!needsHydration) return;
+
+    // Helper to get file content by partial path match
+    const getFile = (pattern) => {
+      for (const [p, c] of Object.entries(files)) {
+        if (typeof pattern === 'string' ? p.endsWith(pattern) || p === pattern : pattern.test(p)) {
+          return c || '';
+        }
+      }
+      return '';
+    };
+
+    // Helper to collect all files matching a pattern
+    const getFiles = (pattern) => {
+      const results = [];
+      for (const [p, c] of Object.entries(files)) {
+        if (pattern.test(p)) results.push({ path: p, content: c || '' });
+      }
+      return results;
+    };
+
+    // Helper to truncate long content for display
+    const summarize = (text, maxLen = 2000) => {
+      if (!text || text.length <= maxLen) return text;
+      return text.substring(0, maxLen) + '\n\n...(truncated)';
+    };
+
+    const hydrated = {
+      1: { _decomposed: true }, // Author
+      2: { _decomposed: true }, // Narrator
+      3: { _decomposed: true }, // World
+      4: { _decomposed: true }, // Characters
+      5: { _decomposed: true }, // Relationships
+      6: { _decomposed: true }, // Story Foundation
+      7: { _decomposed: true }, // Review
+    };
+
+    // Phase 1 — Author: from author.md
+    const authorContent = getFile('author.md');
+    if (authorContent) {
+      hydrated[1][1] = summarize(authorContent);
+      hydrated[1][2] = '(Extracted from manuscript — see author.md)';
+      hydrated[1][3] = '(Extracted from manuscript — see author.md)';
+      hydrated[1][4] = '(Extracted from manuscript — see author.md)';
+    }
+
+    // Phase 2 — Narrator: from narrator.md
+    const narratorContent = getFile('narrator.md');
+    if (narratorContent) {
+      hydrated[2][1] = summarize(narratorContent);
+      hydrated[2][2] = '(Extracted from manuscript — see narrator.md)';
+      hydrated[2][3] = '(Extracted from manuscript — see narrator.md)';
+    }
+
+    // Phase 3 — World: from world/world-building.md
+    const worldContent = getFile('world/world-building.md') || getFile('world-building.md');
+    if (worldContent) {
+      hydrated[3][1] = summarize(worldContent);
+      for (let i = 2; i <= 8; i++) hydrated[3][i] = '(Extracted from manuscript — see world-building.md)';
+    }
+
+    // Phase 4 — Characters: from characters/*.md
+    const charFiles = getFiles(/characters\/[^/]+\.md$/i);
+    if (charFiles.length > 0) {
+      const charSummary = charFiles.map(f => {
+        const name = f.path.split('/').pop().replace('.md', '').replace(/-/g, ' ');
+        return `### ${name}\n${f.content}`;
+      }).join('\n\n---\n\n');
+      hydrated[4][1] = summarize(charSummary, 3000);
+      hydrated[4][2] = '(Extracted from manuscript — see character files)';
+      hydrated[4][3] = '(Extracted from manuscript — see character files)';
+      hydrated[4][4] = `${charFiles.length} characters extracted: ${charFiles.map(f => f.path.split('/').pop().replace('.md', '').replace(/-/g, ' ')).join(', ')}`;
+    }
+
+    // Phase 5 — Relationships: from relationships/questions-answered.md
+    const relContent = getFile('relationships/questions-answered.md');
+    if (relContent) {
+      hydrated[5][1] = summarize(relContent);
+      hydrated[5][2] = '(Extracted from manuscript — see relationships)';
+    }
+
+    // Phase 6 — Story Foundation: from outline.md and story/arc.md
+    const outlineContent = getFile('outline.md');
+    const arcContent = getFile('story/arc.md') || getFile('arc.md');
+    if (outlineContent) hydrated[6][1] = summarize(outlineContent);
+    if (arcContent) hydrated[6][2] = summarize(arcContent);
+    hydrated[6][3] = '(Extracted from manuscript — see outline and arc files)';
+
+    // Phase 7 — Review: from dry-run-audit.md
+    const auditContent = getFile('dry-run-audit.md');
+    if (auditContent) {
+      hydrated[7][1] = summarize(auditContent);
+      hydrated[7][2] = '(Extracted from manuscript — see dry-run-audit.md)';
+      hydrated[7][3] = '(Extracted from manuscript — see dry-run-audit.md)';
+    }
+
+    // Update both local state and persisted store
+    setPhaseAnswers(prev => {
+      const merged = { ...prev };
+      for (const [key, answers] of Object.entries(hydrated)) {
+        merged[key] = { ...(merged[key] || {}), ...answers };
+      }
+      return merged;
+    });
+
+    // Persist hydrated answers to the store so they survive reloads
+    const updateProject = useProjectStore.getState().updateProject;
+    if (updateProject) {
+      updateProject({ phaseAnswers: hydrated });
+    }
+  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Compute phase percentages dynamically from answers vs questions
   // Decomposed projects have all phases pre-marked as complete
   const isDecomposed = activeProject?.mode === 'decompose' ||
+    activeProject?.metadata?.mode === 'decompose' ||
     Object.values(phaseAnswers).some(a => a?._decomposed);
   const phasePcts = {};
   phases.forEach(p => {

@@ -663,8 +663,9 @@ function AISettings({ onSettingChange }) {
                 onChange={(e) => setSelectedModel(e.target.value)}
                 placeholder="e.g. llama3, mistral, etc."
                 style={{
-                  padding: '6px 10px', fontSize: '0.8rem', minWidth: 180,
-                  background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                  padding: '6px 28px 6px 10px', fontSize: '0.8rem',
+                  minWidth: 140, maxWidth: '55%', marginLeft: 'auto',
+                  background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
                   fontFamily: 'monospace',
                 }}
@@ -697,9 +698,24 @@ function AISettings({ onSettingChange }) {
 
           {/* API Key input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {isConnected ? 'Update API Key' : 'API Key'}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                {isConnected ? 'Update API Key' : 'API Key'}
+              </span>
+              {providerDef?.apiKeyUrl && (
+                <a
+                  href={providerDef.apiKeyUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: '0.75rem', color: 'var(--accent)', textDecoration: 'none',
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                  }}
+                >
+                  Get your API key <ExternalLink size={11} />
+                </a>
+              )}
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <input
@@ -739,7 +755,7 @@ function AISettings({ onSettingChange }) {
               size="sm"
               variant="secondary"
               onClick={handleTestConnection}
-              disabled={testing || (!isConnected && !apiKeyInput.trim())}
+              disabled={testing || (!isConnected && !apiKeyInput.trim() && !providerInfo)}
               style={{ flex: 1 }}
             >
               <Zap size={12} style={{ marginRight: 4 }} />

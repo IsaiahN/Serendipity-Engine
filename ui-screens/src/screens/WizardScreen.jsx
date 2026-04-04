@@ -44,7 +44,7 @@ function extractTitleFromText(text) {
   const lines = text.trim().split('\n').slice(0, 15);
   // Check for markdown heading
   for (const line of lines) {
-    const headingMatch = line.match(/^#{1,2}\s+(.+)/);
+    const headingMatch = line.match(/^#{1,6}\s+(.+)/);
     if (headingMatch) return headingMatch[1].trim();
   }
   // Check for "Title: ..." pattern

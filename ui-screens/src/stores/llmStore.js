@@ -15,6 +15,7 @@ import { LLM_PROVIDERS } from '../lib/constants';
 const PROVIDER_ENDPOINTS = {
   anthropic: 'https://api.anthropic.com/v1/messages',
   openai: 'https://api.openai.com/v1/chat/completions',
+  deepseek: 'https://api.deepseek.com/chat/completions',
   google: 'https://generativelanguage.googleapis.com/v1beta/models',
   ollama: 'http://localhost:11434/api/chat',
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
@@ -179,9 +180,11 @@ export const useLlmStore = create((set, get) => ({
           break;
 
         case 'openai':
+        case 'deepseek':
         case 'openrouter':
         case 'custom': {
           const url = get().providers[providerKey]?.baseUrl || PROVIDER_ENDPOINTS[providerKey];
+          const defaultModel = providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o';
           response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -189,7 +192,7 @@ export const useLlmStore = create((set, get) => ({
               'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: get().providers[providerKey]?.model || 'gpt-4o',
+              model: get().providers[providerKey]?.model || defaultModel,
               max_tokens: 10,
               messages: [{ role: 'user', content: 'Say "connected" and nothing else.' }],
             }),
@@ -407,6 +410,7 @@ export const useLlmStore = create((set, get) => ({
         }
 
         case 'openai':
+        case 'deepseek':
         case 'openrouter':
         case 'custom': {
           const url = provider.baseUrl || PROVIDER_ENDPOINTS[providerKey];
@@ -418,7 +422,7 @@ export const useLlmStore = create((set, get) => ({
                 'Authorization': `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
-                model: provider.model || 'gpt-4o',
+                model: provider.model || (providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
                 max_tokens: maxTokens,
                 messages,
                 stream,
@@ -684,6 +688,7 @@ export const useLlmStore = create((set, get) => ({
         }
 
         case 'openai':
+        case 'deepseek':
         case 'openrouter':
         case 'custom': {
           const url = provider.baseUrl || PROVIDER_ENDPOINTS[providerKey];
@@ -695,7 +700,7 @@ export const useLlmStore = create((set, get) => ({
                 'Authorization': `Bearer ${apiKey}`,
               },
               body: JSON.stringify({
-                model: provider.model || 'gpt-4o',
+                model: provider.model || (providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
                 max_tokens: maxTokens,
                 messages,
                 stream: true,

@@ -85,11 +85,12 @@ export const CONTENT_RATINGS = ['G', 'PG', 'PG-13', 'R', '18+'];
 
 // ── LLM Providers ───────────────────────────────────────
 export const LLM_PROVIDERS = [
-  { key: 'anthropic', label: 'Anthropic (Claude)', models: ['claude-sonnet-4-5-20250514', 'claude-opus-4-5-20250414', 'claude-haiku-3-5-20241022'] },
-  { key: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'] },
-  { key: 'google', label: 'Google (Gemini)', models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'] },
-  { key: 'ollama', label: 'Ollama (Local)', models: [] },
-  { key: 'openrouter', label: 'OpenRouter', models: [] },
+  { key: 'anthropic', label: 'Anthropic (Claude)', models: ['claude-sonnet-4-5-20250514', 'claude-opus-4-5-20250414', 'claude-haiku-3-5-20241022'], apiKeyUrl: 'https://console.anthropic.com/settings/keys' },
+  { key: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'], apiKeyUrl: 'https://platform.openai.com/api-keys' },
+  { key: 'deepseek', label: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'], apiKeyUrl: 'https://platform.deepseek.com/api_keys' },
+  { key: 'google', label: 'Google (Gemini)', models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'], apiKeyUrl: 'https://aistudio.google.com/apikey' },
+  { key: 'ollama', label: 'Ollama (Local)', models: [], apiKeyUrl: 'https://ollama.com/download' },
+  { key: 'openrouter', label: 'OpenRouter', models: [], apiKeyUrl: 'https://openrouter.ai/keys' },
   { key: 'custom', label: 'Custom (OpenAI-compatible)', models: [] },
 ];
 

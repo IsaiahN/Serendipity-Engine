@@ -261,7 +261,7 @@ function computeWorldBuilding(files) {
  * Scores on: dialogue presence ratio, tag variety, dialogue-to-narration ratio
  */
 function computeDialogueQuality(files) {
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
 
   if (chapterFiles.length === 0) return 0;
 
@@ -316,7 +316,7 @@ function computeDialogueQuality(files) {
  * Penalizes huge variance (uneven pacing), checks for act markers
  */
 function computePacing(files) {
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
 
   if (chapterFiles.length < 2) return 0;
 
@@ -380,7 +380,7 @@ function computeThematicCoherence(files, phaseAnswers = {}) {
   if (themeKeywords.length === 0) return 0;
 
   // Check how consistently theme keywords appear across chapters
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
   if (chapterFiles.length === 0) return score;
 
   let chaptersWithTheme = 0;
@@ -414,7 +414,7 @@ function computeThematicCoherence(files, phaseAnswers = {}) {
  * Analyzes sentence length variance and word variety
  */
 function computeProseQuality(files) {
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
 
   if (chapterFiles.length === 0) return 0;
 
@@ -477,7 +477,7 @@ function computeProseQuality(files) {
  * Scans for emotion-laden words and computes density per chapter
  */
 function computeEmotionalResonance(files) {
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
 
   if (chapterFiles.length === 0) return 0;
 
@@ -523,7 +523,7 @@ function computeEmotionalResonance(files) {
  * Checks for character name consistency across chapters
  */
 function computePlotConsistency(files) {
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
 
   if (chapterFiles.length < 2) return 3; // Neutral score if not enough chapters
 
@@ -591,7 +591,7 @@ function computePlotConsistency(files) {
  * Looks for chapter-ending hooks (questions, cliffhangers, ellipses, dramatic short sentences)
  */
 function computeReaderEngagement(files) {
-  const chapterFiles = findFiles(files, /chapters?\/[^/]+\.md$/i);
+  const chapterFiles = findChapterFiles(files);
 
   if (chapterFiles.length === 0) return 0;
 
@@ -688,6 +688,27 @@ function findFiles(files, pattern) {
   }
 
   return matches;
+}
+
+/**
+ * Finds chapter files across both traditional (chapter/foo.md, chapters/foo.md)
+ * and decomposition (story/chapter-N.md) paths, excluding full-draft.md
+ * @param {Object} files - File map
+ * @returns {Array} Array of file objects with {path, content}
+ */
+function findChapterFiles(files) {
+  const results = [];
+  for (const [path, content] of Object.entries(files)) {
+    // Match traditional chapter folder patterns
+    if (/chapters?\/[^/]+\.md$/i.test(path)) {
+      results.push({ path, content });
+    }
+    // Match decomposition pattern: story/chapter-N.md (but not full-draft.md or arc.md)
+    else if (/story\/chapter-\d+\.md$/i.test(path)) {
+      results.push({ path, content });
+    }
+  }
+  return results;
 }
 
 // ============================================================================

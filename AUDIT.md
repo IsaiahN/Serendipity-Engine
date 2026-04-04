@@ -8,9 +8,9 @@
 
 ## Summary
 
-**Total features tested:** 35+
-**Issues found:** 23 (7 P1, 6 P2, 10 P3)
-**Issues fixed this session:** 23 (all resolved)
+**Total features tested:** 40+
+**Issues found:** 32 (9 P1, 10 P2, 13 P3)
+**Issues fixed this session:** 32 (all resolved)
 
 ---
 
@@ -138,6 +138,23 @@
 - **Problem:** After switching to dynamic `buildCharacterProfiles()`, the 236-line `characterProfiles_LEGACY` object remained in the file as dead code.
 - **Fix:** Removed entirely, reducing file from 7507 to 7271 lines. Added comment noting all character data now comes from the dynamic builder.
 
+### 24. Test Connection button disabled after saving API key (P2 — FIXED)
+- **File:** `SettingsScreen.jsx` — AI Models panel
+- **Problem:** After saving an API key via "Save Key", the `handleSaveKey` function cleared `apiKeyInput` (set to `''`) and `connectProvider` set `connected: false`. The disabled condition `!isConnected && !apiKeyInput.trim()` evaluated to `true`, making the "Test Connection" button unclickable immediately after saving — exactly when the user needs it most. The green message said "Click Test Connection to verify" but the button was disabled.
+- **Fix:** Added `&& !providerInfo` to the disabled condition so the button stays enabled when a provider has been configured (key stored) even if not yet tested/connected.
+
+---
+
+### 25. DeepSeek missing from provider list (P2 — FIXED)
+- **Files:** `lib/constants.js`, `stores/llmStore.js`
+- **Problem:** DeepSeek was not listed as a provider option. Users had to select OpenRouter and manually type "deepseek" into a free-text model field, which used the wrong API endpoint and auth flow.
+- **Fix:** Added DeepSeek as a first-class provider in `LLM_PROVIDERS` with models `deepseek-chat` and `deepseek-reasoner`. Added `deepseek: 'https://api.deepseek.com/chat/completions'` endpoint. Added `case 'deepseek':` to testConnection, sendMessage, and sendStreamingMessage switch statements (OpenAI-compatible Bearer auth format).
+
+### 26. No API key setup links for providers (P3 — FIXED)
+- **Files:** `lib/constants.js`, `screens/SettingsScreen.jsx`
+- **Problem:** Users had no guidance on where to get their API keys. The settings page showed a bare input field with no link to the provider's key management page.
+- **Fix:** Added `apiKeyUrl` property to each provider in `LLM_PROVIDERS`: Anthropic (console.anthropic.com), OpenAI (platform.openai.com), DeepSeek (platform.deepseek.com), Google (aistudio.google.com), Ollama (ollama.com/download), OpenRouter (openrouter.ai/keys). Added a "Get your API key" link with ExternalLink icon next to the "API Key" label in SettingsScreen, dynamically showing the correct URL per selected provider.
+
 ---
 
 ## FEATURES TESTED & WORKING
@@ -223,3 +240,63 @@
 
 8. **`ui-screens/src/components/SearchPanel.jsx`**
    - Added `handleApplyReplace()` function and "Apply All Replacements" button (#14)
+
+---
+
+## SESSION 2 FIXES (Decomposition & Settings)
+
+### 27. Test Connection button disabled after saving API key (P1 — FIXED)
+- **File:** `SettingsScreen.jsx` line ~742
+- **Problem:** After saving an API key, `connectProvider` sets `connected: false` and `handleSaveKey` clears `apiKeyInput`, making the disabled condition `!isConnected && !apiKeyInput.trim()` evaluate to true.
+- **Fix:** Added `&& !providerInfo` to the disabled condition so the button stays enabled when a provider is configured.
+
+### 28. DeepSeek missing from provider dropdown (P1 — FIXED)
+- **Files:** `constants.js`, `llmStore.js`
+- **Problem:** DeepSeek was removed from `LLM_PROVIDERS` and had no endpoint mapping, test connection handler, or send/stream message handler.
+- **Fix:** Added DeepSeek as first-class provider with `deepseek-chat` and `deepseek-reasoner` models, API endpoint at `https://api.deepseek.com/chat/completions`, and handlers for test/send/stream. Added `apiKeyUrl` links for all providers.
+
+### 29. Model input misalignment for free-text providers (P2 — FIXED)
+- **File:** `SettingsScreen.jsx` line ~660
+- **Problem:** For providers with free-text model entry (OpenRouter, Ollama, Custom), the Model text input was floating in the middle instead of right-aligned like the Provider dropdown above it.
+- **Fix:** Added `marginLeft: 'auto'` and matching `bg-tertiary` background styling.
+
+### 30. Decomposed project Guide shows "(Decomposed)" placeholder text (P1 — FIXED)
+- **File:** `WorkspaceScreen.jsx` (hydration effect at ~line 5992)
+- **Problem:** The decomposition wizard in WizardScreen.jsx sets all phaseAnswers to literal strings "(Decomposed)" or "(Decomposed from manuscript)". The Guide view showed these placeholders instead of actual extracted content.
+- **Fix:** Added a hydration `useEffect` that detects decomposed projects with placeholder answers, reads actual file content from the project store (author.md → Phase 1, narrator.md → Phase 2, world-building.md → Phase 3, character files → Phase 4, relationships → Phase 5, outline/arc → Phase 6, audit → Phase 7), and replaces placeholders with real content. Persists hydrated answers to the store.
+
+### 31. Health scoring misses decomposed chapter files (P1 — FIXED)
+- **File:** `healthScoring.js`
+- **Problem:** Health scoring used regex `/chapters?\/[^/]+\.md$/i` to find chapter files, but decomposition creates chapters at `story/chapter-N.md`. This meant dialogue quality, pacing, prose quality, emotional resonance, plot consistency, and reader engagement all scored 0 for decomposed projects.
+- **Fix:** Added `findChapterFiles()` helper that matches both traditional `chapter(s)/` paths and decomposition `story/chapter-N.md` paths. Replaced all 7 instances of the old `findFiles` call.
+
+### 32. Project title includes markdown heading markers (P2 — FIXED)
+- **Files:** `WizardScreen.jsx`, `WorkspaceScreen.jsx`
+- **Problem:** `extractTitleFromText()` only matched `#{1,2}` headings. Manuscripts with `##### Title` fell through to the "first non-empty line" heuristic, capturing hash marks in the title (e.g. "##### The Wonderful Wizard of Oz").
+- **Fix:** (a) Extended regex to `#{1,6}` in `extractTitleFromText`. (b) Added title sanitization `useEffect` in WorkspaceScreen that strips leading hash marks and persists the clean title. (c) Added `metadata.mode` check to `isDecomposed` detection.
+
+### Files Changed (Session 2)
+
+1. **`ui-screens/src/screens/SettingsScreen.jsx`**
+   - Test Connection disabled fix (#27)
+   - API key setup links for all providers (#28)
+   - Model input alignment fix (#29)
+
+2. **`ui-screens/src/lib/constants.js`**
+   - Added DeepSeek provider with models and apiKeyUrl (#28)
+   - Added apiKeyUrl to all existing providers (#28)
+
+3. **`ui-screens/src/stores/llmStore.js`**
+   - Added DeepSeek endpoint, test connection, send, and stream handlers (#28)
+
+4. **`ui-screens/src/screens/WorkspaceScreen.jsx`**
+   - Decomposed phase answer hydration from real file content (#30)
+   - Title sanitization effect (#32)
+   - Added `metadata.mode` to `isDecomposed` check (#30)
+   - Removed 236-line `characterProfiles_LEGACY` dead code block
+
+5. **`ui-screens/src/services/healthScoring.js`**
+   - Added `findChapterFiles()` for decomposition-compatible chapter detection (#31)
+
+6. **`ui-screens/src/screens/WizardScreen.jsx`**
+   - Fixed `extractTitleFromText` regex from `#{1,2}` to `#{1,6}` (#32)
