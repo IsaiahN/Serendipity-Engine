@@ -113,6 +113,86 @@ export async function decomposeStory(sendMessage, sourceText, options = {}) {
 }
 
 /**
+ * Re-decompose selected steps only, for an existing project.
+ * Runs each selected step in pipeline order so dependencies are respected.
+ * Returns the new files that should overwrite existing ones.
+ *
+ * @param {Function} sendMessage - LLM communication function
+ * @param {string} sourceText - The full manuscript / source text
+ * @param {string[]} stepKeys - Array of step keys to re-run (e.g. ['characters', 'characters-detail'])
+ * @param {object} existingFiles - Current project files (used as context for dependent steps)
+ * @param {object} options - { onProgress, title, medium }
+ * @returns {{ files: { path: content }, metadata: { steps } }}
+ */
+export async function redecomposeSteps(sendMessage, sourceText, stepKeys, existingFiles = {}, options = {}) {
+  if (!sourceText?.trim()) {
+    throw new Error('Source text is required for re-decomposition');
+  }
+  if (!stepKeys?.length) {
+    throw new Error('No steps selected for re-decomposition');
+  }
+
+  const { onProgress, title, medium } = options;
+  const cleanText = sourceText.trim();
+  const metadata = {
+    medium: medium || 'novel',
+    wordCount: cleanText.split(/\s+/).length,
+    title: title || extractTitleHeuristic(cleanText),
+    sourceLength: cleanText.length,
+    steps: [],
+  };
+
+  // Start with existing files as context — new results will overwrite matching paths
+  const files = { ...existingFiles };
+  const newFiles = {};
+
+  // Filter to only the selected steps, but keep them in pipeline order
+  const stepsToRun = DECOMPOSITION_STEPS.filter(s => stepKeys.includes(s.key));
+  const totalSteps = stepsToRun.length;
+
+  for (let i = 0; i < stepsToRun.length; i++) {
+    const step = stepsToRun[i];
+
+    try {
+      if (onProgress) {
+        onProgress({ step: step.key, label: step.label, completed: i, total: totalSteps });
+      }
+
+      const result = await decomposeStep(sendMessage, cleanText, step, files, metadata);
+
+      // Merge into both running context and the new-files output
+      Object.assign(files, result.files);
+      Object.assign(newFiles, result.files);
+      metadata.steps.push({
+        key: step.key,
+        label: step.label,
+        success: true,
+        fileCount: Object.keys(result.files).length,
+      });
+    } catch (err) {
+      console.warn(`Re-decompose step ${step.key} failed:`, err);
+      metadata.steps.push({
+        key: step.key,
+        label: step.label,
+        success: false,
+        error: err.message,
+      });
+
+      const placeholder = createPlaceholder(step.key);
+      Object.assign(files, placeholder);
+      Object.assign(newFiles, placeholder);
+    }
+  }
+
+  if (onProgress) {
+    onProgress({ step: 'complete', label: 'Complete', completed: totalSteps, total: totalSteps });
+  }
+
+  // Return only the newly generated files (not the full existing set)
+  return { files: newFiles, metadata };
+}
+
+/**
  * Run a single decomposition step
  *
  * @param {Function} sendMessage - LLM communication function
@@ -205,12 +285,15 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
       break;
     }
 
-    case 'characters':
+    case 'characters': {
       prompt = buildCharacterProfilesPrompt(sourceText);
+      // Scale maxTokens with source length — longer works tend to have larger casts.
+      // Short story (~5k chars): ~4000 tokens. Novel (~200k+ chars): up to 8000 tokens.
+      const charMaxTokens = Math.min(8000, Math.max(4000, Math.round(sourceText.length / 25)));
       const charsResult = await sendMessage({
         messages: [{ role: 'user', content: prompt }],
         role: 'analyst',
-        maxTokens: 3000,
+        maxTokens: charMaxTokens,
       });
       if (charsResult.success) {
         const cleaned = removeEmdashes(charsResult.content);
@@ -220,6 +303,7 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
         throw new Error(charsResult.error || 'Character profile extraction failed');
       }
       break;
+    }
 
     case 'characters-detail': {
       // Generate characters/questions-answered.md (cast-level questions)
@@ -698,8 +782,13 @@ function buildWorldBuildingPrompt(sourceText) {
 }
 
 function buildCharacterProfilesPrompt(sourceText) {
+  // Characters can appear anywhere in a manuscript, so we need a large excerpt.
+  // For short stories we might only have ~5k chars total. For novels, we sample
+  // generously — up to 20k — so the LLM can see characters from later acts.
+  // Previous limit of 3500 only caught ~6 chars from early chapters.
+  const excerptLen = Math.min(20000, sourceText.length);
   return PROMPTS.DECOMPOSE_CHARACTERS.build({
-    sourceExcerpt: sourceText.substring(0, 3500),
+    sourceExcerpt: sourceText.substring(0, excerptLen),
   });
 }
 

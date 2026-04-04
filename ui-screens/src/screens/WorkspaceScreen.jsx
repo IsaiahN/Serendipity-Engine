@@ -6145,6 +6145,338 @@ function ExportModal({ onClose }) {
   );
 }
 
+/* ─── Redecompose Modal ─── */
+const REDECOMPOSE_GROUPS = [
+  {
+    label: 'Author & Narrator',
+    description: 'Writing voice, style, and narrative perspective',
+    steps: ['author', 'narrator'],
+    files: ['author.md', 'narrator.md'],
+    icon: '✍️',
+  },
+  {
+    label: 'World Building',
+    description: 'Setting, world rules, hallmarks, and world questions',
+    steps: ['world', 'world-detail'],
+    files: ['world/world-building.md', 'world/hallmarks.md', 'world/questions-answered.md'],
+    icon: '🌍',
+  },
+  {
+    label: 'Characters',
+    description: 'All character profiles and cast-level questions',
+    steps: ['characters', 'characters-detail'],
+    files: ['characters/*.md', 'characters/questions-answered.md'],
+    icon: '👥',
+  },
+  {
+    label: 'Relationships',
+    description: 'Character relationships and the relationship graph',
+    steps: ['relationships', 'relationships-detail'],
+    files: ['relationships/questions-answered.md', 'relationships/relationship-graph.csv'],
+    icon: '🔗',
+  },
+  {
+    label: 'Story Structure',
+    description: 'Plot outline, story arc, abstract, and story questions',
+    steps: ['structure', 'story-detail'],
+    files: ['outline.md', 'story/story-structure.md', 'story/questions-answered.md', 'abstract.md'],
+    icon: '📐',
+  },
+  {
+    label: 'Structural Review',
+    description: 'Full structural audit of the manuscript',
+    steps: ['review'],
+    files: ['dry-run-audit.md'],
+    icon: '🔍',
+  },
+  {
+    label: 'Chapter Split',
+    description: 'Re-split the manuscript into chapters/sections',
+    steps: ['chapters'],
+    files: ['story/chapter-*.md'],
+    icon: '📖',
+  },
+];
+
+function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState(null);
+  const [result, setResult] = useState(null);
+  const sendMessage = useLlmStore(s => s.sendMessage);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
+  const activeProjectId = useProjectStore(s => s.activeProjectId);
+
+  const toggleGroup = (idx) => {
+    setSelectedGroups(prev =>
+      prev.includes(idx) ? prev.filter(i => i !== idx) : [...prev, idx]
+    );
+  };
+
+  const selectAll = () => {
+    if (selectedGroups.length === REDECOMPOSE_GROUPS.length) {
+      setSelectedGroups([]);
+    } else {
+      setSelectedGroups(REDECOMPOSE_GROUPS.map((_, i) => i));
+    }
+  };
+
+  const selectedStepKeys = selectedGroups
+    .flatMap(idx => REDECOMPOSE_GROUPS[idx].steps);
+
+  const affectedFiles = selectedGroups
+    .flatMap(idx => REDECOMPOSE_GROUPS[idx].files);
+
+  const runRedecompose = async () => {
+    setIsRunning(true);
+    setResult(null);
+
+    try {
+      // Get source text from project files
+      const sourceText = projectFiles['story/full-draft.md']
+        || Object.entries(projectFiles)
+          .filter(([p]) => p.startsWith('story/chapter') && p.endsWith('.md'))
+          .sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true }))
+          .map(([, c]) => c)
+          .join('\n\n');
+
+      if (!sourceText?.trim()) {
+        setResult({ success: false, message: 'Could not find the original manuscript text. Make sure story/full-draft.md or chapter files exist.' });
+        setIsRunning(false);
+        return;
+      }
+
+      const { redecomposeSteps } = await import('../services/decomposition');
+
+      const { files: newFiles, metadata } = await redecomposeSteps(
+        sendMessage,
+        sourceText,
+        selectedStepKeys,
+        projectFiles,
+        {
+          onProgress: setProgress,
+          title: projectMeta?.title,
+          medium: projectMeta?.medium,
+        }
+      );
+
+      // Save each new file to the project
+      let savedCount = 0;
+      let errorCount = 0;
+
+      // For character regeneration, we need to handle old character files being replaced.
+      // If 'characters' step was selected, remove old character files first (except questions-answered).
+      if (selectedStepKeys.includes('characters')) {
+        const oldCharFiles = Object.keys(projectFiles).filter(
+          p => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered')
+        );
+        const db = (await import('../lib/db')).default;
+        for (const oldPath of oldCharFiles) {
+          try {
+            const record = await db.projectFiles
+              .where('[projectId+path]')
+              .equals([activeProjectId, oldPath])
+              .first();
+            if (record) await db.projectFiles.delete(record.id);
+          } catch (e) {
+            console.warn('Failed to remove old character file:', oldPath, e);
+          }
+        }
+      }
+
+      for (const [filePath, content] of Object.entries(newFiles)) {
+        try {
+          await updateFile(filePath, content);
+          savedCount++;
+        } catch (e) {
+          console.warn(`Failed to save ${filePath}:`, e);
+          errorCount++;
+        }
+      }
+
+      // Reload project files to update UI
+      await loadProjectFiles(activeProjectId);
+
+      const failedSteps = metadata.steps.filter(s => !s.success);
+      setResult({
+        success: true,
+        message: `Regenerated ${savedCount} file${savedCount !== 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed to save)` : ''}.${failedSteps.length > 0 ? ` ${failedSteps.length} step(s) had errors: ${failedSteps.map(s => s.label).join(', ')}.` : ''}`,
+      });
+    } catch (err) {
+      console.error('Redecompose failed:', err);
+      setResult({ success: false, message: `Re-decomposition failed: ${err.message}` });
+    } finally {
+      setIsRunning(false);
+      setProgress(null);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', animation: 'fadeIn 0.2s ease' }}
+      onClick={(e) => { if (e.target === e.currentTarget && !isRunning) onClose(); }}>
+      <div style={{
+        background: 'var(--bg-primary)', borderRadius: 'var(--radius-lg, 12px)', padding: 0,
+        width: 520, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
+        border: '1px solid var(--border)', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
+              Regenerate Analysis
+            </h2>
+            {!isRunning && (
+              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
+                <X size={18} />
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '6px 0 0', lineHeight: 1.5 }}>
+            Select which parts of the decomposition to re-run. The AI will re-analyze your manuscript and <strong style={{ color: '#f97316' }}>overwrite</strong> the existing files for each selected category.
+          </p>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '12px 24px', overflowY: 'auto', flex: 1 }}>
+          {/* Select all toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <button onClick={selectAll} style={{
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,
+              color: 'var(--accent)', padding: 0,
+            }}>
+              {selectedGroups.length === REDECOMPOSE_GROUPS.length ? 'Deselect All' : 'Select All'}
+            </button>
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {selectedGroups.length} of {REDECOMPOSE_GROUPS.length} selected
+            </span>
+          </div>
+
+          {/* Checkboxes */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {REDECOMPOSE_GROUPS.map((group, idx) => {
+              const checked = selectedGroups.includes(idx);
+              return (
+                <div key={idx} onClick={() => !isRunning && toggleGroup(idx)} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px',
+                  borderRadius: 'var(--radius-sm)', cursor: isRunning ? 'default' : 'pointer',
+                  border: checked ? '1px solid var(--accent)' : '1px solid var(--border)',
+                  background: checked ? 'var(--accent-glow)' : 'transparent',
+                  transition: 'all 0.15s', opacity: isRunning ? 0.6 : 1,
+                }}>
+                  {/* Checkbox */}
+                  <div style={{
+                    width: 18, height: 18, borderRadius: 4, flexShrink: 0, marginTop: 1,
+                    border: checked ? '2px solid var(--accent)' : '2px solid var(--border)',
+                    background: checked ? 'var(--accent)' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}>
+                    {checked && <span style={{ color: '#fff', fontSize: '0.7rem', fontWeight: 700 }}>✓</span>}
+                  </div>
+
+                  {/* Label + description */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '0.75rem' }}>{group.icon}</span>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: checked ? 'var(--accent)' : 'var(--text-primary)' }}>
+                        {group.label}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.4 }}>
+                      {group.description}
+                    </div>
+                    {checked && (
+                      <div style={{ fontSize: '0.65rem', color: '#f97316', marginTop: 4, lineHeight: 1.3, fontStyle: 'italic' }}>
+                        Will overwrite: {group.files.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+          {/* Progress bar */}
+          {isRunning && progress && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{progress.label}...</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  {progress.completed + 1} / {progress.total}
+                </span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                <div style={{
+                  width: `${((progress.completed) / progress.total) * 100}%`,
+                  height: '100%', borderRadius: 2, background: 'var(--accent)',
+                  transition: 'width 0.5s ease',
+                }} />
+              </div>
+            </div>
+          )}
+
+          {/* Result message */}
+          {result && (
+            <div style={{
+              padding: '8px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
+              fontSize: '0.78rem', lineHeight: 1.5,
+              background: result.success ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
+              color: result.success ? '#34d399' : '#ef4444',
+              border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}`,
+            }}>
+              {result.message}
+            </div>
+          )}
+
+          {/* Warning */}
+          {selectedGroups.length > 0 && !isRunning && !result?.success && (
+            <div style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+              background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)',
+              marginBottom: 12, fontSize: '0.75rem', color: '#f97316', lineHeight: 1.5,
+            }}>
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>
+                This will <strong>permanently overwrite</strong> the existing analysis for the selected categories.
+                {selectedGroups.some(idx => REDECOMPOSE_GROUPS[idx].steps.includes('characters')) &&
+                  ' All current character files will be replaced with freshly generated ones.'}
+                {' '}Any manual edits you\'ve made to these files will be lost.
+              </span>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            {!isRunning && (
+              <Button variant="secondary" onClick={onClose} style={{ padding: '8px 20px' }}>
+                {result?.success ? 'Done' : 'Cancel'}
+              </Button>
+            )}
+            {!result?.success && (
+              <Button
+                variant="primary"
+                onClick={runRedecompose}
+                disabled={selectedGroups.length === 0 || isRunning}
+                style={{ padding: '8px 24px', opacity: selectedGroups.length === 0 ? 0.5 : 1 }}
+              >
+                {isRunning ? (
+                  <><Sparkles size={13} style={{ marginRight: 6, animation: 'pulse 1.5s infinite' }} /> Regenerating...</>
+                ) : (
+                  <><Sparkles size={13} style={{ marginRight: 6 }} /> Regenerate {selectedGroups.length > 0 ? `(${selectedStepKeys.length} steps)` : ''}</>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Settings Modal ─── */
 function SettingsModal({ onClose, currentTheme, onThemeChange, onGoToFullSettings }) {
   const settings = [
@@ -6620,6 +6952,7 @@ export default function WorkspaceScreen() {
   const [currentTheme, setCurrentTheme] = useState('amber');
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showSearchPanel, setShowSearchPanel] = useState(false);
+  const [showRedecomposeModal, setShowRedecomposeModal] = useState(false);
 
   // Apply theme to document
   const applyTheme = (themeKey) => {
@@ -7039,23 +7372,43 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 12 }} data-tour="phase-sidebar">
-                {leftTab === 'phases' && <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
-                  if (isLocked) {
-                    setShowGateWarning(true);
-                    return;
-                  }
-                  // Quality warning for phases 8/9 if health is low (≤2 in any dimension)
-                  if ((num === 8 || num === 9)) {
-                    // Check health scores — using demo values; in production these come from state
-                    const lowHealth = true; // demo: World Integrity is 3, Character Depth is 2
-                    if (lowHealth) {
-                      setShowQualityWarning(num);
+                {/* Regenerate button — shown at top of every sidebar tab for decomposed projects */}
+                {isDecomposed && (
+                  <button
+                    onClick={() => setShowRedecomposeModal(true)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                      width: '100%', padding: '7px 12px', marginBottom: 10,
+                      background: 'none', border: '1px dashed var(--border)',
+                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                      fontSize: '0.73rem', color: 'var(--text-muted)',
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                  >
+                    <Sparkles size={12} /> Regenerate Analysis
+                  </button>
+                )}
+                {leftTab === 'phases' && (
+                  <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
+                    if (isLocked) {
+                      setShowGateWarning(true);
                       return;
                     }
-                  }
-                  setActivePhase(num);
-                  setActiveMode('guided');
-                }} />}
+                    // Quality warning for phases 8/9 if health is low (≤2 in any dimension)
+                    if ((num === 8 || num === 9)) {
+                      // Check health scores — using demo values; in production these come from state
+                      const lowHealth = true; // demo: World Integrity is 3, Character Depth is 2
+                      if (lowHealth) {
+                        setShowQualityWarning(num);
+                        return;
+                      }
+                    }
+                    setActivePhase(num);
+                    setActiveMode('guided');
+                  }} />
+                )}
                 {leftTab === 'cast' && (
                   <CastRoster
                     onAddCharacter={() => setShowAddCharModal(true)}
@@ -7633,6 +7986,13 @@ export default function WorkspaceScreen() {
       {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} onGoToFullSettings={() => { setShowSettingsModal(false); navigate('/settings'); }} />}
       {showThemeModal && <ThemePickerModal onClose={() => setShowThemeModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
       {showTour && <ProductTour onComplete={() => setShowTour(false)} />}
+      {showRedecomposeModal && (
+        <RedecomposeModal
+          onClose={() => setShowRedecomposeModal(false)}
+          projectFiles={projectFiles}
+          projectMeta={{ title: activeProject?.title, medium: activeProject?.medium }}
+        />
+      )}
 
       {/* ── Project Switch Confirmation Modal ── */}
       {showSwitchConfirm && (

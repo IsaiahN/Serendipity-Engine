@@ -519,7 +519,9 @@ Include specific textual references for each observation.
     build: ({ sourceExcerpt }) => GOLDEN_RULES + `
 ## Your Role: Literary Analyst — Character Extraction
 
-Extract and profile all major characters from this manuscript.
+Extract and profile **every character** who appears in this manuscript — no limits, no caps. Some stories have 3 characters, some have 50. Profile them all. The depth of each profile should be proportional to how much that character actually does in the text: a character who drives entire plot arcs gets a rich, detailed profile; a character who appears in one scene gets a brief but complete entry.
+
+Users need these profiles to chat AS any character, remix the story from any character's POV, and compare characters across different works. Even a dog, a crowd member with one line, or a character mentioned only by name matters.
 
 ### Text:
 ${sourceExcerpt}
@@ -529,15 +531,29 @@ ${sourceExcerpt}
 # Characters
 
 ## [Character Name]
-- **Role**: Protagonist, antagonist, supporting, etc.
-- **Physical Description**: Age, appearance, distinctive features
+- **Tier**: protagonist | deuteragonist | antagonist | supporting | minor | mentioned
+- **Role**: Their narrative function (e.g. "Mentor", "Comic relief", "Love interest", "Companion animal", "Villain's henchman", "Foil to X")
+- **Physical Description**: Age, appearance, distinctive features (write "Not described" if absent)
 - **Personality**: Key traits, temperament
 - **Motivations**: What drives them
 - **Relationships**: Key connections to other characters
-- **Arc**: Growth or change over the story
+- **Arc**: Growth or change over the story (write "Static" or "Minimal" for characters with no arc)
 - **Conflicts**: Internal and external struggles
+- **Voice Notes**: Speech patterns, catchphrases, dialect, communication style (e.g. "speaks in growls", "formal Victorian English", "silent — communicates through action"). This is critical for enabling character chat.
 
-Prioritize by importance. Include 3-8 major characters.
+### How much to write per character:
+Scale the detail to match the character's presence in the text:
+- **Heavy presence** (drives scenes, has dialogue, has an arc): 4-8 lines per field. Go deep.
+- **Moderate presence** (recurring but not central): 2-4 lines per field.
+- **Light presence** (one or two scenes, a few lines): 1-2 lines per field.
+- **Mentioned only** (referenced but doesn't appear on-page): 1 line per field, best-guess from context.
+
+### Rules:
+- **There is NO character count limit.** If the text has 40 named characters, output 40 sections. If it has 4, output 4.
+- Order by level of narrative presence, heaviest first.
+- Non-human characters (animals, AI, spirits, etc.) absolutely count — give them profiles.
+- Groups that function as a single character (e.g. "The Munchkins", "The Council") can share one section.
+- When in doubt about whether someone counts, include them.
 `,
   },
 

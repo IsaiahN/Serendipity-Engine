@@ -21,18 +21,38 @@ function buildCastFromFiles(files) {
       const name = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
       const lower = (content || '').toLowerCase();
 
+      // Try to read the explicit **Tier**: field first (from new decomposition format)
+      const tierMatch = (content || '').match(/\*\*Tier\*\*:\s*(protagonist|deuteragonist|antagonist|supporting|minor|mentioned)/i);
+      const explicitTier = tierMatch ? tierMatch[1].toLowerCase() : null;
+
       // Derive role from content
       let role = 'Supporting';
-      if (lower.includes('protagonist')) role = 'Protagonist';
-      else if (lower.includes('deuteragonist') || lower.includes('antihero')) role = 'Deuteragonist';
-      else if (lower.includes('antagonist')) role = 'Antagonist';
-      else if (lower.includes('confidante')) role = 'Supporting';
-      else if (lower.includes('minor') || lower.includes('authority')) role = 'Minor';
+      if (explicitTier) {
+        // Map explicit tier to display role
+        const tierRoleMap = {
+          protagonist: 'Protagonist', deuteragonist: 'Deuteragonist',
+          antagonist: 'Antagonist', supporting: 'Supporting',
+          minor: 'Minor', mentioned: 'Mentioned',
+        };
+        role = tierRoleMap[explicitTier] || 'Supporting';
+      } else {
+        // Legacy fallback: keyword scan
+        if (lower.includes('protagonist')) role = 'Protagonist';
+        else if (lower.includes('deuteragonist') || lower.includes('antihero')) role = 'Deuteragonist';
+        else if (lower.includes('antagonist')) role = 'Antagonist';
+        else if (lower.includes('confidante')) role = 'Supporting';
+        else if (lower.includes('minor') || lower.includes('authority')) role = 'Minor';
+      }
 
-      // Derive tier
-      const isMain = lower.includes('protagonist') || lower.includes('deuteragonist') || lower.includes('main character') || lower.includes('main protagonist') || lower.includes('supporting') || lower.includes('confidante') || lower.includes('antihero') || lower.includes('antagonist');
-      const isMinor = lower.includes('minor') && !lower.includes('minor antagonist');
-      const tier = isMinor ? 'minor' : (isMain ? 'main' : 'minor');
+      // Derive tier for UI grouping (main = full row, minor = compact grid)
+      let tier;
+      if (explicitTier) {
+        tier = ['protagonist', 'deuteragonist', 'antagonist', 'supporting'].includes(explicitTier) ? 'main' : 'minor';
+      } else {
+        const isMain = lower.includes('protagonist') || lower.includes('deuteragonist') || lower.includes('main character') || lower.includes('supporting') || lower.includes('confidante') || lower.includes('antihero') || lower.includes('antagonist');
+        const isMinor = lower.includes('minor') && !lower.includes('minor antagonist');
+        tier = isMinor ? 'minor' : (isMain ? 'main' : 'minor');
+      }
 
       return {
         name,
@@ -113,7 +133,7 @@ function MainCharRow({ c, onCharacterClick, onCharacterChat, onCharacterDelete }
   );
 }
 
-function MinorCharCell({ c, onCharacterClick }) {
+function MinorCharCell({ c, onCharacterClick, onCharacterChat }) {
   return (
     <div
       data-char-name={c.name}
@@ -131,10 +151,13 @@ function MinorCharCell({ c, onCharacterClick }) {
       }}
     >
       <Avatar char={c} size={24} />
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontSize: '0.75rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.name}</div>
         <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>{c.role}</div>
       </div>
+      <button onClick={(e) => { e.stopPropagation(); onCharacterChat?.(c.name); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, flexShrink: 0 }} title={`Chat with ${c.name}`}>
+        <MessageSquare size={11} />
+      </button>
     </div>
   );
 }
@@ -186,7 +209,7 @@ export default function CastRoster({ onCharacterClick, onViewFullCast, onAddChar
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
             {minorChars.map((c) => (
-              <MinorCharCell key={c.name} c={c} onCharacterClick={onCharacterClick} />
+              <MinorCharCell key={c.name} c={c} onCharacterClick={onCharacterClick} onCharacterChat={onCharacterChat} />
             ))}
           </div>
         </>
