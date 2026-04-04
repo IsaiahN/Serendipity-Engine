@@ -148,34 +148,56 @@ function Select({ options, value, onChange }) {
 
 // ─── General Settings ───
 function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
-  const [mode, setMode] = useState('advanced');
-  const [fontSize, setFontSize] = useState('medium');
-  const [editorFont, setEditorFont] = useState('JetBrains Mono');
-  const [language, setLanguage] = useState('English');
-  const [sidebarPos, setSidebarPos] = useState('Left');
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    mode: s.mode,
+    fontSize: s.fontSize,
+    editorFont: s.editorFont,
+    language: s.language,
+    sidebarPosition: s.sidebarPosition,
+  }));
 
-  const handleModeChange = (newMode) => {
+  const [mode, setMode] = useState(settings.mode);
+  const [fontSize, setFontSize] = useState(settings.fontSize);
+  const [editorFont, setEditorFont] = useState(settings.editorFont);
+  const [language, setLanguage] = useState(settings.language);
+  const [sidebarPos, setSidebarPos] = useState(settings.sidebarPosition);
+
+  useEffect(() => {
+    setMode(settings.mode);
+    setFontSize(settings.fontSize);
+    setEditorFont(settings.editorFont);
+    setLanguage(settings.language);
+    setSidebarPos(settings.sidebarPosition);
+  }, [settings]);
+
+  const handleModeChange = async (newMode) => {
     setMode(newMode);
+    await updateSettings({ mode: newMode });
     onSettingChange('mode', newMode);
   };
 
-  const handleFontSizeChange = (newSize) => {
+  const handleFontSizeChange = async (newSize) => {
     setFontSize(newSize);
+    await updateSettings({ fontSize: newSize });
     onSettingChange('fontSize', newSize);
   };
 
-  const handleEditorFontChange = (newFont) => {
+  const handleEditorFontChange = async (newFont) => {
     setEditorFont(newFont);
+    await updateSettings({ editorFont: newFont });
     onSettingChange('editorFont', newFont);
   };
 
-  const handleLanguageChange = (newLang) => {
+  const handleLanguageChange = async (newLang) => {
     setLanguage(newLang);
+    await updateSettings({ language: newLang });
     onSettingChange('language', newLang);
   };
 
-  const handleSidebarChange = (newPos) => {
+  const handleSidebarChange = async (newPos) => {
     setSidebarPos(newPos);
+    await updateSettings({ sidebarPosition: newPos });
     onSettingChange('sidebarPosition', newPos);
   };
 
@@ -269,6 +291,13 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
 // ─── AI Models Settings ───
 function AISettings({ onSettingChange }) {
   const { providers, activeProviders, loadProviders, connectProvider, testConnection, disconnectProvider } = useLlmStore();
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    auditTrail: s.auditTrail,
+    costTracking: s.costTracking,
+    ttsAutoRead: s.ttsAutoRead,
+  }));
+
   const [selectedProvider, setSelectedProvider] = useState('anthropic');
   const [selectedModel, setSelectedModel] = useState('');
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -281,12 +310,18 @@ function AISettings({ onSettingChange }) {
   const [oauthClientId, setOauthClientId] = useState('');
   const [oauthStatus, setOauthStatus] = useState(null); // null | 'pending' | 'success' | 'error'
   const [roleMode, setRoleMode] = useState('standard');
-  const [auditTrail, setAuditTrail] = useState(true);
-  const [costTracking, setCostTracking] = useState(true);
+  const [auditTrail, setAuditTrail] = useState(settings.auditTrail);
+  const [costTracking, setCostTracking] = useState(settings.costTracking);
   const [ttsEngine, setTtsEngine] = useState('Piper TTS (local)');
   const [voice, setVoice] = useState('Amy (US English)');
   const [ttsSpeed, setTtsSpeed] = useState('1.0x');
-  const [autoRead, setAutoRead] = useState(false);
+  const [autoRead, setAutoRead] = useState(settings.ttsAutoRead);
+
+  useEffect(() => {
+    setAuditTrail(settings.auditTrail);
+    setCostTracking(settings.costTracking);
+    setAutoRead(settings.ttsAutoRead);
+  }, [settings.auditTrail, settings.costTracking, settings.ttsAutoRead]);
 
   // Load providers on mount
   useEffect(() => {
@@ -401,18 +436,21 @@ function AISettings({ onSettingChange }) {
     onSettingChange('roleAssignmentMode', newMode);
   };
 
-  const handleAuditTrail = (val) => {
+  const handleAuditTrail = async (val) => {
     setAuditTrail(val);
+    await updateSettings({ auditTrail: val });
     onSettingChange('auditTrail', val);
   };
 
-  const handleCostTracking = (val) => {
+  const handleCostTracking = async (val) => {
     setCostTracking(val);
+    await updateSettings({ costTracking: val });
     onSettingChange('costTracking', val);
   };
 
-  const handleAutoRead = (val) => {
+  const handleAutoRead = async (val) => {
     setAutoRead(val);
+    await updateSettings({ ttsAutoRead: val });
     onSettingChange('ttsAutoRead', val);
   };
 
@@ -850,40 +888,73 @@ function AISettings({ onSettingChange }) {
 
 // ─── Workspace Settings ───
 function WorkspaceSettings({ onSettingChange }) {
-  const [autoSaveInterval, setAutoSaveInterval] = useState('Every 30 seconds');
-  const [crashRecovery, setCrashRecovery] = useState(true);
-  const [exportFormat, setExportFormat] = useState('DOCX');
-  const [backupReminder, setBackupReminder] = useState('Weekly');
-  const [showWordCount, setShowWordCount] = useState(true);
-  const [defaultWordGoal, setDefaultWordGoal] = useState('70,000');
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    autoSaveInterval: s.autoSaveInterval,
+    crashRecovery: s.crashRecovery,
+    defaultExportFormat: s.defaultExportFormat,
+    backupReminder: s.backupReminder,
+    showWordCount: s.showWordCount,
+    defaultWordGoal: s.defaultWordGoal,
+  }));
 
-  const handleAutoSaveChange = (newVal) => {
+  // Map store values to display values
+  const autoSaveMap = { 30000: 'Every 30 seconds', 60000: 'Every minute', 300000: 'Every 5 minutes', 0: 'Manual only' };
+  const backupMap = { 'daily': 'Daily', 'weekly': 'Weekly', 'monthly': 'Monthly', 'off': 'Never' };
+  const goalMap = { 50000: '50,000', 60000: '60,000', 70000: '70,000', 80000: '80,000', 90000: '90,000', 100000: '100,000' };
+
+  const [autoSaveInterval, setAutoSaveInterval] = useState(autoSaveMap[settings.autoSaveInterval] || 'Every 30 seconds');
+  const [crashRecovery, setCrashRecovery] = useState(settings.crashRecovery);
+  const [exportFormat, setExportFormat] = useState((settings.defaultExportFormat || 'docx').toUpperCase());
+  const [backupReminder, setBackupReminder] = useState(backupMap[settings.backupReminder] || 'Weekly');
+  const [showWordCount, setShowWordCount] = useState(settings.showWordCount);
+  const [defaultWordGoal, setDefaultWordGoal] = useState(goalMap[settings.defaultWordGoal] || '70,000');
+
+  useEffect(() => {
+    setAutoSaveInterval(autoSaveMap[settings.autoSaveInterval] || 'Every 30 seconds');
+    setCrashRecovery(settings.crashRecovery);
+    setExportFormat((settings.defaultExportFormat || 'docx').toUpperCase());
+    setBackupReminder(backupMap[settings.backupReminder] || 'Weekly');
+    setShowWordCount(settings.showWordCount);
+    setDefaultWordGoal(goalMap[settings.defaultWordGoal] || '70,000');
+  }, [settings]);
+
+  const handleAutoSaveChange = async (newVal) => {
     setAutoSaveInterval(newVal);
+    const msMap = { 'Every 30 seconds': 30000, 'Every minute': 60000, 'Every 5 minutes': 300000, 'Manual only': 0 };
+    await updateSettings({ autoSaveInterval: msMap[newVal] || 30000 });
     onSettingChange('autoSaveInterval', newVal);
   };
 
-  const handleCrashRecovery = (val) => {
+  const handleCrashRecovery = async (val) => {
     setCrashRecovery(val);
+    await updateSettings({ crashRecovery: val });
     onSettingChange('crashRecovery', val);
   };
 
-  const handleExportFormat = (newVal) => {
+  const handleExportFormat = async (newVal) => {
     setExportFormat(newVal);
+    await updateSettings({ defaultExportFormat: newVal.toLowerCase() });
     onSettingChange('defaultExportFormat', newVal);
   };
 
-  const handleBackupReminder = (newVal) => {
+  const handleBackupReminder = async (newVal) => {
     setBackupReminder(newVal);
+    const keyMap = { 'Daily': 'daily', 'Weekly': 'weekly', 'Monthly': 'monthly', 'Never': 'off' };
+    await updateSettings({ backupReminder: keyMap[newVal] || 'weekly' });
     onSettingChange('backupReminder', newVal);
   };
 
-  const handleShowWordCount = (val) => {
+  const handleShowWordCount = async (val) => {
     setShowWordCount(val);
+    await updateSettings({ showWordCount: val });
     onSettingChange('showWordCount', val);
   };
 
-  const handleDefaultWordGoal = (newVal) => {
+  const handleDefaultWordGoal = async (newVal) => {
     setDefaultWordGoal(newVal);
+    const numMap = { '50,000': 50000, '60,000': 60000, '70,000': 70000, '80,000': 80000, '90,000': 90000, '100,000': 100000 };
+    await updateSettings({ defaultWordGoal: numMap[newVal] || 70000 });
     onSettingChange('defaultWordGoal', newVal);
   };
 
@@ -936,46 +1007,79 @@ function WorkspaceSettings({ onSettingChange }) {
 
 // ─── Writing Settings ───
 function WritingSettings({ onSettingChange }) {
-  const [teachingTips, setTeachingTips] = useState(true);
-  const [conversationalTeacher, setConversationalTeacher] = useState(true);
-  const [characterGuideMode, setCharacterGuideMode] = useState('interactive');
-  const [activeDeconstruction, setActiveDeconstruction] = useState(true);
-  const [emotionWheelDefault, setEmotionWheelDefault] = useState('active');
-  const [contentRating, setContentRating] = useState('All');
-  const [ttsHighlight, setTtsHighlight] = useState(true);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    teachingTips: s.teachingTips,
+    conversationalTeacher: s.conversationalTeacher,
+    characterGuideMode: s.characterGuideMode,
+    activeDeconstruction: s.activeDeconstruction,
+    emotionWheelDefault: s.emotionWheelDefault,
+    contentRating: s.contentRating,
+    ttsHighlight: s.ttsHighlight,
+  }));
 
-  const handleTeachingTips = (val) => {
+  // Map store values to display values
+  const teachingTipsMap = { 'on': true, 'collapsed': 'partial', 'off': false };
+  const contentRatingMap = { 'PG-13': 'All', 'General': 'General', 'Young Adult': 'Young Adult', 'Mature': 'Mature', 'Explicit': 'Explicit', 'All': 'All' };
+
+  const [teachingTips, setTeachingTips] = useState(settings.teachingTips === 'on');
+  const [conversationalTeacher, setConversationalTeacher] = useState(settings.conversationalTeacher);
+  const [characterGuideMode, setCharacterGuideMode] = useState(settings.characterGuideMode);
+  const [activeDeconstruction, setActiveDeconstruction] = useState(settings.activeDeconstruction);
+  const [emotionWheelDefault, setEmotionWheelDefault] = useState(settings.emotionWheelDefault);
+  const [contentRating, setContentRating] = useState(contentRatingMap[settings.contentRating] || 'All');
+  const [ttsHighlight, setTtsHighlight] = useState(settings.ttsHighlight);
+
+  useEffect(() => {
+    setTeachingTips(settings.teachingTips === 'on');
+    setConversationalTeacher(settings.conversationalTeacher);
+    setCharacterGuideMode(settings.characterGuideMode);
+    setActiveDeconstruction(settings.activeDeconstruction);
+    setEmotionWheelDefault(settings.emotionWheelDefault);
+    setContentRating(contentRatingMap[settings.contentRating] || 'All');
+    setTtsHighlight(settings.ttsHighlight);
+  }, [settings]);
+
+  const handleTeachingTips = async (val) => {
     setTeachingTips(val);
+    await updateSettings({ teachingTips: val ? 'on' : 'off' });
     onSettingChange('teachingTips', val);
   };
 
-  const handleConversationalTeacher = (val) => {
+  const handleConversationalTeacher = async (val) => {
     setConversationalTeacher(val);
+    await updateSettings({ conversationalTeacher: val });
     onSettingChange('conversationalTeacher', val);
   };
 
-  const handleCharacterGuideMode = (newVal) => {
+  const handleCharacterGuideMode = async (newVal) => {
     setCharacterGuideMode(newVal);
+    await updateSettings({ characterGuideMode: newVal });
     onSettingChange('characterGuideMode', newVal);
   };
 
-  const handleActiveDeconstruction = (val) => {
+  const handleActiveDeconstruction = async (val) => {
     setActiveDeconstruction(val);
+    await updateSettings({ activeDeconstruction: val });
     onSettingChange('activeDeconstruction', val);
   };
 
-  const handleEmotionWheel = (newVal) => {
+  const handleEmotionWheel = async (newVal) => {
     setEmotionWheelDefault(newVal);
+    await updateSettings({ emotionWheelDefault: newVal });
     onSettingChange('emotionWheelDefault', newVal);
   };
 
-  const handleContentRating = (newVal) => {
+  const handleContentRating = async (newVal) => {
     setContentRating(newVal);
+    const keyMap = { 'All': 'PG-13', 'General': 'General', 'Young Adult': 'Young Adult', 'Mature': 'Mature', 'Explicit': 'Explicit' };
+    await updateSettings({ contentRating: keyMap[newVal] || 'PG-13' });
     onSettingChange('contentRating', newVal);
   };
 
-  const handleTtsHighlight = (val) => {
+  const handleTtsHighlight = async (val) => {
     setTtsHighlight(val);
+    await updateSettings({ ttsHighlight: val });
     onSettingChange('ttsHighlight', val);
   };
 
@@ -1032,46 +1136,82 @@ function WritingSettings({ onSettingChange }) {
 
 // ─── Editor Settings ───
 function EditorSettings({ onSettingChange }) {
-  const [approvalMode, setApprovalMode] = useState('Per Chapter');
-  const [maxPasses, setMaxPasses] = useState('3');
-  const [qualityThreshold, setQualityThreshold] = useState('Strong');
-  const [personaCount, setPersonaCount] = useState('3');
-  const [severityDisplay, setSeverityDisplay] = useState('colored');
-  const [autoGenerateFeedback, setAutoGenerateFeedback] = useState(true);
-  const [recurringFlagDetection, setRecurringFlagDetection] = useState(true);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    defaultApprovalMode: s.defaultApprovalMode,
+    maxEditorPasses: s.maxEditorPasses,
+    qualityThreshold: s.qualityThreshold,
+    editorPersonaCount: s.editorPersonaCount,
+    editorSeverityDisplay: s.editorSeverityDisplay,
+    autoGenerateFeedback: s.autoGenerateFeedback,
+    recurringFlagDetection: s.recurringFlagDetection,
+  }));
 
-  const handleApprovalMode = (newVal) => {
+  // Map store values to display values
+  const approvalModeMap = { 'auto': 'Auto-Approve', 'per-chapter': 'Per Chapter', 'per-arc': 'Per Arc', 'multi-pass': 'Multi-Pass' };
+  const qualityMap = { 'exceptional': 'Exceptional', 'strong': 'Strong', 'good': 'Good', 'developing': 'Developing', 'off': 'Off' };
+  const severityMap = { 'all': 'colored', 'warnings': 'icons', 'critical': 'text', 'off': 'minimal' };
+
+  const [approvalMode, setApprovalMode] = useState(approvalModeMap[settings.defaultApprovalMode] || 'Per Chapter');
+  const [maxPasses, setMaxPasses] = useState(String(settings.maxEditorPasses || 3));
+  const [qualityThreshold, setQualityThreshold] = useState(qualityMap[settings.qualityThreshold] || 'Strong');
+  const [personaCount, setPersonaCount] = useState(String(settings.editorPersonaCount || 3));
+  const [severityDisplay, setSeverityDisplay] = useState(severityMap[settings.editorSeverityDisplay] || 'colored');
+  const [autoGenerateFeedback, setAutoGenerateFeedback] = useState(settings.autoGenerateFeedback);
+  const [recurringFlagDetection, setRecurringFlagDetection] = useState(settings.recurringFlagDetection);
+
+  useEffect(() => {
+    setApprovalMode(approvalModeMap[settings.defaultApprovalMode] || 'Per Chapter');
+    setMaxPasses(String(settings.maxEditorPasses || 3));
+    setQualityThreshold(qualityMap[settings.qualityThreshold] || 'Strong');
+    setPersonaCount(String(settings.editorPersonaCount || 3));
+    setSeverityDisplay(severityMap[settings.editorSeverityDisplay] || 'colored');
+    setAutoGenerateFeedback(settings.autoGenerateFeedback);
+    setRecurringFlagDetection(settings.recurringFlagDetection);
+  }, [settings]);
+
+  const handleApprovalMode = async (newVal) => {
     setApprovalMode(newVal);
+    const keyMap = { 'Auto-Approve': 'auto', 'Per Chapter': 'per-chapter', 'Per Arc': 'per-arc', 'Multi-Pass': 'multi-pass' };
+    await updateSettings({ defaultApprovalMode: keyMap[newVal] || 'per-chapter' });
     onSettingChange('defaultApprovalMode', newVal);
   };
 
-  const handleMaxPasses = (newVal) => {
+  const handleMaxPasses = async (newVal) => {
     setMaxPasses(newVal);
+    await updateSettings({ maxEditorPasses: parseInt(newVal) || 3 });
     onSettingChange('maxEditorPasses', newVal);
   };
 
-  const handleQualityThreshold = (newVal) => {
+  const handleQualityThreshold = async (newVal) => {
     setQualityThreshold(newVal);
+    const keyMap = { 'Exceptional': 'exceptional', 'Strong': 'strong', 'Good': 'good', 'Developing': 'developing', 'Off': 'off' };
+    await updateSettings({ qualityThreshold: keyMap[newVal] || 'strong' });
     onSettingChange('qualityThreshold', newVal);
   };
 
-  const handlePersonaCount = (newVal) => {
+  const handlePersonaCount = async (newVal) => {
     setPersonaCount(newVal);
+    await updateSettings({ editorPersonaCount: parseInt(newVal) || 3 });
     onSettingChange('editorPersonaCount', newVal);
   };
 
-  const handleSeverityDisplay = (newVal) => {
+  const handleSeverityDisplay = async (newVal) => {
     setSeverityDisplay(newVal);
+    const keyMap = { 'colored': 'all', 'icons': 'warnings', 'text': 'critical', 'minimal': 'off' };
+    await updateSettings({ editorSeverityDisplay: keyMap[newVal] || 'all' });
     onSettingChange('severityDisplay', newVal);
   };
 
-  const handleAutoGenerateFeedback = (val) => {
+  const handleAutoGenerateFeedback = async (val) => {
     setAutoGenerateFeedback(val);
+    await updateSettings({ autoGenerateFeedback: val });
     onSettingChange('autoGenerateFeedback', val);
   };
 
-  const handleRecurringFlagDetection = (val) => {
+  const handleRecurringFlagDetection = async (val) => {
     setRecurringFlagDetection(val);
+    await updateSettings({ recurringFlagDetection: val });
     onSettingChange('recurringFlagDetection', val);
   };
 
@@ -1132,11 +1272,20 @@ function EditorSettings({ onSettingChange }) {
 
 // ─── Privacy & Data Settings ───
 function PrivacySettings({ navigate, onSettingChange }) {
-  const [showKeys, setShowKeys] = useState(false);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    showKeys: s.showKeys,
+  }));
+
+  const [showKeys, setShowKeys] = useState(settings.showKeys);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [storageLocation] = useState('Local (IndexedDB)');
   const projects = useProjectStore(s => s.projects);
   const [projectStats, setProjectStats] = useState({ count: 0, totalWords: 0, storageUsed: 'Calculating...' });
+
+  useEffect(() => {
+    setShowKeys(settings.showKeys);
+  }, [settings.showKeys]);
 
   useEffect(() => {
     // Load projects if not already loaded
@@ -1176,8 +1325,9 @@ function PrivacySettings({ navigate, onSettingChange }) {
     doLoad();
   }, [projects.length]);
 
-  const handleShowKeys = (val) => {
+  const handleShowKeys = async (val) => {
     setShowKeys(val);
+    await updateSettings({ showKeys: val });
     onSettingChange('showKeys', val);
   };
 
@@ -1312,16 +1462,29 @@ function PrivacySettings({ navigate, onSettingChange }) {
 
 // ─── Writing Profile Settings ───
 function WritingProfileSettings({ onSettingChange }) {
-  const [silentAssessment, setSilentAssessment] = useState(false);
-  const [trackAcrossProjects, setTrackAcrossProjects] = useState(true);
+  const updateSettings = useSettingsStore(s => s.updateSettings);
+  const settings = useSettingsStore(s => ({
+    silentAssessment: s.silentAssessment,
+    trackAcrossProjects: s.trackAcrossProjects,
+  }));
 
-  const handleSilentAssessment = (val) => {
+  const [silentAssessment, setSilentAssessment] = useState(settings.silentAssessment);
+  const [trackAcrossProjects, setTrackAcrossProjects] = useState(settings.trackAcrossProjects);
+
+  useEffect(() => {
+    setSilentAssessment(settings.silentAssessment);
+    setTrackAcrossProjects(settings.trackAcrossProjects);
+  }, [settings.silentAssessment, settings.trackAcrossProjects]);
+
+  const handleSilentAssessment = async (val) => {
     setSilentAssessment(val);
+    await updateSettings({ silentAssessment: val });
     onSettingChange('silentAssessment', val);
   };
 
-  const handleTrackAcrossProjects = (val) => {
+  const handleTrackAcrossProjects = async (val) => {
     setTrackAcrossProjects(val);
+    await updateSettings({ trackAcrossProjects: val });
     onSettingChange('trackAcrossProjects', val);
   };
 

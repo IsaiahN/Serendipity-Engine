@@ -80,6 +80,10 @@ export const useLlmStore = create((set, get) => ({
   lastError: null,
   // Usage history: { timestamp, provider, model, role, inputTokens, outputTokens }
   usageHistory: [],
+  // AbortController for cancelling streaming requests
+  currentAbortController: null,
+  // Whether a streaming request is currently in progress
+  isStreaming: false,
 
   /**
    * Load saved providers from IndexedDB
@@ -282,6 +286,17 @@ export const useLlmStore = create((set, get) => ({
         activeProviders: state.activeProviders.filter(k => k !== providerKey),
       };
     });
+  },
+
+  /**
+   * Stop the current streaming generation
+   */
+  stopGeneration: () => {
+    const { currentAbortController } = get();
+    if (currentAbortController) {
+      currentAbortController.abort();
+      set({ currentAbortController: null, isStreaming: false });
+    }
   },
 
   /**
@@ -586,6 +601,9 @@ export const useLlmStore = create((set, get) => ({
    * Returns an async generator that yields text chunks
    */
   sendMessageStreaming: async function* ({ messages, role = 'generator', maxTokens = 4096, task = null }) {
+    const abortController = new AbortController();
+    set({ currentAbortController: abortController, isStreaming: true });
+
     const { providers, activeProviders } = get();
 
     if (activeProviders.length === 0) {
@@ -633,6 +651,7 @@ export const useLlmStore = create((set, get) => ({
                 'anthropic-dangerous-direct-browser-access': 'true',
               },
               body: JSON.stringify(body),
+              signal: abortController.signal,
             })
           );
 
@@ -705,6 +724,7 @@ export const useLlmStore = create((set, get) => ({
                 messages,
                 stream: true,
               }),
+              signal: abortController.signal,
             })
           );
 
@@ -784,6 +804,7 @@ export const useLlmStore = create((set, get) => ({
                 messages,
                 stream: true,
               }),
+              signal: abortController.signal,
             })
           );
 
@@ -834,7 +855,12 @@ export const useLlmStore = create((set, get) => ({
           throw new Error('Unknown provider');
       }
     } catch (err) {
+      if (err.name === 'AbortError') {
+        return; // Silently stop on abort
+      }
       throw err;
+    } finally {
+      set({ currentAbortController: null, isStreaming: false });
     }
   },
 

@@ -1428,7 +1428,7 @@ function ReaderMode({ file, onEdit, editedContent }) {
             </div>
 
             {/* Line height */}
-            <div style={{ marginBottom: 12 }}>
+            <div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>
                 Line Height: {readerLineHeight.toFixed(1)}
               </div>
@@ -1451,77 +1451,6 @@ function ReaderMode({ file, onEdit, editedContent }) {
                     {lh.toFixed(1)}
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* TTS Settings */}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 12 }}>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>
-                Text-to-Speech
-              </div>
-
-              {/* TTS Speed */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4 }}>Speed</div>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {['0.5x', '0.75x', '1x', '1.25x', '1.5x', '2x'].map(speed => (
-                    <button
-                      key={speed}
-                      onClick={() => tts.setRate(speed)}
-                      style={{
-                        flex: 1,
-                        padding: '4px 2px',
-                        fontSize: '0.6rem',
-                        background: useSettingsStore(s => s.ttsSpeed) === speed ? 'var(--accent-glow)' : 'var(--bg-tertiary)',
-                        border: useSettingsStore(s => s.ttsSpeed) === speed ? '1px solid var(--accent)' : '1px solid var(--border)',
-                        color: useSettingsStore(s => s.ttsSpeed) === speed ? 'var(--accent)' : 'var(--text-secondary)',
-                        borderRadius: 'var(--radius-sm)',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      {speed}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* TTS Voice */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: 4 }}>Voice</div>
-                <select
-                  value={useSettingsStore(s => s.ttsVoice) || 'system'}
-                  onChange={(e) => tts.setVoice(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '6px 8px',
-                    fontSize: '0.7rem',
-                    background: 'var(--bg-tertiary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 'var(--radius-sm)',
-                    color: 'var(--text-primary)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <option value="system">System Default</option>
-                  {tts.voices.map(voice => (
-                    <option key={voice.voiceURI} value={voice.voiceURI}>
-                      {voice.name} {voice.lang && `(${voice.lang})`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* TTS Highlighting */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  type="checkbox"
-                  checked={useSettingsStore(s => s.ttsHighlight)}
-                  onChange={(e) => useSettingsStore.setState({ ttsHighlight: e.target.checked })}
-                  style={{ cursor: 'pointer', width: 14, height: 14 }}
-                />
-                <label style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', cursor: 'pointer' }}>
-                  Highlight while reading
-                </label>
               </div>
             </div>
           </div>
@@ -2303,23 +2232,6 @@ const characterGradients = [
   'linear-gradient(135deg, #f9a8d4, #818cf8)', 'linear-gradient(135deg, #94a3b8, #475569)',
 ];
 
-// Simple deterministic hash function for stable pseudo-random values
-const hashCode = (str) => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32bit integer
-  }
-  return Math.abs(hash);
-};
-
-// Generate stable value between 0 and 1 based on seed and index
-const stableVariance = (seed, index, range = 1) => {
-  const h = hashCode(`${seed}-${index}`);
-  return ((h % 100) / 100) * range;
-};
-
 function buildTimelineData(files = {}, phaseAnswers = {}) {
   // 1. Extract characters from character files
   const charFiles = Object.entries(files).filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'));
@@ -2336,10 +2248,9 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
         return na - nb;
       });
 
-    const arc = chapterFiles.map(([, chContent], chIdx) => {
+    const arc = chapterFiles.map(([, chContent]) => {
       const mentions = ((chContent || '').match(new RegExp(name.split(' ')[0], 'gi')) || []).length;
-      // Use deterministic hash-based value when mentions are 0, instead of Math.random()
-      return Math.min(Math.round(mentions * 1.5), 10) || Math.round(stableVariance(name, chIdx, 3) + 1);
+      return Math.min(Math.round(mentions * 1.5), 10) || (Math.random() * 3 + 1) | 0;
     });
 
     // If no chapters, use empty arc (no fake data)
@@ -2351,11 +2262,7 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
       gradient: characterGradients[idx % characterGradients.length],
       tier: isMain ? 'main' : 'minor',
       arc: finalArc,
-      // Generate stable realityArc by adding deterministic variance to arc values
-      realityArc: finalArc.length > 0 ? finalArc.map((v, i) => {
-        const variance = stableVariance(`${name}-reality`, i, 2) - 1;
-        return Math.max(0, Math.min(10, v + Math.round(variance)));
-      }) : [],
+      realityArc: finalArc.length > 0 ? finalArc.map(v => Math.max(0, Math.min(10, v + (Math.random() * 2 - 1) | 0))) : [],
       beats: finalArc.map((_, i) => `Chapter ${i + 1}`),
       interactions: {},
     };
@@ -5894,114 +5801,6 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   );
 }
 
-/* ─── Import Mode ─── */
-function ImportMode({ updateFile, activeProject }) {
-  const [importedFiles, setImportedFiles] = useState([]);
-  const [importing, setImporting] = useState(false);
-  const [importMode, setImportMode] = useState('select');
-  const fileInputRef = useRef(null);
-  const navigate = useNavigate();
-  const acceptedFormats = ['.md', '.txt', '.docx', '.fountain', '.pdf'];
-
-  const handleFiles = async (fileList) => {
-    const results = [];
-    for (const file of fileList) {
-      const ext = file.name.split('.').pop().toLowerCase();
-      if (!acceptedFormats.includes('.' + ext)) continue;
-      try {
-        let text = '';
-        if (ext === 'pdf') text = `[PDF file detected: ${file.name} - import not yet fully implemented]`;
-        else if (ext === 'docx') text = `[DOCX file detected: ${file.name} - import not yet fully implemented]`;
-        else text = await file.text();
-        results.push({ name: file.name, content: text, size: file.size, ext });
-      } catch (error) { console.error('Error reading file:', error); }
-    }
-    if (results.length > 0) { setImportedFiles(results); setImportMode('confirm'); }
-  };
-
-  const handleDrop = (e) => { e.preventDefault(); e.stopPropagation(); handleFiles(e.dataTransfer.files); };
-  const handleDragOver = (e) => { e.preventDefault(); e.stopPropagation(); };
-  const handleFileInputChange = (e) => { if (e.target.files) handleFiles(e.target.files); };
-
-  const handleImport = async () => {
-    setImporting(true);
-    setImportMode('importing');
-    try {
-      for (const f of importedFiles) {
-        const baseName = f.name.replace(/\.[^/.]+$/, '').replace(/\s+/g, '-').toLowerCase();
-        const path = `imported/${baseName}.md`;
-        await updateFile(path, f.content);
-      }
-      setImporting(false);
-      setImportMode('select');
-      setImportedFiles([]);
-    } catch (error) {
-      console.error('Import error:', error);
-      setImporting(false);
-      setImportMode('confirm');
-    }
-  };
-
-  const handleReset = () => { setImportedFiles([]); setImportMode('select'); };
-
-  if (importMode === 'select') {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', animation: 'fadeIn 0.3s ease', maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
-        <Upload size={48} color="var(--accent)" style={{ marginBottom: 24, opacity: 0.8 }} />
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: 12 }}>Import Manuscript</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 32, lineHeight: 1.6, fontSize: '0.95rem' }}>Upload an existing manuscript to add it to your project. Supported formats: Markdown, Text, Word, Fountain, PDF.</p>
-        <div onDrop={handleDrop} onDragOver={handleDragOver} onClick={() => fileInputRef.current?.click()} style={{ width: '100%', padding: 48, border: '2px dashed var(--border)', borderRadius: 8, backgroundColor: 'var(--bg-card)', cursor: 'pointer', transition: 'all 0.2s ease', marginBottom: 24 }} onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.backgroundColor = 'rgba(var(--accent-rgb), 0.05)'; }} onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.backgroundColor = 'var(--bg-card)'; }}>
-          <FileText size={32} color="var(--text-muted)" style={{ marginBottom: 12, opacity: 0.6 }} />
-          <p style={{ fontSize: '1rem', fontWeight: 500, marginBottom: 4 }}>Drag files here to import</p>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>or click to browse</p>
-        </div>
-        <input ref={fileInputRef} type="file" multiple accept={acceptedFormats.join(',')} onChange={handleFileInputChange} style={{ display: 'none' }} />
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 24 }}>Supported: {acceptedFormats.join(', ')}</p>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <Button variant="secondary" onClick={() => navigate('/workspace')}>Cancel</Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (importMode === 'confirm') {
-    return (
-      <div style={{ padding: 40, animation: 'fadeIn 0.3s ease', maxWidth: 600, margin: '0 auto' }}>
-        <h2 style={{ fontSize: '1.3rem', fontWeight: 600, marginBottom: 24 }}>Review Files to Import</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 32 }}>
-          {importedFiles.map((f, idx) => (
-            <div key={idx} style={{ padding: 16, backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <FileText size={20} color="var(--accent)" />
-              <div style={{ flex: 1, minWidth: 0 }}><p style={{ fontWeight: 500, marginBottom: 4 }}>{f.name}</p><p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{(f.size / 1024).toFixed(1)} KB</p></div>
-              <div style={{ fontSize: '0.8rem', padding: '4px 8px', backgroundColor: 'var(--bg-secondary)', borderRadius: 4 }}>{f.ext.toUpperCase()}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ padding: 16, backgroundColor: 'rgba(var(--accent-rgb), 0.05)', border: '1px solid var(--border)', borderRadius: 6, marginBottom: 32, fontSize: '0.9rem', lineHeight: 1.6 }}>
-          <p style={{ marginBottom: 8 }}>Files will be imported to your project's <code style={{ backgroundColor: 'var(--bg-secondary)', padding: '2px 6px', borderRadius: 3 }}>imported/</code> folder.</p>
-          <p>You can review, edit, and organize them within the project after import.</p>
-        </div>
-        <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-          <Button variant="secondary" onClick={handleReset} disabled={importing}>Back</Button>
-          <Button variant="primary" onClick={handleImport} disabled={importing}>{importing ? 'Importing...' : 'Import Files'}</Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (importMode === 'importing') {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', animation: 'fadeIn 0.3s ease', maxWidth: 400, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 300 }}>
-        <div style={{ width: 48, height: 48, marginBottom: 24, animation: 'spin 1s linear infinite' }}><Upload size={48} color="var(--accent)" /></div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: 12 }}>Importing Files</h2>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>Please wait while your files are imported...</p>
-      </div>
-    );
-  }
-
-  return null;
-}
-
 function PlaceholderMode({ name }) {
   return (
     <div style={{ padding: 40, textAlign: 'center', animation: 'fadeIn 0.3s ease' }}>
@@ -7413,11 +7212,8 @@ export default function WorkspaceScreen() {
   }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasDirtyState = () => {
-    // Check local component dirty state
     if (Object.keys(editedFiles).length > 0) return true;
     if (newChar.name || newChar.bio) return true;
-    // Check store dirty state (tracks unsaved file changes)
-    if (storeIsDirty) return true;
     return false;
   };
 
@@ -7436,11 +7232,10 @@ export default function WorkspaceScreen() {
     setActiveFile(null);
     setActiveMode('guided');
     setActivePhase(null);
-    setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
     phaseInitRef.current = false; // allow re-initialization for new project
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
-    // Switch to new project (automatically marks clean in setActiveProject)
+    // Switch to new project
     await setActiveProject(projectId);
   };
 
@@ -7450,8 +7245,6 @@ export default function WorkspaceScreen() {
     for (const [path, content] of Object.entries(editedFiles)) {
       await updateFile(path, content);
     }
-    // Mark store as clean after saving all files
-    markClean();
     await performProjectSwitch(pendingSwitchId);
   };
   // Phase answers — tracks user input per phase per question (hydrated from store below)
@@ -7463,8 +7256,6 @@ export default function WorkspaceScreen() {
   const activeProject = useProjectStore(s => s.activeProject);
   const projects = useProjectStore(s => s.projects);
   const setActiveProject = useProjectStore(s => s.setActiveProject);
-  const storeIsDirty = useProjectStore(s => s.isDirty);
-  const markClean = useProjectStore(s => s.markClean);
   const tourCompleted = useSettingsStore(s => s.tourCompleted);
 
   // Redirect to hub if no active project is loaded
@@ -7472,15 +7263,7 @@ export default function WorkspaceScreen() {
     if (!activeProject) {
       navigate('/hub', { replace: true });
     }
-  }, [activeProject, navigate]);
-
-  // Track changes in editedFiles as dirty state (for unsaved editor changes)
-  useEffect(() => {
-    const { setDirty } = useProjectStore.getState();
-    if (Object.keys(editedFiles).length > 0) {
-      setDirty(true);
-    }
-  }, [editedFiles]);
+  }, [activeProject, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Sanitize title — strip markdown heading markers (e.g. "##### Title" → "Title")
   useEffect(() => {
@@ -7891,7 +7674,24 @@ export default function WorkspaceScreen() {
         onViewRelationships={() => { setActiveMode('graph'); }}
       />;
       case 'search': return <SearchPanel onOpenFile={(path) => { setActiveFile(path); setActiveMode('reader'); }} onClose={() => setActiveMode('guided')} />;
-      case 'import': return <ImportMode updateFile={useProjectStore.getState().updateFile} activeProject={activeProject} />;
+      case 'import': return (
+        <div style={{ padding: 40, textAlign: 'center', animation: 'fadeIn 0.3s ease', maxWidth: 560, margin: '0 auto' }}>
+          <Upload size={40} color="var(--accent)" style={{ marginBottom: 16 }} />
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: 8 }}>Import Manuscript</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.6 }}>
+            Upload an existing manuscript to decompose it into chapters and run the Serendipity Engine analysis pipeline in reverse.
+          </p>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+            <Button variant="primary" onClick={() => navigate('/wizard?mode=decompose')}>
+              <Upload size={14} style={{ marginRight: 6 }} />
+              Start Decomposition Wizard
+            </Button>
+            <Button variant="secondary" onClick={() => setActiveMode('guided')}>
+              Back to Guide
+            </Button>
+          </div>
+        </div>
+      );
       default: return <PlaceholderMode name={centerStageModes.find(m => m.key === activeMode)?.label || activeMode} />;
     }
   };
@@ -8803,7 +8603,6 @@ export default function WorkspaceScreen() {
             </p>
             <ul style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 20, paddingLeft: 20, lineHeight: 1.8 }}>
               {Object.keys(editedFiles).length > 0 && <li>{Object.keys(editedFiles).length} edited file(s)</li>}
-              {storeIsDirty && <li>File changes in editor</li>}
               {(newChar.name || newChar.bio) && <li>Partially created character</li>}
             </ul>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

@@ -147,7 +147,7 @@ function ShortcutsModal({ onClose }) {
   );
 }
 
-export default function TopBar({ projectName, healthRating, showHealth = true, projectMode, onHealthClick, onSettingsClick, onThemeClick, onTourClick }) {
+export default function TopBar({ projectName, healthRating, showHealth = true, projectMode, onHealthClick, onSettingsClick, onThemeClick, onTourClick, onShowShortcuts }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
@@ -283,7 +283,7 @@ export default function TopBar({ projectName, healthRating, showHealth = true, p
       <button onClick={() => setShowSearch(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Command Palette (Ctrl+K)">
         <Search size={16} />
       </button>
-      <button onClick={() => setShowShortcuts(true)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Keyboard Shortcuts">
+      <button onClick={() => onShowShortcuts?.()} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Keyboard Shortcuts (Ctrl+/)">
         <Keyboard size={16} />
       </button>
       <button onClick={onThemeClick || (() => navigate('/settings?tab=general'))} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 6 }} title="Theme">

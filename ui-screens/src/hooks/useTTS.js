@@ -241,8 +241,8 @@ export function useTTS() {
   }, []);
 
   return {
-    speaking,
-    paused,
+    isSpeaking: speaking,
+    isPaused: paused,
     currentWord,
     currentSentence,
     speak,

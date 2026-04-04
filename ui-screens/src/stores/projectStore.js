@@ -95,6 +95,7 @@ export const useProjectStore = create((set, get) => ({
   phaseProgress: [],
   sessionLog: [],
   loading: false,
+  isDirty: false, // Tracks unsaved changes in editor
 
   /**
    * Load all projects from IndexedDB
@@ -177,6 +178,20 @@ export const useProjectStore = create((set, get) => ({
   },
 
   /**
+   * Set dirty state (unsaved changes)
+   */
+  setDirty: (isDirty) => {
+    set({ isDirty });
+  },
+
+  /**
+   * Mark project as clean (all changes saved)
+   */
+  markClean: () => {
+    set({ isDirty: false });
+  },
+
+  /**
    * Open / set active project
    */
   setActiveProject: async (projectId) => {
@@ -184,6 +199,8 @@ export const useProjectStore = create((set, get) => ({
     if (!project) return null;
 
     set({ activeProjectId: projectId, activeProject: project });
+    // Mark clean when switching projects (all previous changes should be saved)
+    set({ isDirty: false });
     await get().loadProjectFiles(projectId);
     await get().loadSessionLog(projectId);
     return project;
@@ -268,12 +285,12 @@ export const useProjectStore = create((set, get) => ({
         await db.projectFiles.add({ projectId, path, content, updatedAt: Date.now() });
       }
 
-      // Update local state
+      // Update local state and mark as dirty
       set(state => {
         const newFiles = { ...state.files, [path]: content };
         const project = state.activeProject;
         const progress = computePhaseProgress(newFiles, project?.phaseAnswers);
-        return { files: newFiles, phaseProgress: progress };
+        return { files: newFiles, phaseProgress: progress, isDirty: true };
       });
 
       // Update project timestamp
