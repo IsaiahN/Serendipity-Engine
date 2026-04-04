@@ -323,30 +323,30 @@ export default function VersionHistory({ onClose, onRestore }) {
   const [filterFile, setFilterFile] = useState(null);
   const [previewEntry, setPreviewEntry] = useState(null);
 
-  // Get session log from projectStore (or build from file history)
+  // Get session log from projectStore (loaded from IndexedDB on project open)
   const files = useProjectStore(s => s.files);
-  const activeProject = useProjectStore(s => s.activeProject);
+  const sessionLog = useProjectStore(s => s.sessionLog);
 
   // Build history from session log entries
   const history = useMemo(() => {
     const entries = [];
-    const sessionLog = activeProject?.sessionLog || [];
 
     for (const log of sessionLog) {
       if (log.type === 'file-edit' || log.type === 'file-create') {
         entries.push({
           id: log.id || `${log.timestamp}-${log.filename}`,
-          filename: log.filename,
+          filename: log.filename || log.path,
           action: log.type === 'file-create' ? 'create' : 'edit',
           timestamp: log.timestamp,
-          content: log.content || files[log.filename] || '',
+          content: log.content || files[log.filename || log.path] || '',
           previousContent: log.previousContent || null,
           description: log.description || null,
         });
       }
     }
 
-    // If no session log, generate synthetic entries from current files
+    // If no session log entries yet, generate synthetic entries from current files
+    // so there's always something to show
     if (entries.length === 0 && files) {
       const now = Date.now();
       Object.keys(files).sort().forEach((filename, i) => {
@@ -365,7 +365,7 @@ export default function VersionHistory({ onClose, onRestore }) {
     // Sort newest first
     entries.sort((a, b) => b.timestamp - a.timestamp);
     return entries;
-  }, [activeProject?.sessionLog, files]);
+  }, [sessionLog, files]);
 
   // Get unique filenames for filter
   const fileList = useMemo(() => {

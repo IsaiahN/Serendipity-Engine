@@ -93,6 +93,7 @@ export const useProjectStore = create((set, get) => ({
   activeProject: null,
   files: {},
   phaseProgress: [],
+  sessionLog: [],
   loading: false,
 
   /**
@@ -184,7 +185,25 @@ export const useProjectStore = create((set, get) => ({
 
     set({ activeProjectId: projectId, activeProject: project });
     await get().loadProjectFiles(projectId);
+    await get().loadSessionLog(projectId);
     return project;
+  },
+
+  /**
+   * Load session log entries for a project from IndexedDB
+   */
+  loadSessionLog: async (projectId) => {
+    try {
+      const logs = await db.sessionLogs
+        .where('projectId')
+        .equals(projectId)
+        .reverse()
+        .sortBy('timestamp');
+      set({ sessionLog: logs || [] });
+    } catch (err) {
+      console.warn('Failed to load session logs:', err);
+      set({ sessionLog: [] });
+    }
   },
 
   /**
@@ -240,6 +259,9 @@ export const useProjectStore = create((set, get) => ({
         .equals([projectId, path])
         .first();
 
+      const previousContent = existing?.content || null;
+      const isCreate = !existing;
+
       if (existing) {
         await db.projectFiles.update(existing.id, { content, updatedAt: Date.now() });
       } else {
@@ -256,6 +278,32 @@ export const useProjectStore = create((set, get) => ({
 
       // Update project timestamp
       await db.projects.update(projectId, { updatedAt: Date.now() });
+
+      // ── Auto-log file edit to session log for Version History ──
+      const countWords = (text) => text ? text.split(/\s+/).filter(Boolean).length : 0;
+      const wordsBefore = countWords(previousContent);
+      const wordsAfter = countWords(content);
+      const filename = path; // Store full path as the filename key
+      const logEntry = {
+        projectId,
+        timestamp: Date.now(),
+        type: isCreate ? 'file-create' : 'file-edit',
+        filename,
+        path,
+        wordsBefore,
+        wordsAfter,
+        delta: wordsAfter - wordsBefore,
+        content,
+        previousContent,
+      };
+
+      try {
+        await db.sessionLogs.add(logEntry);
+        // Append to in-memory sessionLog so VersionHistory updates reactively
+        set(state => ({ sessionLog: [logEntry, ...state.sessionLog] }));
+      } catch (logErr) {
+        console.warn('Failed to log file edit:', logErr);
+      }
     } catch (err) {
       console.warn('Failed to update file:', err);
       // Queue for background sync if the save failed (e.g., quota exceeded, corruption)
@@ -386,10 +434,13 @@ export const useProjectStore = create((set, get) => ({
     const projectId = get().activeProjectId;
     if (!projectId) return;
 
-    await db.sessionLogs.add({
+    const logEntry = {
       projectId,
       timestamp: Date.now(),
       ...entry,
-    });
+    };
+    await db.sessionLogs.add(logEntry);
+    // Also update in-memory log so VersionHistory updates reactively
+    set(state => ({ sessionLog: [logEntry, ...state.sessionLog] }));
   },
 }));
