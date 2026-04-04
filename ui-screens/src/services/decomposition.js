@@ -286,22 +286,136 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
     }
 
     case 'characters': {
-      prompt = buildCharacterProfilesPrompt(sourceText);
-      // Scale maxTokens with source length — longer works tend to have larger casts.
-      // Short story (~5k chars): ~4000 tokens. Novel (~200k+ chars): up to 8000 tokens.
-      const charMaxTokens = Math.min(8000, Math.max(4000, Math.round(sourceText.length / 25)));
-      const charsResult = await sendMessage({
-        messages: [{ role: 'user', content: prompt }],
-        role: 'analyst',
-        maxTokens: charMaxTokens,
-      });
-      if (charsResult.success) {
-        const cleaned = removeEmdashes(charsResult.content);
-        const characterFiles = parseCharacterMarkdown(cleaned);
-        Object.assign(files, characterFiles);
-      } else {
-        throw new Error(charsResult.error || 'Character profile extraction failed');
+      // Three-pass character extraction to ensure ALL characters are profiled:
+      //   Pass 1: Lightweight name scan across the FULL text (short output, cheap)
+      //   Pass 2: Batch profile generation — split the character list into batches
+      //           of ~8 characters so no single LLM call runs out of output tokens
+      //   Pass 3: Verification — check which characters from the scan were actually
+      //           profiled and re-run any that were missed
+
+      // --- Pass 1: Character name scan (FULL text) ---
+      let characterList = '';
+      let scanLines = [];
+      try {
+        const scanPrompt = PROMPTS.DECOMPOSE_CHARACTERS_SCAN.build({ sourceText });
+        const scanResult = await sendMessage({
+          messages: [{ role: 'user', content: scanPrompt }],
+          role: 'analyst',
+          maxTokens: 4000, // Generous — big casts with collectives + societies
+        });
+        if (scanResult.success) {
+          characterList = removeEmdashes(scanResult.content);
+          scanLines = characterList.split('\n').filter(l => l.trim() && l.includes('|'));
+          console.log('[Decomposition] Character scan found:', scanLines.length, 'characters');
+        }
+      } catch (scanErr) {
+        console.warn('[Decomposition] Character scan pass failed, proceeding with single-pass:', scanErr);
       }
+
+      // --- Pass 2: Batched character profiles ---
+      // Why batching? When there are 15+ characters and the template is deep (voice
+      // fingerprint, MBTI, wound/flaw/virtue, etc.), a single LLM call can run out of
+      // output tokens and silently drop characters at the end. Minor characters are
+      // sorted last, so they get dropped first. By batching into groups of ~8,
+      // every character gets profiled even on weaker models.
+      const BATCH_SIZE = 8; // Characters per batch — balances depth vs API calls
+      const allCharacterFiles = {};
+
+      if (scanLines.length > 0) {
+        // Split scan lines into batches
+        const batches = [];
+        for (let i = 0; i < scanLines.length; i += BATCH_SIZE) {
+          batches.push(scanLines.slice(i, i + BATCH_SIZE));
+        }
+        console.log(`[Decomposition] Processing ${scanLines.length} characters in ${batches.length} batch(es)`);
+
+        for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+          const batch = batches[batchIdx];
+          const batchList = batch.join('\n');
+          const batchPrompt = buildCharacterProfilesPrompt(sourceText, batchList);
+
+          // Token budget: generous per-character allocation since batch is small
+          const batchMaxTokens = Math.min(16000, Math.max(4000, batch.length * 1500));
+
+          console.log(`[Decomposition] Batch ${batchIdx + 1}/${batches.length}: ${batch.length} characters, maxTokens=${batchMaxTokens}`);
+
+          try {
+            const batchResult = await sendMessage({
+              messages: [{ role: 'user', content: batchPrompt }],
+              role: 'analyst',
+              maxTokens: batchMaxTokens,
+            });
+            if (batchResult.success) {
+              const cleaned = removeEmdashes(batchResult.content);
+              const batchFiles = parseCharacterMarkdown(cleaned);
+              Object.assign(allCharacterFiles, batchFiles);
+              console.log(`[Decomposition] Batch ${batchIdx + 1} produced ${Object.keys(batchFiles).length} character files`);
+            } else {
+              console.warn(`[Decomposition] Batch ${batchIdx + 1} failed:`, batchResult.error);
+            }
+          } catch (batchErr) {
+            console.warn(`[Decomposition] Batch ${batchIdx + 1} error:`, batchErr);
+          }
+        }
+      } else {
+        // Fallback: no scan results — single-pass with full text
+        console.log('[Decomposition] No scan results — running single-pass character extraction');
+        prompt = buildCharacterProfilesPrompt(sourceText, '');
+        const fallbackResult = await sendMessage({
+          messages: [{ role: 'user', content: prompt }],
+          role: 'analyst',
+          maxTokens: 16000,
+        });
+        if (fallbackResult.success) {
+          const cleaned = removeEmdashes(fallbackResult.content);
+          Object.assign(allCharacterFiles, parseCharacterMarkdown(cleaned));
+        } else {
+          throw new Error(fallbackResult.error || 'Character profile extraction failed');
+        }
+      }
+
+      // --- Pass 3: Verification — catch any missed characters ---
+      if (scanLines.length > 0) {
+        const profiledSlugs = new Set(Object.keys(allCharacterFiles).map(p =>
+          p.replace('characters/', '').replace('.md', '')
+        ));
+
+        // Check each scan line character against profiled files
+        const missed = scanLines.filter(line => {
+          const namePart = line.split('|')[0].trim();
+          const slug = namePart.toLowerCase().replace(/\s*\(.*?\)\s*/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+          // Check if any profiled slug contains this slug or vice versa
+          return ![...profiledSlugs].some(ps => ps.includes(slug) || slug.includes(ps) || ps === slug);
+        });
+
+        if (missed.length > 0) {
+          console.log(`[Decomposition] Verification found ${missed.length} missed characters, running recovery batch:`, missed.map(l => l.split('|')[0].trim()));
+          const recoveryList = missed.join('\n');
+          const recoveryPrompt = buildCharacterProfilesPrompt(sourceText, recoveryList);
+          const recoveryMaxTokens = Math.min(16000, Math.max(4000, missed.length * 1500));
+
+          try {
+            const recoveryResult = await sendMessage({
+              messages: [{ role: 'user', content: recoveryPrompt }],
+              role: 'analyst',
+              maxTokens: recoveryMaxTokens,
+            });
+            if (recoveryResult.success) {
+              const cleaned = removeEmdashes(recoveryResult.content);
+              const recoveryFiles = parseCharacterMarkdown(cleaned);
+              Object.assign(allCharacterFiles, recoveryFiles);
+              console.log(`[Decomposition] Recovery batch produced ${Object.keys(recoveryFiles).length} additional character files`);
+            }
+          } catch (recErr) {
+            console.warn('[Decomposition] Recovery batch failed:', recErr);
+          }
+        } else {
+          console.log('[Decomposition] Verification passed — all scanned characters have profiles');
+        }
+      }
+
+      console.log(`[Decomposition] Total character files produced: ${Object.keys(allCharacterFiles).length}`);
+      Object.assign(files, allCharacterFiles);
       break;
     }
 
@@ -781,14 +895,25 @@ function buildWorldBuildingPrompt(sourceText) {
   });
 }
 
-function buildCharacterProfilesPrompt(sourceText) {
-  // Characters can appear anywhere in a manuscript, so we need a large excerpt.
-  // For short stories we might only have ~5k chars total. For novels, we sample
-  // generously — up to 20k — so the LLM can see characters from later acts.
-  // Previous limit of 3500 only caught ~6 chars from early chapters.
-  const excerptLen = Math.min(20000, sourceText.length);
+function buildCharacterProfilesPrompt(sourceText, characterList = '') {
+  // Send as much of the source text as possible so the LLM can write accurate profiles.
+  // The character scan list (pass 1) ensures we know WHO to profile even if the excerpt
+  // doesn't show every character.
+  //
+  // Strategy:
+  // - Short texts (<60k chars / ~15k tokens): send everything
+  // - Medium texts (60k-200k): send everything (fits in Claude/GPT-4 context easily)
+  // - Very long texts (200k+): send first 180k chars (~45k tokens) which is still most of the book
+  //   The name scan already caught all characters, so even if the tail is trimmed,
+  //   the LLM has the checklist to work from.
+  const maxExcerpt = 180000; // ~45k tokens — fits comfortably in 200k context with prompt overhead
+  const excerpt = sourceText.length <= maxExcerpt
+    ? sourceText
+    : sourceText.substring(0, maxExcerpt) + '\n\n[... text truncated for length — all characters were identified in the scan above ...]';
+
   return PROMPTS.DECOMPOSE_CHARACTERS.build({
-    sourceExcerpt: sourceText.substring(0, excerptLen),
+    sourceExcerpt: excerpt,
+    characterList: characterList || '',
   });
 }
 
@@ -904,21 +1029,29 @@ function parseCharacterMarkdown(content) {
 
   sections.forEach((section) => {
     const lines = section.split('\n');
-    const charName = lines[0].trim();
+    let charName = lines[0].trim();
     if (!charName) return; // skip empty sections
 
-    // Strip parenthetical aliases for the filename slug (keep in content)
+    // Strip trailing dash-separated suffixes like " — Character Decomposition", " - Literary Analysis"
+    charName = charName.replace(/\s*[—–]+\s*(Character Decomposition|Literary Analy\w+|Deep Character Extraction|Character Extraction|Character Census).*$/i, '').trim();
+
+    // Strip parenthetical aliases/type markers for the filename slug (keep in content)
     // "Elphaba Thropp (The Wicked Witch of the West)" → "Elphaba Thropp"
+    // "The Land of Oz (Society)" → "The Land of Oz"
+    // "The Munchkins (Collective)" → "The Munchkins"
     const nameForSlug = charName.replace(/\s*\(.*?\)\s*/g, '').trim();
     const safeName = (nameForSlug || charName).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     if (!safeName) return; // skip if name produces empty slug
 
     // Determine the heading prefix to restore based on which split matched
-    const headingPrefix = cleaned.includes(`## ${charName}`) ? '## ' :
-                          cleaned.includes(`# ${charName}`) ? '# ' :
-                          cleaned.includes(`### ${charName}`) ? '### ' : '## ';
+    const rawFirstLine = lines[0].trim();
+    const headingPrefix = cleaned.includes(`## ${rawFirstLine}`) ? '## ' :
+                          cleaned.includes(`# ${rawFirstLine}`) ? '# ' :
+                          cleaned.includes(`### ${rawFirstLine}`) ? '### ' : '## ';
 
-    files[`characters/${safeName}.md`] = `${headingPrefix}${section}`.trim();
+    // Replace the raw first line with the cleaned charName in the stored content
+    const cleanedSection = charName + section.slice(rawFirstLine.length);
+    files[`characters/${safeName}.md`] = `${headingPrefix}${cleanedSection}`.trim();
   });
 
   return files;

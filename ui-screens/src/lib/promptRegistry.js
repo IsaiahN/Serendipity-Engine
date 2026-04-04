@@ -508,52 +508,231 @@ Include specific textual references for each observation.
   },
 
   // ═════════════════════════════════════════════════════════════════════
-  //  12. DECOMPOSITION — Character Profiles
+  //  12a. DECOMPOSITION — Character Name Scan (Pass 1: fast, cheap)
   // ═════════════════════════════════════════════════════════════════════
   /**
-   * CONTEXT:     Receives: first 3500 chars of manuscript.
+   * CONTEXT:     Receives: FULL manuscript text.
+   * OUTPUT:      Simple list of every character name + tier. Short output even for huge input.
+   * PURPOSE:     Ensures no character is missed before the expensive profiling pass.
+   */
+  DECOMPOSE_CHARACTERS_SCAN: {
+    build: ({ sourceText }) => GOLDEN_RULES + `
+## Your Role: Character Census Taker
+
+Read the ENTIRE manuscript below and list **every single character** who appears, is mentioned, or is referenced, no matter how briefly. This is the foundation for all character work. Miss nobody.
+
+### What counts as a character:
+- **Named individuals** (Dorothy, Gandalf, etc.)
+- **Named animals or creatures** (Toto, Shadowfax) — animals that accompany main characters, serve as companions, or affect the plot
+- **Society / The Structural Character** — the dominant social order the characters live inside. Society is always a character. It predates every named character and outlasts most of them. It has a role, a want, a wound, a flaw, a cost, and an enforcement mechanism. Name it by what it is (e.g. "Kansas Prairie Society", "The Land of Oz", "Gilead", "The Capitol").
+- **Collective / Societal characters** — groups of people that function as a single character entity: a population, a community, a faction, a workforce, an oppressed people, an institution. They speak in a collective voice and exert pressure as a unit. Examples: The Munchkins, The Emerald City Citizens, The Winkie Guards, The Flying Monkeys, The Trees/Forest People. If a group has its own identity, values, and behavioral patterns, it is a collective character.
+- **Catalyst characters** — characters who are load-bearing in their ABSENCE rather than presence (a dead parent, a missing person, a rumored figure). They never appear on-page but their influence shapes the plot.
+- **Characters referenced but never on-page** ("my mother" if she is named)
+- **Unnamed but distinct characters** with recurring presence ("the guard", "the innkeeper") — only if they have dialogue or affect the plot
+
+### Manuscript:
+${sourceText}
+
+### Output format (one per line, nothing else):
+\`\`\`
+[Character Name] | [tier] | [first appearance context]
+\`\`\`
+
+Where tier is one of:
+- **protagonist** — the central character whose arc IS the story
+- **deuteragonist** — the second most important character; may share the protagonist's arc or run a parallel one
+- **antagonist** — the force (person, system, or internal) that opposes the protagonist's want
+- **supporting** — named characters with their own arcs and stakes
+- **minor** — named characters who appear in scenes but have no arc of their own (Aunt Em, Uncle Henry, the Gatekeeper)
+- **catalyst** — load-bearing in absence; shapes events without appearing on-page
+- **collective** — a group that functions as a single character (The Munchkins, The Flying Monkeys)
+- **societal** — the dominant society or social structure itself, as a character
+- **mentioned** — referenced by name but does not appear
+- **extra** — scene-functional, no arc, minimal presence
+
+Example:
+\`\`\`
+The Land of Oz | societal | Chapter 2, the world Dorothy enters
+Dorothy Gale | protagonist | Chapter 1, Kansas farm
+Toto | supporting | Chapter 1, Dorothy's dog
+The Wicked Witch of the West | antagonist | Chapter 12, terrorizes travelers
+The Scarecrow | deuteragonist | Chapter 3, found on pole
+Aunt Em | minor | Chapter 1, Dorothy's guardian
+Uncle Henry | minor | Chapter 1, Dorothy's uncle
+The Munchkins | collective | Chapter 2, greet Dorothy
+The Emerald City Citizens | collective | Chapter 11, the green city population
+The Winkie Guards | collective | Chapter 12, enslaved soldiers
+The Flying Monkeys | collective | Chapter 12, serve the Golden Cap
+Kansas Prairie Society | societal | Chapter 1, the gray, hardscrabble world
+\`\`\`
+
+### Rules:
+- Be EXHAUSTIVE. Miss nobody. If in doubt, include them.
+- Animals count. Groups count. Societies count. Briefly mentioned names count.
+- **Always include at least one societal character** — the dominant social order is always present.
+- **Identify ALL collective groups** — any population, faction, community, or group that acts as a unit gets its own entry.
+- **Minor characters are NOT optional.** Characters who appear in only 1-2 scenes still get listed. Aunts, uncles, guardians, gatekeepers, guards, servants, messengers, shopkeepers, farmers, witches who appear briefly — ALL of them. A character mentioned by name or title in even a single sentence counts.
+- **Scan EVERY chapter/scene/act.** Do not stop scanning after the first few chapters. Characters introduced late in the text (Act 2, final chapters, epilogue) are just as important.
+- **Backstory characters count.** If a character's history mentions people by name or title (a tinsmith, an old woman, a princess, a lover), list them.
+- Keep it to one line per character — no descriptions, no analysis.
+- Order by first appearance in the text.
+- **Aim for completeness over brevity.** 20-50 entries is normal for a full novel or script. If you have fewer than 15, you are probably missing characters.
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  12b. DECOMPOSITION — Character Profiles (Pass 2: full profiles)
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * CONTEXT:     Receives: full manuscript + character list from scan pass.
    * OUTPUT:      Character profiles (parsed into individual files).
    * DESTINATION: Saved as characters/{name}.md for each character.
    */
   DECOMPOSE_CHARACTERS: {
-    build: ({ sourceExcerpt }) => GOLDEN_RULES + `
-## Your Role: Literary Analyst — Character Extraction
+    build: ({ sourceExcerpt, characterList }) => GOLDEN_RULES + `
+## Your Role: Literary Analyst — Deep Character Extraction
 
-Extract and profile **every character** who appears in this manuscript — no limits, no caps. Some stories have 3 characters, some have 50. Profile them all. The depth of each profile should be proportional to how much that character actually does in the text: a character who drives entire plot arcs gets a rich, detailed profile; a character who appears in one scene gets a brief but complete entry.
+${characterList ? `A character scan of this manuscript identified the following characters. You MUST write a profile for **every single one** of them, do not skip any, even minor, collective, or mentioned-only characters:\n\n${characterList}\n\n` : ''}Extract and profile **every character** who appears in this manuscript, no limits, no caps. Some stories have 3 characters, some have 50. Profile them all.
 
-Users need these profiles to chat AS any character, remix the story from any character's POV, and compare characters across different works. Even a dog, a crowd member with one line, or a character mentioned only by name matters.
+The depth of each profile should be proportional to how much that character actually does in the text. Users need these profiles to chat AS any character, remix the story from any character's POV, and compare characters across different works. Even a dog, a crowd member with one line, or a character mentioned only by name matters.
 
 ### Text:
 ${sourceExcerpt}
 
-### For each character, create a markdown section:
+---
+
+### CHARACTER TYPES — Use the Right Template
+
+There are several character types. Use the appropriate template for each:
+
+**1. Individual Characters** (protagonist, deuteragonist, antagonist, supporting, minor, mentioned, catalyst, extra)
+Use the FULL INDIVIDUAL TEMPLATE below. Scale depth to presence in the text.
+
+**2. Society / The Structural Character** (tier: societal)
+Society is always a character. It predates every named character in the story and outlasts most of them. Use the SOCIETY TEMPLATE below.
+
+**3. Collective Characters** (tier: collective)
+Groups that function as a single character entity: a population, a community, a faction, a workforce, an institution. They have a collective voice, shared values, and exert pressure as a unit. Examples: The Munchkins, Emerald City Citizens, The Flying Monkeys, forest dwellers, an army. Use the COLLECTIVE TEMPLATE below.
+
+---
+
+### FULL INDIVIDUAL TEMPLATE (for protagonist, deuteragonist, antagonist, supporting, minor, catalyst, extra, mentioned):
 
 # Characters
 
 ## [Character Name]
-- **Tier**: protagonist | deuteragonist | antagonist | supporting | minor | mentioned
-- **Role**: Their narrative function (e.g. "Mentor", "Comic relief", "Love interest", "Companion animal", "Villain's henchman", "Foil to X")
-- **Physical Description**: Age, appearance, distinctive features (write "Not described" if absent)
-- **Personality**: Key traits, temperament
-- **Motivations**: What drives them
-- **Relationships**: Key connections to other characters
-- **Arc**: Growth or change over the story (write "Static" or "Minimal" for characters with no arc)
+
+### Core Identity
+- **Tier**: protagonist | deuteragonist | antagonist | supporting | minor | catalyst | extra | mentioned
+- **Role**: Narrative function (e.g. "Mentor", "Foil to X", "Companion animal", "Trickster", "Herald")
+- **Age Range**: Child (0-12) | Teenager (13-17) | Young Adult (18-25) | Adult (26-39) | Middle-Aged (40-54) | Mature (55-64) | Senior (65-74) | Elderly (75+) | Unknown
+- **Gender**: As presented in text
+
+### Physical Description
+- **Build / Body Type**: (e.g. slim, stocky, athletic, gaunt, lanky, heavyset)
+- **Height**: (if described or implied)
+- **Hair**: Color, texture, length, style
+- **Eyes**: Color, shape
+- **Skin**: Tone, texture notes
+- **Distinguishing Features**: Scars, birthmarks, tattoos, disabilities, chronic conditions
+- **Posture & Movement**: How they carry themselves, how they move through space
+- **Style / Presentation**: How they dress, what their appearance signals
+(Write "Not described" for any field with no textual evidence)
+
+### Personality & Psychology
+- **MBTI Type**: [INFERRED] Best-fit type with reasoning (e.g. "ISTJ [INFERRED] - methodical, duty-bound, relies on past experience")
+- **Enneagram**: [INFERRED] Core type + wing + stress/growth arrows (e.g. "6w5 [INFERRED] - loyalty-driven, skeptical, moves to 3 under stress")
+- **Moral Alignment**: Lawful Good | Neutral Good | Chaotic Good | Lawful Neutral | True Neutral | Chaotic Neutral | Lawful Evil | Neutral Evil | Chaotic Evil
+- **Emotional Register**: Default tonal state (e.g. "anxious optimism", "guarded warmth", "weary resignation")
+- **Life Philosophy**: What they believe is true about the world
+
+### Wound, Flaw & Virtue
+- **Core Wound**: The formative damage; the thing that happened (or didn't happen) that shaped everything after
+- **Core Flaw**: The behavioral pattern that emerges from the wound (must be psychologically traceable to the wound)
+- **Core Virtue**: The genuine tension counterpart to the flaw, not its opposite, its shadow
+- **Wound-Flaw-Virtue Coherence**: One sentence tracing the line from wound to flaw to virtue
+
+### Motivations & Arc
+- **Want**: What they pursue consciously (the surface goal)
+- **Need**: What they actually require for wholeness (often invisible to them)
+- **Arc**: Growth or change over the story. How do they change from beginning to end? (Write "Static" or "Minimal" for characters with no arc)
 - **Conflicts**: Internal and external struggles
-- **Voice Notes**: Speech patterns, catchphrases, dialect, communication style (e.g. "speaks in growls", "formal Victorian English", "silent — communicates through action"). This is critical for enabling character chat.
 
-### How much to write per character:
-Scale the detail to match the character's presence in the text:
-- **Heavy presence** (drives scenes, has dialogue, has an arc): 4-8 lines per field. Go deep.
-- **Moderate presence** (recurring but not central): 2-4 lines per field.
-- **Light presence** (one or two scenes, a few lines): 1-2 lines per field.
-- **Mentioned only** (referenced but doesn't appear on-page): 1 line per field, best-guess from context.
+### Relationships
+- **Key Connections**: List each significant relationship with type and dynamic
+- **Attachment Style**: Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant [INFERRED from behavior in text]
 
-### Rules:
-- **There is NO character count limit.** If the text has 40 named characters, output 40 sections. If it has 4, output 4.
-- Order by level of narrative presence, heaviest first.
-- Non-human characters (animals, AI, spirits, etc.) absolutely count — give them profiles.
-- Groups that function as a single character (e.g. "The Munchkins", "The Council") can share one section.
+### Values & Code
+- **Core Values**: 1-2 values this character holds most important (e.g. loyalty, freedom, justice, security)
+- **Personal Code**: 2-3 behavioral rules they live by, consciously or not (e.g. "never let them see you bleed", "pay your debts", "protect those who can't protect themselves")
+- **Self-Care Mechanism**: What they reach for when depleted (healthy, ambiguous, or destructive)
+
+### Voice Fingerprint
+This is critical for enabling character chat. Derive from the character's actual dialogue in the text:
+- **Speech Rhythm**: (e.g. clipped/staccato, flowing/periodic, rambling/associative, fragmented/trailing, circling/recursive)
+- **Vocabulary Register**: (e.g. formal/elevated, plain/working, technical/specialist, colloquial/regional, code-switching)
+- **Volume & Pacing**: (e.g. quiet by default, loud under pressure, measured regardless, halting/stop-start)
+- **Dialogue Tic**: A single recurring speech habit unique to this character (e.g. "deflects with humor", "qualifies everything with 'maybe'", "answers questions with questions")
+- **Metaphor Family**: The domain their analogies come from (e.g. weather/nature, military/tactical, food/hunger, construction/architecture, religion/scripture)
+- **Defensive Speech Pattern**: What their voice does under threat, involuntarily (e.g. gets louder, goes quiet, deflects with humor, over-explains, becomes formal, attacks first)
+- **Subtext Default**: The thing they cannot say directly (e.g. "Cannot say 'I need you', routes through competence instead", "Cannot say 'I'm afraid', routes through anger")
+
+### How Voice Changes Under Arc Pressure
+- At what story beat does their voice shift? What does the shift look like? (e.g. "vocabulary simplifies under grief", "defensive pattern appears more frequently as stakes increase", "the subtext default breaks at the climax")
+
+---
+
+### SOCIETY TEMPLATE (for tier: societal):
+
+## [Society Name] (Society)
+
+- **Tier**: societal
+- **Role**: What this society claims to protect vs. what it actually protects
+- **Want**: What the society needs to preserve itself
+- **Wound**: The society's internal contradiction, the thing it cannot reconcile
+- **Flaw**: The pathology the society perpetuates
+- **Cost**: What the society demands from every character who lives inside it
+- **Enforcement**: Who administers the rules and on what terms
+- **Relationship to Characters**: How the society acts as pressure on the protagonist and other characters
+- **Values**: What the society holds sacred
+- **What It Cannot See**: The blind spot, the thing the society is structurally incapable of recognizing about itself
+
+---
+
+### COLLECTIVE CHARACTER TEMPLATE (for tier: collective):
+
+## [Group Name] (Collective)
+
+- **Tier**: collective
+- **Role**: What function this group serves in the narrative
+- **Composition**: Who makes up this group (general description)
+- **Collective Voice**: How the group speaks or communicates as a unit (e.g. "speaks in chorus", "communicates through ritual", "unified chanting")
+- **Values & Identity**: What the group believes, what holds them together
+- **Want**: What the group pursues collectively
+- **Wound**: What damage or trauma the group carries
+- **Relationship to Protagonist**: How the group relates to and affects the main characters
+- **Power Dynamic**: Where the group sits in the world's hierarchy, who they serve or oppose
+- **Key Members**: Any individuals within the group who are named or distinct (these may also have their own individual entries)
+- **Arc**: Does the group change over the story? How?
+
+---
+
+### Depth Scaling:
+- **Heavy presence** (drives scenes, has dialogue, has an arc): Fill every field with 2-6 lines each. Go deep.
+- **Moderate presence** (recurring but not central): Fill every field with 1-3 lines each.
+- **Light presence** (one or two scenes): Fill core fields, mark others "Not enough textual evidence"
+- **Mentioned only**: Fill Tier, Role, and whatever can be inferred. Mark the rest "[INFERRED]" or "Unknown".
+
+### CRITICAL RULES:
+${characterList ? `- **YOU MUST PRODUCE EXACTLY ONE ## SECTION FOR EVERY CHARACTER LISTED ABOVE.** Count the characters in the list. Count your ## sections. The numbers MUST match. If the list has 8 characters, you output 8 sections. Do not merge, skip, or omit any. Do not add characters that are not in the list.
+- **CHECK YOUR WORK:** Before finishing, verify: did you write a ## section for every single name in the list? If not, write the missing ones now.
+` : ''}- **There is NO character count limit.** If the text has 40 characters, output 40 sections. If it has 4, output 4.
+- Non-human characters (animals, AI, spirits, etc.) absolutely count, give them profiles.
+- **Every story has at least one societal character.** If none was in the scan list, identify and create one.
+- **Identify ALL collective groups.** Any population, faction, community, workforce, or group that acts as a unit gets its own entry using the Collective template.
 - When in doubt about whether someone counts, include them.
+- Mark every attribute that is not directly stated in the text as [INFERRED].
+- **For minor/extra/mentioned characters**, use a shorter profile: Tier, Role, Age, a sentence of Physical Description, a sentence of Personality, key Relationships, and Voice Notes. Skip the full template for characters with very little text evidence.
 `,
   },
 

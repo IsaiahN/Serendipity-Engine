@@ -1842,8 +1842,10 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
   const fcProject = useProjectStore(s => s.activeProject);
   const characterProfiles = buildCharacterProfiles(fcFiles);
   const allChars = Object.entries(characterProfiles);
-  const mainChars = allChars.filter(([, c]) => c.tier !== 'minor');
+  const mainChars = allChars.filter(([, c]) => c.tier === 'main');
   const minorChars = allChars.filter(([, c]) => c.tier === 'minor');
+  const societalChars = allChars.filter(([, c]) => c.tier === 'societal');
+  const collectiveChars = allChars.filter(([, c]) => c.tier === 'collective');
 
   const CharCard = ({ name, char }) => {
     const isMinor = char.tier === 'minor';
@@ -1941,17 +1943,37 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
         </button>
       </div>
 
+      {/* Societal Characters */}
+      {societalChars.length > 0 && (<>
+        <h3 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#f97316', marginBottom: 12 }}>
+          Society / Structural Characters ({societalChars.length})
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 28 }}>
+          {societalChars.map(([name, char]) => <CharCard key={name} name={name} char={char} />)}
+        </div>
+      </>)}
+
       {/* Main Characters */}
       <h3 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>
-        Main Characters
+        Main Characters ({mainChars.length})
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 28 }}>
         {mainChars.map(([name, char]) => <CharCard key={name} name={name} char={char} />)}
       </div>
 
+      {/* Collective Characters */}
+      {collectiveChars.length > 0 && (<>
+        <h3 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#60a5fa', marginBottom: 12 }}>
+          Collective Characters ({collectiveChars.length})
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12, marginBottom: 28 }}>
+          {collectiveChars.map(([name, char]) => <CharCard key={name} name={name} char={char} />)}
+        </div>
+      </>)}
+
       {/* Minor Characters */}
       <h3 style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 12 }}>
-        Minor Characters
+        Minor Characters ({minorChars.length})
       </h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
         {minorChars.map(([name, char]) => <CharCard key={name} name={name} char={char} />)}
@@ -2133,17 +2155,68 @@ function ChatMode({ phasePcts = {} }) {
         }
       }
 
-      const result = await useLlmStore.getState().sendMessage({
-        messages: ctx.messages,
-        role: persona === 'editor' ? 'editor' : (persona === 'character' ? 'creative' : 'assistant'),
-        maxTokens: 2048,
-      });
+      // Add empty assistant message for streaming
+      const assistantMsgId = Math.random();
+      setMessages(prev => [...prev, { role: 'assistant', content: '', id: assistantMsgId, isStreaming: true }]);
 
-      if (result.success) {
-        const cleaned = removeEmdashes(result.content);
-        setMessages(prev => [...prev, { role: 'assistant', content: cleaned }]);
-      } else {
-        setError(result.error || 'Failed to get response');
+      let accumulatedContent = '';
+
+      try {
+        // Use streaming if available
+        const generator = useLlmStore.getState().sendMessageStreaming({
+          messages: ctx.messages,
+          role: persona === 'editor' ? 'editor' : (persona === 'character' ? 'creative' : 'assistant'),
+          maxTokens: 2048,
+        });
+
+        for await (const chunk of generator) {
+          accumulatedContent += chunk;
+          // Update the streaming message with accumulated content
+          setMessages(prev =>
+            prev.map(m =>
+              m.id === assistantMsgId
+                ? { ...m, content: accumulatedContent }
+                : m
+            )
+          );
+        }
+
+        // Finalize the message (remove streaming indicator, clean content)
+        const cleaned = removeEmdashes(accumulatedContent);
+        setMessages(prev =>
+          prev.map(m =>
+            m.id === assistantMsgId
+              ? { ...m, content: cleaned, isStreaming: false }
+              : m
+          )
+        );
+      } catch (streamErr) {
+        // Fallback to non-streaming if streaming fails
+        if (streamErr.name === 'AbortError') {
+          setError('Response cancelled');
+          setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
+        } else {
+          // Fall back to regular sendMessage
+          const result = await useLlmStore.getState().sendMessage({
+            messages: ctx.messages,
+            role: persona === 'editor' ? 'editor' : (persona === 'character' ? 'creative' : 'assistant'),
+            maxTokens: 2048,
+          });
+
+          if (result.success) {
+            const cleaned = removeEmdashes(result.content);
+            setMessages(prev =>
+              prev.map(m =>
+                m.id === assistantMsgId
+                  ? { ...m, content: cleaned, isStreaming: false }
+                  : m
+              )
+            );
+          } else {
+            setError(result.error || 'Failed to get response');
+            setMessages(prev => prev.filter(m => m.id !== assistantMsgId));
+          }
+        }
       }
     } catch (err) {
       setError(err.message || 'Failed to get response');
@@ -5176,8 +5249,10 @@ function RelationshipGraph() {
   charEntries.forEach(([path, content], idx) => {
     const slug = path.replace('characters/', '').replace('.md', '');
     const key = slug.replace(/-/g, '');
-    const h1 = (content || '').split('\n').find(l => l.startsWith('# '));
-    const nameMatch = h1 ? h1.match(/^#\s+(.+?)(?:\s*\([^)]*\))?\s*$/) : null;
+    const h1Raw = (content || '').split('\n').find(l => l.startsWith('# '));
+    // Strip trailing " — Character Decomposition" and similar suffixes before parsing
+    const h1 = h1Raw ? h1Raw.replace(/\s*[—–]+\s*(Character Decomposition|Literary Analy\w+|Deep Character Extraction|Character Extraction|Character Census).*$/i, '') : null;
+    const nameMatch = h1 ? h1.match(/^#{1,3}\s+(.+?)(?:\s*\([^)]*\))?\s*$/) : null;
     const fullName = nameMatch ? nameMatch[1].trim() : slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const initials = fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
     characters[key] = { name: fullName, initials, color: rgCharColors[idx % rgCharColors.length] };
@@ -5187,27 +5262,70 @@ function RelationshipGraph() {
   const relationships = [];
   const relContent = rgFiles['relationships/questions-answered.md'] || '';
   const charKeys = Object.keys(characters);
-  // Parse "## X ↔ Y" sections for relationship pairs
-  const relSections = relContent.split(/^## /m).filter(s => s.includes('↔'));
+
+  // Helper: match a display name to a character key using fuzzy slug matching
+  const matchCharKey = (displayName) => {
+    const slug = displayName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+    // Try exact key match first
+    if (characters[slug]) return slug;
+    // Try prefix match (e.g. "dorothy" matches "dorothygale")
+    const prefixMatch = charKeys.find(k => k.startsWith(slug) || slug.startsWith(k));
+    if (prefixMatch) return prefixMatch;
+    // Try matching by character name
+    const nameMatch = charKeys.find(k => {
+      const charName = characters[k].name.toLowerCase().replace(/[^a-z0-9]+/g, '');
+      return charName.startsWith(slug) || slug.startsWith(charName) || charName.includes(slug) || slug.includes(charName);
+    });
+    return nameMatch || null;
+  };
+
+  // Parse "### X ↔ Y" or "## X ↔ Y" sections for relationship pairs
+  const relSections = relContent.split(/^#{2,3}\s+/m).filter(s => s.includes('↔'));
   relSections.forEach(section => {
     const headerLine = section.split('\n')[0];
     const pairMatch = headerLine.match(/(.+?)\s*↔\s*(.+)/);
     if (!pairMatch) return;
-    const nameA = pairMatch[1].trim().split(' ')[0].toLowerCase();
-    const nameB = pairMatch[2].trim().split(/[\s(]/)[0].toLowerCase();
-    const fromKey = charKeys.find(k => k.startsWith(nameA)) || nameA;
-    const toKey = charKeys.find(k => k.startsWith(nameB)) || nameB;
-    if (!characters[fromKey] || !characters[toKey]) return;
+    const fromKey = matchCharKey(pairMatch[1]);
+    const toKey = matchCharKey(pairMatch[2]);
+    if (!fromKey || !toKey || !characters[fromKey] || !characters[toKey]) return;
+    // Avoid duplicate pairs
+    if (relationships.some(r => (r.from === fromKey && r.to === toKey) || (r.from === toKey && r.to === fromKey))) return;
     const lower = section.toLowerCase();
-    const type = lower.includes('betray') || lower.includes('opposition') || lower.includes('enemy') ? 'rival'
-      : lower.includes('friend') || lower.includes('warmth') || lower.includes('alliance') ? 'friend'
-      : lower.includes('family') || lower.includes('father') || lower.includes('mother') || lower.includes('sister') ? 'family'
-      : lower.includes('mentor') || lower.includes('guide') ? 'mentor'
-      : lower.includes('authority') || lower.includes('bishop') ? 'authority'
+    const type = lower.includes('betray') || lower.includes('opposition') || lower.includes('enemy') || lower.includes('wicked') ? 'rival'
+      : lower.includes('friend') || lower.includes('warmth') || lower.includes('alliance') || lower.includes('companion') || lower.includes('protective') ? 'friend'
+      : lower.includes('family') || lower.includes('father') || lower.includes('mother') || lower.includes('sister') || lower.includes('aunt') || lower.includes('uncle') ? 'family'
+      : lower.includes('mentor') || lower.includes('guide') || lower.includes('teach') ? 'mentor'
+      : lower.includes('authority') || lower.includes('ruler') || lower.includes('power') ? 'authority'
       : 'ally';
-    const label = headerLine.replace(pairMatch[1], '').replace('↔', '').replace(pairMatch[2], '').trim() || `${characters[fromKey].name} ↔ ${characters[toKey].name}`;
     relationships.push({ from: fromKey, to: toKey, type, label: `${characters[fromKey].name} ↔ ${characters[toKey].name}`, strength: 3 });
   });
+
+  // Also try parsing from relationship-graph.csv if available
+  const csvContent = rgFiles['relationships/relationship-graph.csv'] || '';
+  if (csvContent && relationships.length === 0) {
+    const csvLines = csvContent.split('\n').filter(l => l.trim());
+    if (csvLines.length > 1) {
+      const headers = csvLines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      for (let i = 1; i < csvLines.length; i++) {
+        const cols = csvLines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+        if (cols.length < 2) continue;
+        const fromName = cols[0];
+        const toName = cols[1];
+        const fromKey = matchCharKey(fromName);
+        const toKey = matchCharKey(toName);
+        if (!fromKey || !toKey || !characters[fromKey] || !characters[toKey]) continue;
+        if (relationships.some(r => (r.from === fromKey && r.to === toKey) || (r.from === toKey && r.to === fromKey))) continue;
+        const cellText = cols.slice(2).join(' ').toLowerCase();
+        const type = cellText.includes('rival') || cellText.includes('enemy') ? 'rival'
+          : cellText.includes('friend') || cellText.includes('companion') ? 'friend'
+          : cellText.includes('family') ? 'family'
+          : cellText.includes('mentor') ? 'mentor'
+          : cellText.includes('authority') ? 'authority'
+          : 'ally';
+        relationships.push({ from: fromKey, to: toKey, type, label: `${characters[fromKey].name} ↔ ${characters[toKey].name}`, strength: 3 });
+      }
+    }
+  }
 
   // Center character defaults to first character
   const centerCharacter = centerCharacterOverride && characters[centerCharacterOverride] ? centerCharacterOverride : (Object.keys(characters)[0] || '');
@@ -5817,7 +5935,9 @@ function buildCharacterProfiles(files) {
     let role = 'Supporting';
     let type = '';
     if (h1) {
-      const hMatch = h1.match(/^#\s+(.+?)(?:\s*\(([^)]+)\))?\s*$/);
+      // Strip trailing dash-separated suffixes like " — Character Decomposition" before parsing
+      const h1Clean = h1.replace(/\s*[—–]+\s*(Character Decomposition|Literary Analy\w+|Deep Character Extraction|Character Extraction|Character Census).*$/i, '');
+      const hMatch = h1Clean.match(/^#{1,3}\s+(.+?)(?:\s*\(([^)]+)\))?\s*$/);
       if (hMatch) {
         fullName = hMatch[1].trim();
         const roleStr = (hMatch[2] || '').trim();
@@ -5835,38 +5955,138 @@ function buildCharacterProfiles(files) {
       }
     }
 
-    // Determine tier
-    const lower = content.toLowerCase();
-    const isMinor = lower.includes('minor') && !lower.includes('minor antagonist');
-    const isMain = ['protagonist', 'deuteragonist', 'main character', 'supporting', 'confidante', 'foil', 'antihero', 'antagonist']
-      .some(k => lower.includes(k)) || ['Protagonist', 'Deuteragonist', 'Supporting', 'Antagonist'].includes(role);
-    const tier = isMinor ? 'minor' : (isMain ? 'main' : 'minor');
-
-    // Parse sections by heading
+    // Parse sections by heading (## and ###)
     const sections = {};
     let currentSection = '';
     for (const line of lines) {
-      if (line.startsWith('## ')) {
-        currentSection = line.replace('## ', '').trim().toLowerCase();
+      if (line.startsWith('### ') || line.startsWith('## ')) {
+        currentSection = line.replace(/^#{2,3}\s+/, '').trim().toLowerCase();
         sections[currentSection] = '';
       } else if (currentSection) {
         sections[currentSection] += (sections[currentSection] ? '\n' : '') + line;
       }
     }
 
-    // Extract MBTI from content
-    const mbtiMatch = content.match(/MBTI[:\s]*([A-Z]{4}(?:-[A-Z])?)/i);
-    const mbti = mbtiMatch ? mbtiMatch[1].toUpperCase() : null;
+    // Helper: extract a bold field value from section content "- **Field**: value"
+    const extractField = (sectionContent, fieldName) => {
+      if (!sectionContent) return null;
+      const regex = new RegExp(`\\*\\*${fieldName}\\*\\*\\s*:\\s*(.+)`, 'i');
+      const match = sectionContent.match(regex);
+      return match ? match[1].trim() : null;
+    };
 
-    // Extract age from profile section
-    const ageMatch = (sections['profile'] || '').match(/Age\s+(\d+)/i);
-    const age = ageMatch ? ageMatch[1] : null;
+    // Helper: extract bold field from ANY section
+    const extractFieldFromAll = (fieldName) => {
+      for (const sectionContent of Object.values(sections)) {
+        const val = extractField(sectionContent, fieldName);
+        if (val) return val;
+      }
+      return null;
+    };
 
     // Clean section text — strip markdown bold/italic markers
     const clean = (s) => (s || '').trim().replace(/^\n+|\n+$/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').replace(/__([^_]+)__/g, '$1').replace(/\*([^*]+)\*/g, '$1');
 
-    // Get a short summary for the card (first 2 sentences of profile, filtering out metadata lines)
-    const profileText = clean(sections['profile']) || '';
+    // Determine tier from content fields or keywords
+    const tierField = extractFieldFromAll('Tier');
+    const lower = content.toLowerCase();
+    let tier;
+    if (tierField) {
+      const tf = tierField.toLowerCase();
+      if (tf.includes('societal') || tf.includes('society')) tier = 'societal';
+      else if (tf.includes('collective')) tier = 'collective';
+      else if (tf.includes('minor') || tf.includes('extra') || tf.includes('mentioned')) tier = 'minor';
+      else tier = 'main';
+    } else {
+      const isSocietalOrCollective = lower.includes('(society)') || lower.includes('(collective)') || lower.includes('tier: societal') || lower.includes('tier: collective');
+      const isMinor = (lower.includes('minor') && !lower.includes('minor antagonist')) || lower.includes('extra') || lower.includes('mentioned');
+      const isMain = ['protagonist', 'deuteragonist', 'main character', 'supporting', 'confidante', 'foil', 'antihero', 'antagonist']
+        .some(k => lower.includes(k)) || ['Protagonist', 'Deuteragonist', 'Supporting', 'Antagonist'].includes(role);
+      tier = isSocietalOrCollective ? (lower.includes('society') || lower.includes('societal') ? 'societal' : 'collective') : (isMinor ? 'minor' : (isMain ? 'main' : 'minor'));
+    }
+
+    // Extract MBTI from content — check field format first, then loose match
+    const mbtiField = extractFieldFromAll('MBTI Type') || extractFieldFromAll('MBTI');
+    const mbtiMatch = mbtiField ? mbtiField.match(/([A-Z]{4})/i) : content.match(/MBTI[:\s]*([A-Z]{4}(?:-[A-Z])?)/i);
+    const mbti = mbtiMatch ? mbtiMatch[1].toUpperCase() : null;
+
+    // Extract Enneagram
+    const enneagramField = extractFieldFromAll('Enneagram');
+    const enneaMatch = enneagramField ? enneagramField.match(/(\d)w(\d)/i) : content.match(/(\d)w(\d)/i);
+    const enneagramWing = enneaMatch ? `${enneaMatch[1]}w${enneaMatch[2]}` : null;
+    const enneagram = enneagramField ? clean(enneagramField) : null;
+
+    // Extract Moral Alignment
+    const alignmentField = extractFieldFromAll('Moral Alignment');
+    const alignment = alignmentField ? alignmentField.replace(/\[.*?\]/g, '').trim() : null;
+
+    // Extract Emotional Register
+    const emotionalRegister = extractFieldFromAll('Emotional Register') || clean(sections['emotional register']) || null;
+
+    // Extract Age
+    const ageField = extractFieldFromAll('Age Range') || extractFieldFromAll('Age');
+    const ageMatch = ageField ? ageField.match(/(\d+)/) : (sections['profile'] || '').match(/Age\s+(\d+)/i);
+    const age = ageField ? ageField.replace(/\[.*?\]/g, '').trim() : (ageMatch ? ageMatch[1] : null);
+
+    // Extract Physical Description fields
+    const physSection = sections['physical description'] || sections['profile'] || '';
+    const build = extractField(physSection, 'Build.*?(?:\\/.*?)?Type') || extractFieldFromAll('Build');
+    const height = extractField(physSection, 'Height');
+    const hairColor = extractField(physSection, 'Hair');
+    const eyeColor = extractField(physSection, 'Eyes');
+    const skinTone = extractField(physSection, 'Skin');
+    const distinguishingFeatures = extractField(physSection, 'Distinguishing Features');
+    const posture = extractField(physSection, 'Posture.*?Movement') || extractFieldFromAll('Posture');
+    const style = extractField(physSection, 'Style.*?Presentation') || extractFieldFromAll('Style');
+
+    // Extract Wound / Flaw / Virtue — try field format first, then legacy section format
+    const wfvSection = sections['wound, flaw & virtue'] || sections['wound flaw & virtue'] || '';
+    const wound = extractFieldFromAll('Core Wound') || extractField(wfvSection, 'Wound') || clean(sections['wound']) || null;
+    const flaw = extractFieldFromAll('Core Flaw') || extractField(wfvSection, 'Flaw') || clean(sections['flaw']) || null;
+    const virtue = extractFieldFromAll('Core Virtue') || extractField(wfvSection, 'Virtue') || clean(sections['virtue']) || null;
+
+    // Extract Want / Need / Arc
+    const want = extractFieldFromAll('Want');
+    const need = extractFieldFromAll('Need');
+    const arcField = extractFieldFromAll('Arc') || clean(sections['arc']) || clean(sections['motivations & arc']) || null;
+
+    // Extract Attachment Style
+    const attachmentStyle = extractFieldFromAll('Attachment Style');
+
+    // Extract Values & Code
+    const coreValues = extractFieldFromAll('Core Values');
+    const personalCode = extractFieldFromAll('Personal Code');
+    const selfCare = extractFieldFromAll('Self-Care Mechanism') || extractFieldFromAll('Self-Care');
+
+    // Extract Life Philosophy
+    const lifePhilosophy = extractFieldFromAll('Life Philosophy');
+
+    // Extract Voice Fingerprint fields
+    const voiceSection = sections['voice fingerprint'] || sections['voice'] || '';
+    const voiceData = {
+      speechRhythm: extractField(voiceSection, 'Speech Rhythm') || null,
+      vocabularyRegister: extractField(voiceSection, 'Vocabulary Register') || null,
+      volumePacing: extractField(voiceSection, 'Volume.*?Pacing') || extractField(voiceSection, 'Volume') || null,
+      dialogueTic: extractField(voiceSection, 'Dialogue Tic') || null,
+      metaphorFamily: extractField(voiceSection, 'Metaphor Family') || null,
+      defensiveSpeech: extractField(voiceSection, 'Defensive Speech.*?Pattern') || extractField(voiceSection, 'Defensive Speech') || null,
+      subtextDefault: extractField(voiceSection, 'Subtext Default') || extractFieldFromAll('Subtext Default') || null,
+      summary: clean(voiceSection) || null,
+    };
+    const hasVoiceData = Object.values(voiceData).some(v => v);
+
+    // Extract Society-specific fields (for societal characters)
+    const societyCost = extractFieldFromAll('Cost');
+    const societyEnforcement = extractFieldFromAll('Enforcement');
+    const societyBlindSpot = extractFieldFromAll('What It Cannot See');
+
+    // Extract Collective-specific fields
+    const collectiveVoice = extractFieldFromAll('Collective Voice');
+    const composition = extractFieldFromAll('Composition');
+    const powerDynamic = extractFieldFromAll('Power Dynamic');
+
+    // Get physical description summary
+    const profileText = clean(sections['profile'] || sections['physical description'] || physSection || '');
     const profileLines = profileText.split('\n').filter(l => !l.match(/^(Role|Tier|Type):/i) && l.trim());
     const profileNarrative = profileLines.join(' ').trim();
     const profileSummary = profileNarrative ? profileNarrative.split('.').slice(0, 2).join('.').trim() : '';
@@ -5881,14 +6101,49 @@ function buildCharacterProfiles(files) {
       tier,
       color: profileColors[idx % profileColors.length],
       gradient: profileGradients[idx % profileGradients.length],
+      // Identity
       age: age || null,
+      // Physical Description
       physicalDescription: profileSummary || null,
       backstory: profileNarrative || null,
-      wound: clean(sections['wound']) || null,
-      flaw: clean(sections['flaw']) || null,
-      virtue: clean(sections['virtue']) || null,
+      build: build || null,
+      height: height || null,
+      hairColor: hairColor || null,
+      eyeColor: eyeColor || null,
+      skinTone: skinTone || null,
+      distinguishingFeatures: distinguishingFeatures || null,
+      posture: posture || null,
+      style: style || null,
+      // Personality
       mbti: mbti || null,
-      voice: sections['voice'] ? { summary: clean(sections['voice']) } : null,
+      enneagramWing: enneagramWing || null,
+      enneagram: enneagram || null,
+      alignment: alignment || null,
+      emotionalRegister: emotionalRegister || null,
+      lifePhilosophy: lifePhilosophy || null,
+      // Wound / Flaw / Virtue
+      wound: wound || null,
+      flaw: flaw || null,
+      virtue: virtue || null,
+      // Motivations
+      want: want || null,
+      need: need || null,
+      arc: arcField || null,
+      attachmentStyle: attachmentStyle || null,
+      // Values & Code
+      coreValues: coreValues || null,
+      personalCode: personalCode || null,
+      selfCare: selfCare || null,
+      // Voice
+      voice: hasVoiceData ? voiceData : (sections['voice'] ? { summary: clean(sections['voice']) } : null),
+      // Society / Collective fields
+      societyCost: societyCost || null,
+      societyEnforcement: societyEnforcement || null,
+      societyBlindSpot: societyBlindSpot || null,
+      collectiveVoice: collectiveVoice || null,
+      composition: composition || null,
+      powerDynamic: powerDynamic || null,
+      // Legacy fields
       somaticSignature: clean(sections['somatic signature']) || null,
       complexity: clean(sections['complexity']) || null,
       roleInStory: clean(sections['role in story']) || null,
