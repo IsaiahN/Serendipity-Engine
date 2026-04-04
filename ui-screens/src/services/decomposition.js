@@ -18,6 +18,7 @@
 
 import { removeEmdashes } from '../lib/randomEngine.js';
 import { PROMPTS } from '../lib/promptRegistry.js';
+import { STORY_MEDIUMS } from '../lib/constants.js';
 
 /**
  * Define the decomposition pipeline steps.
@@ -56,9 +57,10 @@ export async function decomposeStory(sendMessage, sourceText, options = {}) {
     throw new Error('Source text is required for decomposition');
   }
 
-  const { onProgress, title: providedTitle } = options;
+  const { onProgress, title: providedTitle, medium } = options;
   const cleanText = sourceText.trim();
   const metadata = {
+    medium: medium || 'novel',
     wordCount: cleanText.split(/\s+/).length,
     title: providedTitle || extractTitleHeuristic(cleanText),
     sourceLength: cleanText.length,
@@ -359,14 +361,18 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
       break;
 
     case 'chapters': {
-      // MECHANICAL CHAPTER SPLITTING — detect existing chapter headers in the source text
-      // and split at those boundaries, preserving original text exactly.
-      // Falls back to LLM-based splitting only if no chapter headers are found.
-      const mechanicalChapters = splitChaptersMechanically(sourceText);
+      // MECHANICAL SECTION SPLITTING — medium-aware detection of section boundaries
+      // (chapters, acts, scenes, episodes, etc.) preserving original text exactly.
+      // Falls back to LLM-based splitting only if no boundaries are found.
+      const splitResult = splitSectionsMechanically(sourceText, metadata.medium);
 
-      if (mechanicalChapters && Object.keys(mechanicalChapters).length >= 2) {
-        // Mechanical split succeeded — use the detected chapters
-        Object.assign(files, mechanicalChapters);
+      if (splitResult && Object.keys(splitResult.files).length >= 2) {
+        // Mechanical split succeeded
+        Object.assign(files, splitResult.files);
+        // Store split metadata for the UI
+        metadata.splitUnit = splitResult.unitLabel;
+        metadata.splitSlug = splitResult.unitSlug;
+        metadata.splitCount = Object.keys(splitResult.files).length;
       } else {
         // Fallback: use LLM to split (limited by token count, best-effort)
         prompt = buildChapterSplitPrompt(sourceText, previousFiles['outline.md']);
@@ -380,7 +386,10 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
           const chapterFiles = parseChapterMarkdown(cleaned);
           Object.assign(files, chapterFiles);
         } else {
-          throw new Error(chaptersResult.error || 'Chapter split failed');
+          // Signal that manual splitting may be needed
+          metadata.splitFailed = true;
+          metadata.splitFailReason = chaptersResult.error || 'Could not detect section boundaries automatically';
+          throw new Error('auto-split-failed');
         }
       }
       break;
@@ -393,92 +402,278 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
   return { files };
 }
 
-// ─── Mechanical Chapter Splitter ────────────────────────────────────────
+// ─── Mechanical Section Splitter ────────────────────────────────────────
 
 /**
- * Detect existing chapter boundaries in a manuscript and split at those points.
- * Handles a wide variety of chapter header formats:
- *   - "Chapter I", "CHAPTER 1", "Chapter One"
- *   - "# Chapter 1", "## Chapter I: The Title"
- *   - Roman numerals (I, II, III, IV, etc.)
- *   - Markdown headings that look like chapters
+ * Section-type patterns keyed by medium.
+ * Each medium defines an ordered list of pattern sets to try.
+ * Each pattern set has: label (human-readable unit name), regex patterns
+ * to match against each line, and an optional slug function for filenames.
  *
- * @param {string} sourceText - The full manuscript text
- * @returns {Object|null} - Map of file paths to chapter content, or null if no chapters detected
+ * The splitter tries each pattern set in order for the given medium.
+ * If a medium's patterns don't yield ≥ 2 sections, falls through to
+ * the universal fallback set (chapters, parts, headings, dividers).
  */
-function splitChaptersMechanically(sourceText) {
-  if (!sourceText) return null;
+const SPELLED_NUMBERS = 'One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|Twenty[- ]?(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine)|Thirty';
+const ROMAN_NUMERALS = 'I{1,3}|IV|VI{0,3}|IX|XI{0,3}|XIV|XVI{0,3}|XIX|XXI{0,3}|XXIV|XXVI{0,3}|XXIX|XXXI{0,3}';
+const NUMERIC_ID = `(?:${ROMAN_NUMERALS}|\\d+|(?:${SPELLED_NUMBERS})[a-z]*)`;
 
-  // Strategy: find all lines that look like chapter boundaries, then split.
-  // We handle many common formats:
-  //   "# Chapter 1", "## Chapter I", "### Chapter" (unnumbered), "# Chapter^1"
-  //   "Chapter 1: Title", "CHAPTER ONE", etc.
-  // Also detect the title line that often follows on the next line (e.g. "#### The Cyclone")
-  const lines = sourceText.split('\n');
-  const chapterStarts = [];
+/** Reusable base pattern builders */
+const chapterPatterns = [
+  { regex: new RegExp(`^#{0,4}\\s*(?:Chapter|CHAPTER)\\s*\\^?${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: /^#{1,4}\s*Chapter\s*$/i, numbered: false },
+];
 
+const actPatterns = [
+  { regex: new RegExp(`^#{0,4}\\s*(?:ACT|Act)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: /^#{1,4}\s*(?:ACT|Act)\s*$/i, numbered: false },
+];
+
+const scenePatterns = [
+  { regex: new RegExp(`^#{0,4}\\s*(?:SCENE|Scene)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: /^#{0,2}\s*(?:INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s+(.+)/i, numbered: false, isSlugline: true },
+];
+
+const episodePatterns = [
+  { regex: new RegExp(`^#{0,4}\\s*(?:Episode|EPISODE|Ep\\.?)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: /^#{0,2}\s*(?:COLD OPEN|TEASER|PREVIOUSLY ON)\s*$/i, numbered: false },
+];
+
+const partPatterns = [
+  { regex: new RegExp(`^#{0,4}\\s*(?:Part|PART)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+];
+
+const pagePatterns = [
+  { regex: new RegExp(`^#{0,4}\\s*(?:Page|PAGE)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: new RegExp(`^#{0,4}\\s*(?:Issue|ISSUE)\\s*#?\\s*${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: new RegExp(`^#{0,4}\\s*(?:Panel|PANEL)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+];
+
+const passagePatterns = [
+  { regex: /^::\s*(.+)/, numbered: false, isPassage: true },
+  { regex: /^#{1,4}\s*(?:Node|Choice|Path|Branch)\s*[:\-]\s*(.*)/i, numbered: false },
+];
+
+const sectionPatterns = [
+  { regex: new RegExp(`^#{1,4}\\s*(?:Section|SECTION)\\s+${NUMERIC_ID}\\b[.:;\\s—\\-]*(.*)`, 'i'), numbered: true },
+  { regex: new RegExp(`^#{1,4}\\s+(${ROMAN_NUMERALS})\\.?\\s+(.*)`, 'i'), numbered: true },
+];
+
+const dividerPatterns = [
+  { regex: /^\s*(?:\*\s*\*\s*\*|\*{3,}|-{3,}|={3,}|§|♦|#)\s*$/, numbered: false, isDivider: true },
+];
+
+/**
+ * Medium → prioritised pattern sets to try.
+ * Each entry is { label, unitSlug, patterns[] }.
+ * `unitSlug` is the singular noun used in filenames (e.g. "chapter" → chapter-1.md).
+ */
+const MEDIUM_PATTERNS = {
+  'novel':           [
+    { label: 'Chapter',  unitSlug: 'chapter',  patterns: chapterPatterns },
+    { label: 'Part',     unitSlug: 'part',      patterns: partPatterns },
+  ],
+  'novella':         [
+    { label: 'Chapter',  unitSlug: 'chapter',  patterns: chapterPatterns },
+    { label: 'Part',     unitSlug: 'part',      patterns: partPatterns },
+    { label: 'Section',  unitSlug: 'section',  patterns: sectionPatterns },
+  ],
+  'short-story':     [
+    { label: 'Section',  unitSlug: 'section',  patterns: sectionPatterns },
+    { label: 'Part',     unitSlug: 'part',      patterns: partPatterns },
+    { label: 'Break',    unitSlug: 'section',  patterns: dividerPatterns },
+  ],
+  'screenplay':      [
+    { label: 'Act',      unitSlug: 'act',       patterns: actPatterns },
+    { label: 'Scene',    unitSlug: 'scene',     patterns: scenePatterns },
+  ],
+  'tv-show':         [
+    { label: 'Episode',  unitSlug: 'episode',  patterns: episodePatterns },
+    { label: 'Act',      unitSlug: 'act',       patterns: actPatterns },
+    { label: 'Scene',    unitSlug: 'scene',     patterns: scenePatterns },
+  ],
+  'stage-play':      [
+    { label: 'Act',      unitSlug: 'act',       patterns: actPatterns },
+    { label: 'Scene',    unitSlug: 'scene',     patterns: scenePatterns },
+  ],
+  'podcast':         [
+    { label: 'Episode',  unitSlug: 'episode',  patterns: episodePatterns },
+    { label: 'Segment',  unitSlug: 'segment',  patterns: sectionPatterns },
+  ],
+  'graphic-novel':   [
+    { label: 'Page',     unitSlug: 'page',      patterns: pagePatterns },
+    { label: 'Chapter',  unitSlug: 'chapter',  patterns: chapterPatterns },
+  ],
+  'interactive':     [
+    { label: 'Passage',  unitSlug: 'passage',  patterns: passagePatterns },
+    { label: 'Chapter',  unitSlug: 'chapter',  patterns: chapterPatterns },
+  ],
+  'essay':           [
+    { label: 'Section',  unitSlug: 'section',  patterns: sectionPatterns },
+    { label: 'Part',     unitSlug: 'part',      patterns: partPatterns },
+  ],
+};
+
+/** Universal fallback order (tried after medium-specific patterns) */
+const UNIVERSAL_FALLBACK = [
+  { label: 'Chapter',  unitSlug: 'chapter',  patterns: chapterPatterns },
+  { label: 'Part',     unitSlug: 'part',      patterns: partPatterns },
+  { label: 'Act',      unitSlug: 'act',       patterns: actPatterns },
+  { label: 'Scene',    unitSlug: 'scene',     patterns: scenePatterns },
+  { label: 'Episode',  unitSlug: 'episode',  patterns: episodePatterns },
+  { label: 'Section',  unitSlug: 'section',  patterns: sectionPatterns },
+  { label: 'Break',    unitSlug: 'section',  patterns: dividerPatterns },
+];
+
+/**
+ * Scan lines for boundaries using a set of regex patterns.
+ * Returns array of { lineNum, title, isDivider } or empty array.
+ */
+function findBoundaries(lines, patterns) {
+  const hits = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].replace(/\r$/, '');
-
-    // Pattern A: "# Chapter^N", "# Chapter 1", "## Chapter IV", "CHAPTER ONE"
-    const mNumbered = line.match(
-      /^#{0,4}\s*(?:Chapter|CHAPTER)\s*\^?([IVXLCDM]+|\d+|(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty|Twenty[- ]?(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine)|Thirty)[a-z]*)\b[.:\s—\-]*(.*)/i
-    );
-
-    // Pattern B: "### Chapter" or "# Chapter" with no number (sequential)
-    const mUnnumbered = !mNumbered && /^#{1,4}\s*Chapter\s*$/i.test(line);
-
-    if (mNumbered || mUnnumbered) {
-      // Look for the chapter title on the next few non-empty lines
-      let title = mNumbered && mNumbered[2] ? mNumbered[2].trim() : '';
-      if (!title) {
-        for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
-          const titleMatch = lines[j].replace(/\r$/, '').match(/^#{1,5}\s+(.+)/);
-          if (titleMatch) {
-            title = titleMatch[1].trim();
-            break;
-          }
-        }
-      }
-      chapterStarts.push({ lineNum: i, title });
-    }
-  }
-
-  if (chapterStarts.length < 2) return null;
-
-  // Split text at chapter boundaries
-  const files = {};
-  for (let c = 0; c < chapterStarts.length; c++) {
-    const chNum = c + 1;
-    const startLine = chapterStarts[c].lineNum;
-    const endLine = c + 1 < chapterStarts.length ? chapterStarts[c + 1].lineNum : lines.length;
-
-    // Collect body lines, skipping the chapter header and title header
-    const chapterLines = lines.slice(startLine, endLine);
-    const bodyLines = [];
-    let pastHeaders = false;
-    for (let k = 0; k < chapterLines.length; k++) {
-      const cl = chapterLines[k].replace(/\r$/, '');
-      if (!pastHeaders && (
-        /^#{1,4}\s*Chapter/i.test(cl) ||
-        (/^#{1,5}\s+\S/.test(cl) && !/^#{1,4}\s*Chapter/i.test(cl)) ||
-        cl.trim() === ''
-      )) {
-        if (/^#{1,5}\s+\S/.test(cl) && !/^#{1,4}\s*Chapter/i.test(cl)) {
-          pastHeaders = true; // title found, everything after is body
+    for (const pat of patterns) {
+      if (pat.isDivider) {
+        if (pat.regex.test(line)) {
+          hits.push({ lineNum: i, title: '', isDivider: true });
+          break;
         }
         continue;
       }
+      const m = line.match(pat.regex);
+      if (m) {
+        let title = '';
+        if (pat.isSlugline || pat.isPassage) {
+          title = m[1]?.trim() || '';
+        } else if (pat.numbered && m[m.length - 1]) {
+          title = m[m.length - 1].trim();
+        }
+        // Look ahead for a title on the next few lines if none found inline
+        if (!title) {
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const titleMatch = lines[j].replace(/\r$/, '').match(/^#{1,5}\s+(.+)/);
+            if (titleMatch) {
+              title = titleMatch[1].trim();
+              break;
+            }
+          }
+        }
+        hits.push({ lineNum: i, title, isDivider: false });
+        break;
+      }
+    }
+  }
+  return hits;
+}
+
+/**
+ * Split source text at the given boundary lines.
+ * Returns object of { 'story/{unitSlug}-N.md': content }.
+ */
+function splitAtBoundaries(lines, boundaries, unitLabel, unitSlug) {
+  const files = {};
+  for (let c = 0; c < boundaries.length; c++) {
+    const num = c + 1;
+    const startLine = boundaries[c].lineNum;
+    const endLine = c + 1 < boundaries.length ? boundaries[c + 1].lineNum : lines.length;
+
+    // For divider splits, include the content AFTER the divider
+    const bodyStart = boundaries[c].isDivider ? startLine + 1 : startLine;
+    const sectionLines = lines.slice(bodyStart, endLine);
+
+    // Strip leading header lines from non-divider sections
+    const bodyLines = [];
+    let pastHeaders = false;
+    for (let k = 0; k < sectionLines.length; k++) {
+      const cl = sectionLines[k].replace(/\r$/, '');
+      if (!pastHeaders && !boundaries[c].isDivider) {
+        if (/^#{1,5}\s/.test(cl) || /^\s*(?:INT\.|EXT\.)/i.test(cl) || /^::\s/.test(cl) || cl.trim() === '') {
+          if (/^#{1,5}\s+\S/.test(cl) && !/^#{1,4}\s*(?:Chapter|Part|Act|Scene|Episode|Section)/i.test(cl)) {
+            pastHeaders = true;
+          }
+          continue;
+        }
+      }
       pastHeaders = true;
-      bodyLines.push(chapterLines[k]);
+      bodyLines.push(sectionLines[k]);
     }
 
     const body = bodyLines.join('\n').trim();
-    const titlePart = chapterStarts[c].title ? `: ${chapterStarts[c].title}` : '';
-    files[`story/chapter-${chNum}.md`] = `# Chapter ${chNum}${titlePart}\n\n${body}`;
+    const titlePart = boundaries[c].title ? `: ${boundaries[c].title}` : '';
+    files[`story/${unitSlug}-${num}.md`] = `# ${unitLabel} ${num}${titlePart}\n\n${body}`;
+  }
+  return files;
+}
+
+/**
+ * Detect existing section boundaries in a manuscript and split at those points.
+ * This is a MECHANICAL operation — no LLM is used. We scan for header patterns
+ * appropriate to the story's medium, falling back to universal patterns.
+ *
+ * @param {string} sourceText - The full manuscript text
+ * @param {string} [medium] - Story medium key (e.g. 'novel', 'screenplay', 'stage-play')
+ * @returns {{ files: Object, unitLabel: string, unitSlug: string }|null}
+ *   Map of file paths to section content, plus the unit label/slug used.
+ *   Returns null if fewer than 2 sections detected.
+ */
+export function splitSectionsMechanically(sourceText, medium) {
+  if (!sourceText) return null;
+
+  const lines = sourceText.split('\n');
+
+  // Build the ordered list of pattern sets to try
+  const mediumSets = MEDIUM_PATTERNS[medium] || [];
+  const fallbackSets = UNIVERSAL_FALLBACK.filter(
+    fb => !mediumSets.some(ms => ms.unitSlug === fb.unitSlug)
+  );
+  const allSets = [...mediumSets, ...fallbackSets];
+
+  for (const pset of allSets) {
+    const boundaries = findBoundaries(lines, pset.patterns);
+    if (boundaries.length >= 2) {
+      const files = splitAtBoundaries(lines, boundaries, pset.label, pset.unitSlug);
+      return { files, unitLabel: pset.label, unitSlug: pset.unitSlug };
+    }
   }
 
-  return files;
+  return null;
+}
+
+/** Backward-compat alias used internally */
+function splitChaptersMechanically(sourceText) {
+  const result = splitSectionsMechanically(sourceText, 'novel');
+  return result ? result.files : null;
+}
+
+/**
+ * Get the section unit info for a given medium.
+ * Used by the UI to label manual split sections.
+ */
+export function getSectionUnitForMedium(medium) {
+  const sets = MEDIUM_PATTERNS[medium];
+  if (sets && sets.length > 0) {
+    return { label: sets[0].label, slug: sets[0].unitSlug };
+  }
+  return { label: 'Chapter', slug: 'chapter' };
+}
+
+/**
+ * Get all available section types for the manual splitter.
+ * Returns the medium-specific types first, then universal ones.
+ */
+export function getAvailableSectionTypes(medium) {
+  const mediumSets = MEDIUM_PATTERNS[medium] || [];
+  const seen = new Set(mediumSets.map(s => s.unitSlug));
+  const result = mediumSets.map(s => ({ label: s.label, slug: s.unitSlug }));
+
+  for (const fb of UNIVERSAL_FALLBACK) {
+    if (!seen.has(fb.unitSlug)) {
+      seen.add(fb.unitSlug);
+      result.push({ label: fb.label, slug: fb.unitSlug });
+    }
+  }
+  return result;
 }
 
 // ─── Prompt Builders ────────────────────────────────────────────────────

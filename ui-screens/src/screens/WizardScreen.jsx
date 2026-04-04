@@ -11,7 +11,8 @@ import { useSettingsStore } from '../stores/settingsStore';
 import { useLlmStore } from '../stores/llmStore';
 import { STORY_MEDIUMS, PRIMARY_GENRES, TONAL_TYPES, CONTENT_RATINGS } from '../lib/constants';
 import { generateSeed, roll } from '../lib/randomEngine';
-import { decomposeStory } from '../services/decomposition';
+import { decomposeStory, splitSectionsMechanically, getSectionUnitForMedium } from '../services/decomposition';
+import ManualSplitter from '../components/ManualSplitter';
 
 /**
  * Derive a clean project title from a filename.
@@ -136,6 +137,9 @@ export default function WizardScreen() {
   // Decompose progress state — lifted here so DecomposeMode can display it
   const [decomposeProgress, setDecomposeProgress] = useState(null); // { label, completed, total }
   const [decomposeError, setDecomposeError] = useState(null); // string or null
+  const [showManualSplitter, setShowManualSplitter] = useState(false);
+  // Temporarily store partial decomposition results while manual splitting
+  const [partialDecomposeProject, setPartialDecomposeProject] = useState(null);
 
   // Route-specific handlers
   const handleDecompose = async (intent) => {
@@ -174,11 +178,13 @@ export default function WizardScreen() {
       });
 
       // Run decomposition service to extract story structure via LLM
+      const medium = formData.medium || 'novel';
       const { files: decomposedFiles, metadata: decompositionMeta } = await decomposeStory(
         sendMessage,
         sourceText,
         {
           title,
+          medium,
           onProgress: (progress) => {
             setDecomposeProgress({
               label: progress.label,
@@ -199,6 +205,15 @@ export default function WizardScreen() {
       // Also store the original full text
       await updateFile('story/full-draft.md', sourceText);
 
+      // If the section split failed, offer manual splitting before finishing
+      if (decompositionMeta.splitFailed) {
+        await setActiveProject(project.id);
+        setPartialDecomposeProject(project);
+        setIsProcessing(false);
+        setShowManualSplitter(true);
+        return;
+      }
+
       // Mark all phases 1-7 as complete since we decomposed a finished work
       const updateProject = useProjectStore.getState().updateProject;
       await setActiveProject(project.id);
@@ -218,7 +233,50 @@ export default function WizardScreen() {
       navigate('/workspace');
     } catch (err) {
       console.error('Decomposition failed:', err);
+      // If the chapter/section split specifically failed, offer manual splitting
+      if (err.message === 'auto-split-failed') {
+        setDecomposeError(null);
+        setIsProcessing(false);
+        setShowManualSplitter(true);
+        return;
+      }
       setDecomposeError(err.message || 'Unknown error');
+      setIsProcessing(false);
+    }
+  };
+
+  // Handle manual split results — user finished manually splitting sections
+  const handleManualSplitComplete = async ({ files: sectionFiles, unitLabel, unitSlug }) => {
+    try {
+      setShowManualSplitter(false);
+      setIsProcessing(true);
+      setDecomposeProgress({ label: 'Saving manual sections...', completed: 12, total: 13 });
+
+      // Write the manual section files to the project
+      for (const [filePath, content] of Object.entries(sectionFiles)) {
+        await updateFile(filePath, content);
+      }
+
+      // Finalize the project: mark all phases as complete
+      const updateProject = useProjectStore.getState().updateProject;
+      await updateProject({
+        currentPhase: 8,
+        phaseAnswers: {
+          1: { 1: '(Decomposed from manuscript)', 2: '(Decomposed)', 3: '(Decomposed)', 4: '(Decomposed)', _decomposed: true },
+          2: { 1: '(Decomposed from manuscript)', 2: '(Decomposed)', 3: '(Decomposed)', _decomposed: true },
+          3: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', 4: '(Decomposed)', 5: '(Decomposed)', 6: '(Decomposed)', 7: '(Decomposed)', 8: '(Decomposed)', _decomposed: true },
+          4: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', 4: '(Decomposed)', _decomposed: true },
+          5: { 1: '(Decomposed)', 2: '(Decomposed)', _decomposed: true },
+          6: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', _decomposed: true },
+          7: { 1: '(Decomposed)', 2: '(Decomposed)', 3: '(Decomposed)', _decomposed: true },
+        },
+      });
+
+      setDecomposeProgress({ label: 'Complete', completed: 13, total: 13 });
+      navigate('/workspace');
+    } catch (err) {
+      console.error('Failed to save manual sections:', err);
+      setDecomposeError(err.message || 'Failed to save sections');
       setIsProcessing(false);
     }
   };
@@ -445,6 +503,17 @@ export default function WizardScreen() {
 
   // Special route handlers
   if (mode === 'decompose') {
+    // Show manual splitter if auto-split failed
+    if (showManualSplitter) {
+      return (
+        <ManualSplitter
+          sourceText={formData.materialContent}
+          medium={formData.medium || 'novel'}
+          onComplete={handleManualSplitComplete}
+          onCancel={() => { setShowManualSplitter(false); }}
+        />
+      );
+    }
     return <DecomposeMode formData={formData} setFormData={setFormData} onComplete={handleDecompose} progress={decomposeProgress} error={decomposeError} onClearError={() => setDecomposeError(null)} />;
   }
   if (mode === 'retell') {
