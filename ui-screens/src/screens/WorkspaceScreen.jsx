@@ -3374,14 +3374,27 @@ const comparisonDimensions = [
 // Works library is built dynamically from user's projects
 function useWorksLibrary() {
   const projects = useProjectStore(s => s.projects);
-  const files = useProjectStore(s => s.files);
   return projects.map(p => ({
     id: p.id,
     title: p.title,
     type: p.medium || 'novel',
-    chapters: Object.keys(files).filter(f => f.match(/^story\/chapter-\d+\.md$/)).length,
+    wordCount: p.wordCount || 0,
     status: p.lastAction || 'In Progress',
   }));
+}
+
+/**
+ * Load all .md files from a specific project (by ID) from IndexedDB.
+ * Returns a flat object { 'path': 'content', ... }.
+ */
+async function loadProjectFilesById(projectId) {
+  const { default: db } = await import('../lib/db');
+  const records = await db.projectFiles.where('projectId').equals(projectId).toArray();
+  const files = {};
+  for (const f of records) {
+    files[f.path] = f.content;
+  }
+  return files;
 }
 
 // Comparison data is now generated dynamically via LLM calls — see runDeepComparison() below
@@ -3399,23 +3412,123 @@ function ComparisonMode() {
   const [comparisonData, setComparisonData] = useState(null);
   const [isComparing, setIsComparing] = useState(false);
   const [comparisonProgress, setComparisonProgress] = useState('');
+  const [resultsTab, setResultsTab] = useState('dimensions'); // 'dimensions' | 'characters'
+  const [charsA, setCharsA] = useState([]);
+  const [charsB, setCharsB] = useState([]);
+  const [selectedCharA, setSelectedCharA] = useState(null);
+  const [selectedCharB, setSelectedCharB] = useState(null);
+  const [charComparisonData, setCharComparisonData] = useState(null);
+  const [isComparingChars, setIsComparingChars] = useState(false);
+  const [charComparisonProgress, setCharComparisonProgress] = useState('');
   const worksLibrary = useWorksLibrary();
   const projectFiles = useProjectStore(s => s.files);
   const sendMessage = useLlmStore(s => s.sendMessage);
+
+  /**
+   * Extract character names and file content from a project's files.
+   * Characters are stored as characters/<name>.md (excluding questions-answered.md).
+   */
+  const extractCharactersFromProject = async (projectId) => {
+    if (!projectId) return [];
+    const files = await loadProjectFilesById(projectId);
+    const charFiles = Object.entries(files).filter(
+      ([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered')
+    );
+    return charFiles.map(([path, content]) => {
+      const name = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+      return {
+        name: name.charAt(0).toUpperCase() + name.slice(1),
+        path,
+        content: content || '',
+      };
+    });
+  };
+
+  /**
+   * Run character comparison via LLM
+   */
+  const runCharacterComparison = async () => {
+    if (!selectedCharA || !selectedCharB || !workA || !workB) return;
+    setIsComparingChars(true);
+    setCharComparisonData(null);
+    setCharComparisonProgress('Loading character data...');
+
+    try {
+      // Get additional context from each work (narrator, world, relationships)
+      const filesA = workA.id ? await loadProjectFilesById(workA.id) : {};
+      const filesB = workB.id ? await loadProjectFilesById(workB.id) : {};
+
+      const contextA = [filesA['narrator.md'], filesA['world/world-building.md'], filesA['relationships/questions-answered.md']]
+        .filter(Boolean).join('\n\n').slice(0, 3000);
+      const contextB = [filesB['narrator.md'], filesB['world/world-building.md'], filesB['relationships/questions-answered.md']]
+        .filter(Boolean).join('\n\n').slice(0, 3000);
+
+      setCharComparisonProgress(`Comparing ${selectedCharA.name} vs ${selectedCharB.name}...`);
+
+      const prompt = PROMPTS.CHARACTER_COMPARISON.build({
+        charAName: selectedCharA.name,
+        charBName: selectedCharB.name,
+        workATitle: workA.title,
+        workBTitle: workB.title,
+        charAContent: selectedCharA.content.slice(0, 4000),
+        charBContent: selectedCharB.content.slice(0, 4000),
+        workAContext: contextA,
+        workBContext: contextB,
+      });
+
+      const response = await sendMessage({
+        messages: [
+          { role: 'system', content: prompt },
+          { role: 'user', content: `Compare ${selectedCharA.name} from "${workA.title}" with ${selectedCharB.name} from "${workB.title}". Respond with JSON only.` },
+        ],
+        role: 'analyst',
+        maxTokens: 3000,
+      });
+
+      if (!response.success) throw new Error(response.error || 'Character comparison LLM call failed');
+
+      const jsonMatch = response.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        setCharComparisonData(JSON.parse(jsonMatch[0]));
+      } else {
+        throw new Error('Could not parse character comparison response');
+      }
+    } catch (err) {
+      console.error('Character comparison failed:', err);
+      setCharComparisonProgress('Character comparison failed. Check your LLM connection.');
+    } finally {
+      setIsComparingChars(false);
+      setCharComparisonProgress('');
+    }
+  };
+
+  // Load characters when entering character tab with comparison data
+  useEffect(() => {
+    if (resultsTab === 'characters' && workA?.id && workB?.id && charsA.length === 0) {
+      extractCharactersFromProject(workA.id).then(setCharsA);
+      extractCharactersFromProject(workB.id).then(setCharsB);
+    }
+  }, [resultsTab, workA?.id, workB?.id]);
 
   // Run deep comparison across all dimensions via LLM
   const runDeepComparison = async () => {
     if (!workA || !workB) return;
     setIsComparing(true);
     setPhase('results');
+    setResultsTab('dimensions');
     setComparisonData(null);
+    setCharComparisonData(null);
+    setCharsA([]);
+    setCharsB([]);
+    setSelectedCharA(null);
+    setSelectedCharB(null);
 
     try {
-      // Gather text for each work
-      const getWorkText = (work) => {
-        if (work.id && projectFiles) {
-          // Internal project — gather all files
-          const allContent = Object.entries(projectFiles)
+      // Gather text for each work — loads files from IndexedDB per project
+      const getWorkText = async (work) => {
+        if (work.id) {
+          const files = await loadProjectFilesById(work.id);
+          const allContent = Object.entries(files)
             .filter(([p]) => p.endsWith('.md'))
             .map(([p, c]) => `--- ${p} ---\n${c}`)
             .join('\n\n');
@@ -3424,8 +3537,9 @@ function ComparisonMode() {
         return work.excerpt || `Title: ${work.title}\nType: ${work.type}`;
       };
 
-      const workAText = getWorkText(workA);
-      const workBText = getWorkText(workB);
+      setComparisonProgress('Loading project data...');
+      const workAText = await getWorkText(workA);
+      const workBText = await getWorkText(workB);
 
       // Run per-dimension comparisons
       const dimensionResults = {};
@@ -3445,13 +3559,19 @@ function ComparisonMode() {
         });
 
         try {
-          const response = await sendMessage([
-            { role: 'system', content: prompt },
-            { role: 'user', content: `Compare these two works on the dimension of ${dim.label}. Respond with JSON only.` },
-          ], 'analyst');
+          const response = await sendMessage({
+            messages: [
+              { role: 'system', content: prompt },
+              { role: 'user', content: `Compare these two works on the dimension of ${dim.label}. Respond with JSON only.` },
+            ],
+            role: 'analyst',
+            maxTokens: 2000,
+          });
 
-          // Parse JSON from response
-          const jsonMatch = response.match(/\{[\s\S]*\}/);
+          if (!response.success) throw new Error(response.error || 'LLM call failed');
+
+          // Parse JSON from response content
+          const jsonMatch = response.content.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
             dimensionResults[dim.key] = JSON.parse(jsonMatch[0]);
           }
@@ -3475,17 +3595,25 @@ function ComparisonMode() {
 
       let overallDivergence = 50;
       let topChanges = [];
+      let oneSentenceSummary = '';
       try {
-        const summaryResponse = await sendMessage([
-          { role: 'system', content: summaryPrompt },
-          { role: 'user', content: 'Synthesize the per-dimension results into an overall comparison. Respond with JSON only.' },
-        ], 'analyst');
+        const summaryResponse = await sendMessage({
+          messages: [
+            { role: 'system', content: summaryPrompt },
+            { role: 'user', content: 'Synthesize the per-dimension results into an overall comparison. Respond with JSON only.' },
+          ],
+          role: 'analyst',
+          maxTokens: 2000,
+        });
 
-        const summaryJson = summaryResponse.match(/\{[\s\S]*\}/);
+        if (!summaryResponse.success) throw new Error(summaryResponse.error || 'Summary LLM call failed');
+
+        const summaryJson = summaryResponse.content.match(/\{[\s\S]*\}/);
         if (summaryJson) {
           const parsed = JSON.parse(summaryJson[0]);
           overallDivergence = parsed.overallDivergence || 50;
           topChanges = parsed.topChanges || [];
+          oneSentenceSummary = parsed.oneSentenceSummary || '';
         }
       } catch (sumErr) {
         console.warn('Failed to generate summary:', sumErr);
@@ -3497,6 +3625,7 @@ function ComparisonMode() {
         workB: { title: workB.title, type: workB.type || 'Project' },
         overallDivergence,
         topChanges,
+        oneSentenceSummary,
         dimensions: dimensionResults,
       });
     } catch (err) {
@@ -3820,8 +3949,38 @@ function ComparisonMode() {
             </div>
           ))}
         </div>
+        {data.oneSentenceSummary && (
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)', fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6, fontStyle: 'italic' }}>
+            {data.oneSentenceSummary}
+          </div>
+        )}
       </Card>
 
+      {/* Results Tab Switcher */}
+      <div style={{ display: 'flex', gap: 2, marginBottom: 16, background: 'var(--bg-secondary)', borderRadius: 'var(--radius-sm)', padding: 3, width: 'fit-content' }}>
+        {[
+          { key: 'dimensions', label: 'Dimension Analysis', icon: BarChart3 },
+          { key: 'characters', label: 'Character Matchups', icon: Users },
+        ].map(tab => {
+          const TabIcon = tab.icon;
+          const active = resultsTab === tab.key;
+          return (
+            <button key={tab.key} onClick={() => setResultsTab(tab.key)} style={{
+              padding: '7px 16px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
+              fontSize: '0.8rem', fontWeight: active ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6,
+              background: active ? 'var(--bg-primary)' : 'transparent',
+              color: active ? 'var(--accent)' : 'var(--text-muted)',
+              boxShadow: active ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s',
+            }}>
+              <TabIcon size={13} /> {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ─── Dimensions Tab ─── */}
+      {resultsTab === 'dimensions' && (<>
       {/* Dimension toggles */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
         {comparisonDimensions.map(d => {
@@ -3976,6 +4135,185 @@ function ComparisonMode() {
           </div>
         )}
       </div>
+      </>)}
+
+      {/* ─── Characters Tab ─── */}
+      {resultsTab === 'characters' && (
+        <div style={{ animation: 'fadeIn 0.25s ease' }}>
+          {/* Character selection */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 16, marginBottom: 20, alignItems: 'start' }}>
+            {/* Work A characters */}
+            <div>
+              <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent)', marginBottom: 10 }}>
+                {data.workA.title} — Characters
+              </h3>
+              {charsA.length === 0 ? (
+                <Card style={{ padding: 16, textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No character files found in this project.</p>
+                </Card>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {charsA.map(ch => {
+                    const selected = selectedCharA?.name === ch.name;
+                    return (
+                      <Card key={ch.path} onClick={() => setSelectedCharA(ch)} style={{
+                        padding: '10px 14px', cursor: 'pointer', transition: 'all 0.15s',
+                        border: selected ? '1px solid var(--accent)' : '1px solid var(--border)',
+                        background: selected ? 'var(--accent-glow)' : undefined,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}>
+                        <Users size={14} color={selected ? 'var(--accent)' : 'var(--text-muted)'} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: selected ? 600 : 400, color: selected ? 'var(--accent)' : 'var(--text-primary)' }}>
+                          {ch.name}
+                        </span>
+                        {ch.content && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{ch.content.split(/\s+/).length}w</span>}
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 30, color: 'var(--text-muted)', fontSize: '1.2rem', fontWeight: 700 }}>vs</div>
+
+            {/* Work B characters */}
+            <div>
+              <h3 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#f472b6', marginBottom: 10 }}>
+                {data.workB.title} — Characters
+              </h3>
+              {charsB.length === 0 ? (
+                <Card style={{ padding: 16, textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No character files found in this project.</p>
+                </Card>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {charsB.map(ch => {
+                    const selected = selectedCharB?.name === ch.name;
+                    return (
+                      <Card key={ch.path} onClick={() => setSelectedCharB(ch)} style={{
+                        padding: '10px 14px', cursor: 'pointer', transition: 'all 0.15s',
+                        border: selected ? '1px solid #f472b6' : '1px solid var(--border)',
+                        background: selected ? 'rgba(244,114,182,0.08)' : undefined,
+                        display: 'flex', alignItems: 'center', gap: 8,
+                      }}>
+                        <Users size={14} color={selected ? '#f472b6' : 'var(--text-muted)'} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: selected ? 600 : 400, color: selected ? '#f472b6' : 'var(--text-primary)' }}>
+                          {ch.name}
+                        </span>
+                        {ch.content && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>{ch.content.split(/\s+/).length}w</span>}
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Run character comparison button */}
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <Button
+              variant={selectedCharA && selectedCharB ? 'primary' : 'secondary'}
+              onClick={runCharacterComparison}
+              disabled={!selectedCharA || !selectedCharB || isComparingChars}
+              style={{ opacity: selectedCharA && selectedCharB ? 1 : 0.5, padding: '10px 28px' }}
+            >
+              <Sparkles size={14} style={{ marginRight: 6 }} />
+              {isComparingChars ? 'Comparing...' : 'Compare Characters'}
+            </Button>
+            {charComparisonProgress && (
+              <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                <Sparkles size={12} color="var(--accent)" style={{ animation: 'pulse 1.5s infinite' }} /> {charComparisonProgress}
+              </div>
+            )}
+          </div>
+
+          {/* Character comparison results */}
+          {charComparisonData && (
+            <div style={{ animation: 'fadeIn 0.3s ease' }}>
+              {/* Header */}
+              <Card style={{ padding: 16, marginBottom: 16, background: 'linear-gradient(135deg, var(--accent-glow) 0%, rgba(244,114,182,0.06) 100%)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, margin: 0 }}>
+                    <span style={{ color: 'var(--accent)' }}>{charComparisonData.charA}</span>
+                    <span style={{ color: 'var(--text-muted)', margin: '0 8px', fontWeight: 400, fontSize: '0.85rem' }}>vs</span>
+                    <span style={{ color: '#f472b6' }}>{charComparisonData.charB}</span>
+                  </h3>
+                  <Badge variant="accent" style={{ fontSize: '0.8rem', padding: '4px 12px' }}>
+                    {charComparisonData.overallSimilarity}% similar
+                  </Badge>
+                </div>
+                {charComparisonData.oneSentence && (
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                    {charComparisonData.oneSentence}
+                  </div>
+                )}
+              </Card>
+
+              {/* Dimension cards */}
+              {charComparisonData.dimensions && Object.entries(charComparisonData.dimensions).map(([dimKey, dim]) => {
+                const dimLabels = { motivation: 'Motivation', arc: 'Character Arc', voice: 'Voice & Dialogue', psychology: 'Psychology', role: 'Narrative Role', relationships: 'Relationships' };
+                const dimColors = { motivation: '#a78bfa', arc: '#fbbf24', voice: '#60a5fa', psychology: '#e879f9', role: '#34d399', relationships: '#fb7185' };
+                const similarity = dim.similarity || 50;
+
+                return (
+                  <Card key={dimKey} style={{ marginBottom: 10, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.85rem', flex: 1, color: dimColors[dimKey] || 'var(--text-primary)' }}>
+                        {dimLabels[dimKey] || dimKey}
+                      </span>
+                      {/* Similarity bar */}
+                      <div style={{ width: 80, height: 6, borderRadius: 3, background: 'var(--bg-tertiary)', overflow: 'hidden', marginRight: 8 }}>
+                        <div style={{
+                          width: `${similarity}%`, height: '100%', borderRadius: 3,
+                          background: similarity > 70 ? '#34d399' : similarity > 40 ? '#fbbf24' : '#ef4444',
+                          transition: 'width 0.5s ease',
+                        }} />
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: similarity > 70 ? '#34d399' : similarity > 40 ? '#fbbf24' : '#ef4444', minWidth: 28 }}>
+                        {similarity}%
+                      </span>
+                    </div>
+                    {/* Side by side summaries */}
+                    <div style={{ padding: '0 16px 14px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 8 }}>
+                        <div style={{ padding: 10, borderRadius: 'var(--radius-sm)', background: 'var(--accent-glow)', border: '1px solid var(--accent)20' }}>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--accent)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {charComparisonData.charA}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{dim.charASummary}</div>
+                        </div>
+                        <div style={{ padding: 10, borderRadius: 'var(--radius-sm)', background: 'rgba(244,114,182,0.06)', border: '1px solid rgba(244,114,182,0.2)' }}>
+                          <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f472b6', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                            {charComparisonData.charB}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{dim.charBSummary}</div>
+                        </div>
+                      </div>
+                      {dim.insight && (
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontStyle: 'italic', lineHeight: 1.5, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                          {dim.insight}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+
+              {/* What each could learn */}
+              {charComparisonData.whatEachCouldLearn && (
+                <Card style={{ padding: 16, marginTop: 6, background: 'var(--bg-secondary)' }}>
+                  <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--accent)', marginBottom: 8 }}>
+                    <Sparkles size={12} style={{ marginRight: 4, verticalAlign: -1 }} /> Cross-Pollination Insight
+                  </h4>
+                  <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    {charComparisonData.whatEachCouldLearn}
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       </>
       )}
     </div>

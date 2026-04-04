@@ -999,6 +999,97 @@ ${dimensionResults}
   },
 
   // ═════════════════════════════════════════════════════════════════════
+  //  19b. CHARACTER COMPARISON — Cross-project character analysis
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * ROLE:        A literary comparatist analyzing two characters from different works.
+   * USE MODE:    Fires when user selects two characters to compare across projects.
+   * BOUNDARIES:  Character-specific analysis only. Must reference text evidence.
+   * CONTEXT:     Receives: both character file contents, work titles, character names.
+   * OUTPUT:      JSON with divergence scores across character-specific dimensions.
+   * DESTINATION: Character comparison panel within the Comparison Lab.
+   */
+  CHARACTER_COMPARISON: {
+    build: ({ charAName, charBName, workATitle, workBTitle, charAContent, charBContent, workAContext, workBContext }) => GOLDEN_RULES + `
+## Your Role: Character Comparatist
+
+You are conducting a **deep character comparison** between two characters from different works.
+
+### Characters:
+- **Character A**: "${charAName}" from "${workATitle}"
+- **Character B**: "${charBName}" from "${workBTitle}"
+
+### Character A profile:
+${charAContent || '(No character data available)'}
+
+### Character B profile:
+${charBContent || '(No character data available)'}
+
+### Additional context from Work A:
+${workAContext || '(No additional context)'}
+
+### Additional context from Work B:
+${workBContext || '(No additional context)'}
+
+### Required output format (JSON):
+\`\`\`json
+{
+  "charA": "${charAName}",
+  "charB": "${charBName}",
+  "overallSimilarity": <number 0-100, how similar are these characters overall>,
+  "dimensions": {
+    "motivation": {
+      "similarity": <number 0-100>,
+      "charASummary": "<1-2 sentences on Character A's motivations>",
+      "charBSummary": "<1-2 sentences on Character B's motivations>",
+      "insight": "<key difference or surprising similarity>"
+    },
+    "arc": {
+      "similarity": <number 0-100>,
+      "charASummary": "<1-2 sentences on Character A's arc>",
+      "charBSummary": "<1-2 sentences on Character B's arc>",
+      "insight": "<key difference or surprising similarity>"
+    },
+    "voice": {
+      "similarity": <number 0-100>,
+      "charASummary": "<1-2 sentences on Character A's voice/dialogue style>",
+      "charBSummary": "<1-2 sentences on Character B's voice/dialogue style>",
+      "insight": "<key difference or surprising similarity>"
+    },
+    "psychology": {
+      "similarity": <number 0-100>,
+      "charASummary": "<1-2 sentences on Character A's psychology/inner life>",
+      "charBSummary": "<1-2 sentences on Character B's psychology/inner life>",
+      "insight": "<key difference or surprising similarity>"
+    },
+    "role": {
+      "similarity": <number 0-100>,
+      "charASummary": "<1-2 sentences on Character A's narrative role>",
+      "charBSummary": "<1-2 sentences on Character B's narrative role>",
+      "insight": "<key difference or surprising similarity>"
+    },
+    "relationships": {
+      "similarity": <number 0-100>,
+      "charASummary": "<1-2 sentences on how Character A relates to others>",
+      "charBSummary": "<1-2 sentences on how Character B relates to others>",
+      "insight": "<key difference or surprising similarity>"
+    }
+  },
+  "oneSentence": "<single memorable sentence capturing the essential relationship between these characters>",
+  "whatEachCouldLearn": "<what each character archetype could borrow from the other>"
+}
+\`\`\`
+
+### Rules:
+- Be insightful, not surface-level. "Both are brave" is worthless. Find the structural DNA.
+- Compare motivations, arcs, voice, psychology, narrative role, and relationships
+- Reference specific textual evidence when possible
+- The oneSentence should be genuinely illuminating
+- Respond ONLY with the JSON object
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
   //  20. CHAT CONTEXT SUGGESTIONS (UI — conversation starters)
   // ═════════════════════════════════════════════════════════════════════
   /**
