@@ -32,21 +32,21 @@ The system is medium-agnostic. Novels, screenplays, stage plays, graphic novels,
 
 StoryWeaver guides your story through eight phases, each building on the last:
 
-**Phase 1 -- Author.** Define who you are as a writer. Your wound, your voice, your blind spots, your Big Picture Statement. Everything downstream filters through this lens.
+**Phase 1 - Author.** Define who you are as a writer. Your wound, your voice, your blind spots, your Big Picture Statement. Everything downstream filters through this lens.
 
-**Phase 2 -- Narrator.** Choose the mask the author puts on. POV, tense, reliability, narrative distance. The gap between author and narrator is where irony lives.
+**Phase 2 - Narrator.** Choose the mask the author puts on. POV, tense, reliability, narrative distance. The gap between author and narrator is where irony lives.
 
-**Phase 3 -- World.** Genre, themes, setting, rules, hallmarks. Build the world your characters will inhabit, complete with the objects, places, and forces that define it.
+**Phase 3 - World.** Genre, themes, setting, rules, hallmarks. Build the world your characters will inhabit, complete with the objects, places, and forces that define it.
 
-**Phase 4 -- Characters.** Build a full cast with identity, psychology, wounds, arcs, and per-character voice fingerprints. Each character is constructed with the same rigor as the author.
+**Phase 4 - Characters.** Build a full cast with identity, psychology, wounds, arcs, and per-character voice fingerprints. Each character is constructed with the same rigor as the author.
 
-**Phase 5 -- Relationships.** Map every significant pairing: dynamics, attachment styles, power structures, and how they evolve under pressure.
+**Phase 5 - Relationships.** Map every significant pairing: dynamics, attachment styles, power structures, and how they evolve under pressure.
 
-**Phase 6 -- Story Foundation.** Outline, arc, tonal arc, subplot threading. Know the ending before writing the beginning.
+**Phase 6 - Story Foundation.** Outline, arc, tonal arc, subplot threading. Know the ending before writing the beginning.
 
-**Phase 7 -- Quality Control.** A structural audit against the theoretical framework before any prose is written. Health scores, gap detection, and editorial suggestions.
+**Phase 7 - Quality Control.** A structural audit against the theoretical framework before any prose is written. Health scores, gap detection, and editorial suggestions.
 
-**Phase 8 -- Execution.** Chapter-by-chapter writing with full context awareness. The AI knows the author's voice, the narrator's style, every character's speech patterns, and the outline.
+**Phase 8 - Execution.** Chapter-by-chapter writing with full context awareness. The AI knows the author's voice, the narrator's style, every character's speech patterns, and the outline.
 
 ### Decomposition Mode
 
