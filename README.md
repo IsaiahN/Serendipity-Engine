@@ -14,6 +14,7 @@
 </p>
 
 ---
+<img width="1366" height="604" alt="image" src="https://github.com/user-attachments/assets/e639d970-0d8d-483c-ad4e-469770cb00f6" />
 
 ## What Is StoryWeaver?
 
@@ -27,7 +28,7 @@ The system is medium-agnostic. Novels, screenplays, stage plays, graphic novels,
 
 ## Features
 
-### The 8-Phase Pipeline
+### How It Works
 
 StoryWeaver guides your story through eight phases, each building on the last:
 
@@ -51,6 +52,8 @@ StoryWeaver guides your story through eight phases, each building on the last:
 
 Already have a manuscript? Upload it and StoryWeaver reverse-engineers it through the same 8-phase framework, extracting the author profile, narrator analysis, world-building, character sheets, relationship graph, and structural outline. Use this to understand why a story works, find gaps in your draft, or build the foundation for a sequel, prequel, or POV shift.
 
+<img width="758" height="315" alt="image" src="https://github.com/user-attachments/assets/a0b75cf7-c935-4188-94b6-3f4f134b2162" />
+
 ### Paradigm Shift
 
 Take any project and transform it. Blend genres, transpose mediums (novel to screenplay), shift the POV to a different character, change the narrator's tone. StoryWeaver forks the project, filters the cast to only characters relevant to the new perspective, and regenerates the structural files while preserving your original.
@@ -64,6 +67,7 @@ A chat-based collaborator that knows your entire project. Brainstorm plot twists
 Developmental editing powered by AI. Get craft-level feedback on prose, pacing, voice consistency, and structural coherence. The editor reads your work against the same framework that built it.
 
 ### World Building, Relationships, and Timeline Views
+<img width="776" height="414" alt="image" src="https://github.com/user-attachments/assets/8b723711-2540-47ad-a4be-0ba58e65af5c" />
 
 Dedicated workspaces for exploring your world's rules and hallmarks, visualizing character relationship webs, and tracking your story's timeline and chapter progression.
 
@@ -77,23 +81,25 @@ After any major operation (decomposition, paradigm shift, generation), StoryWeav
 
 ### Health Scoring
 
-AI-generated heuristic scores for narrative arc, character depth, world building, dialogue quality, and overall story structure. These are subjective ratings meant as guideposts, not judgments.
+Heuristic scores for narrative arc, character depth, world building, dialogue quality, and overall story structure. These are subjective ratings meant as guideposts, not judgments.
 
-### Export
-
-Export your project as DOCX, PDF, plain text, or a zipped project archive. All formats preserve chapter structure and metadata.
+<img width="757" height="411" alt="image" src="https://github.com/user-attachments/assets/124372f5-8fc5-402d-ad56-a1d0325d1332" />
 
 ### Deep Comparison
 
 Compare any two works across ten analytical dimensions: author psychology, narrator, world building, characters, relationships, story structure, tone, theme, audience, and author inferences. Four comparison modes let you compare two of your own projects, two uploaded books, your work against a published piece, or track evolution across a series. Each dimension gets an LLM-powered analysis with a divergence score, and results are displayed with expandable dimension cards, a radar chart visualization, and side-by-side character comparisons. Series mode adds timeline and evolution tracking across multiple installments.
 
-### Drawing Board
+### The Drawing Board
 
 A creative scratchpad for collecting ideas that haven't found a home in the project structure yet. Add notes, upload images (with a multi-image slider for visual references), attach documents (.txt, .md, .docx, .pdf), or write rough drafts. Organize items into custom groups, switch between board view (visual grid), list view (compact table), gallery view (image-focused), or filter to show only unlinked items. Every item tracks whether it's been used in the project, so you can see which ideas made it into the story and which are still waiting.
 
 ### Voice Casting Briefs
 
 AI-generated voice direction documents for audiobook narration or TTS production. StoryWeaver reads every character profile in your project and produces a casting brief for each: name, age range, accent, pitch, pace, vocal quality, emotional range, a one-line direction for the voice actor, and a "similar to" reference (e.g., "Think: Morgan Freeman"). Useful for audiobook producers, podcast creators, or anyone who wants to hear their characters before writing dialogue.
+
+### Export
+
+Export your project as DOCX, PDF, plain text, or a zipped project archive. All formats preserve chapter structure and metadata.
 
 ### Progressive Web App
 
