@@ -293,16 +293,23 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
       //   Pass 3: Verification — check which characters from the scan were actually
       //           profiled and re-run any that were missed
 
-      // --- Pass 1: Character name scan (FULL text) ---
+      // --- Pass 1: Character name scan (FULL text, capped at 180k chars for safety) ---
       let characterList = '';
       let scanLines = [];
       try {
-        const scanPrompt = PROMPTS.DECOMPOSE_CHARACTERS_SCAN.build({ sourceText });
+        // Cap source text for scan: 180k chars (~45k tokens) is plenty to catch all characters.
+        // Very long novels may exceed context windows if sent in full.
+        const scanSourceText = sourceText.length > 180000
+          ? sourceText.substring(0, 180000) + '\n\n[... remaining text truncated for scan — all characters appearing before this point and referenced in dialogue/narration will be captured ...]'
+          : sourceText;
+        const scanPrompt = PROMPTS.DECOMPOSE_CHARACTERS_SCAN.build({ sourceText: scanSourceText });
+        console.log('[Decomposition] Scan prompt length:', scanPrompt.length, 'chars (~', Math.round(scanPrompt.length / 4), 'tokens)');
         const scanResult = await sendMessage({
           messages: [{ role: 'user', content: scanPrompt }],
           role: 'analyst',
           maxTokens: 4000, // Generous — big casts with collectives + societies
         });
+        console.log('[Decomposition] Scan result keys:', Object.keys(scanResult), 'success:', scanResult.success, 'content length:', scanResult.content?.length, 'error:', scanResult.error);
         if (scanResult.success && scanResult.content) {
           characterList = removeEmdashes(scanResult.content);
           console.log('[Decomposition] Raw scan response (first 800 chars):', characterList.substring(0, 800));
@@ -518,14 +525,16 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
       break;
 
     case 'relationships-detail': {
-      // Generate relationships/relationship-graph.csv
+      // Generate relationships/relationship-graph.json (JSON edges format)
       const charFileNames = Object.keys(previousFiles).filter(p => p.startsWith('characters/') && !p.includes('questions-answered'));
-      const charNames = charFileNames.map(p => {
-        const base = p.replace('characters/', '').replace('.md', '');
-        return base.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-      });
+      const charSlugs = charFileNames.map(p => p.replace('characters/', '').replace('.md', ''));
+      const charNames = charSlugs.map(slug =>
+        slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+      );
+      console.log('[Decomposition] Relationship graph: building JSON for', charSlugs.length, 'characters:', charSlugs.slice(0, 5).join(', '));
       prompt = PROMPTS.DECOMPOSE_RELATIONSHIPS_DETAIL.build({
         sourceExcerpt: sourceText.substring(0, 5000),
+        characterSlugs: charSlugs,
         characterNames: charNames,
         relSummary: (previousFiles['relationships/questions-answered.md'] || '').substring(0, 2000),
         title: metadata.title || 'this manuscript',
@@ -533,15 +542,17 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
       const rdResult = await sendMessage({
         messages: [{ role: 'user', content: prompt }],
         role: 'analyst',
-        maxTokens: 3000,
+        maxTokens: 4000,
       });
-      if (rdResult.success) {
+      console.log('[Decomposition] Relationship graph result: success=', rdResult.success, 'content length=', rdResult.content?.length);
+      if (rdResult.success && rdResult.content) {
         const cleaned = removeEmdashes(rdResult.content);
-        // Extract CSV content - look for the CSV block
-        const csvContent = extractCSVFromResponse(cleaned, charNames);
-        files['relationships/relationship-graph.csv'] = csvContent;
+        const graphJson = extractRelationshipJSON(cleaned, charSlugs);
+        files['relationships/relationship-graph.json'] = JSON.stringify(graphJson, null, 2);
+        console.log('[Decomposition] Relationship graph: extracted', graphJson.edges?.length || 0, 'edges');
       } else {
-        throw new Error(rdResult.error || 'Relationship graph generation failed');
+        console.warn('[Decomposition] Relationship graph LLM call failed:', rdResult.error || 'empty content');
+        throw new Error(rdResult.error || 'Relationship graph generation failed (empty response)');
       }
       break;
     }
@@ -993,7 +1004,7 @@ function buildReviewPrompt(sourceText, previousFiles, _metadata) {
 - Character profiles: ${Object.keys(previousFiles).filter(p => p.startsWith('characters/') && !p.includes('questions-answered')).length || 0} files
 - Characters questions-answered: ${previousFiles['characters/questions-answered.md'] ? 'yes' : 'no'}
 - Relationships: ${previousFiles['relationships/questions-answered.md'] ? 'yes' : 'no'}
-- Relationship graph: ${previousFiles['relationships/relationship-graph.csv'] ? 'yes' : 'no'}
+- Relationship graph: ${(previousFiles['relationships/relationship-graph.json'] || previousFiles['relationships/relationship-graph.csv']) ? 'yes' : 'no'}
 - Story structure: ${previousFiles['outline.md'] || previousFiles['story/arc.md'] ? 'yes' : 'no'}
 - Story questions-answered: ${previousFiles['story/questions-answered.md'] ? 'yes' : 'no'}
 - Abstract: ${previousFiles['abstract.md'] ? 'yes' : 'no'}`;
@@ -1148,36 +1159,60 @@ function parseChapterMarkdown(content) {
 }
 
 /**
- * Extract CSV content from an LLM response that may wrap it in fences or prose.
+ * Extract relationship graph JSON from an LLM response.
+ * Handles: fenced JSON blocks, raw JSON, or falls back to building edges from text.
  */
-function extractCSVFromResponse(content, characterNames) {
-  // Try to find fenced CSV block first
-  const fencedMatch = content.match(/```(?:csv)?\s*\n([\s\S]*?)\n```/);
-  if (fencedMatch) return fencedMatch[1].trim();
+function extractRelationshipJSON(content, validSlugs) {
+  const VALID_TYPES = new Set(['family', 'friend', 'rival', 'authority', 'mentor', 'ally']);
+  const slugSet = new Set(validSlugs);
 
-  // Try to find lines that look like CSV (contain commas and character names)
-  const lines = content.split('\n');
-  const csvLines = [];
-  let inCSV = false;
+  // Try to find fenced JSON block
+  const fencedMatch = content.match(/```(?:json)?\s*\n([\s\S]*?)\n```/);
+  const jsonStr = fencedMatch ? fencedMatch[1].trim() : content.trim();
 
-  for (const line of lines) {
-    const commaCount = (line.match(/,/g) || []).length;
-    // CSV rows typically have many commas; look for header row or data rows
-    if (commaCount >= 2 && (line.includes('From/To') || line.includes('SELF') || characterNames.some(n => line.includes(n)))) {
-      inCSV = true;
+  // Try to parse as JSON
+  try {
+    // Find the first { ... } in the string (handles LLM prose before/after)
+    const braceStart = jsonStr.indexOf('{');
+    const braceEnd = jsonStr.lastIndexOf('}');
+    if (braceStart !== -1 && braceEnd > braceStart) {
+      const parsed = JSON.parse(jsonStr.substring(braceStart, braceEnd + 1));
+      const rawEdges = parsed.edges || parsed.relationships || [];
+
+      // Validate and clean each edge
+      const edges = rawEdges
+        .filter(e => e && e.from && e.to && e.from !== e.to)
+        .map(e => ({
+          from: e.from.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''),
+          to: e.to.trim().toLowerCase().replace(/[^a-z0-9-]/g, ''),
+          type: VALID_TYPES.has(e.type) ? e.type : 'ally',
+          strength: Math.max(1, Math.min(5, parseInt(e.strength) || 3)),
+          description: (e.description || '').substring(0, 300),
+        }))
+        // Deduplicate edges (keep first occurrence per pair)
+        .filter((edge, idx, arr) => {
+          const pairKey = [edge.from, edge.to].sort().join('|');
+          return idx === arr.findIndex(e2 => [e2.from, e2.to].sort().join('|') === pairKey);
+        });
+
+      // Warn about unrecognized slugs (helps debugging)
+      const usedSlugs = new Set(edges.flatMap(e => [e.from, e.to]));
+      const unknown = [...usedSlugs].filter(s => !slugSet.has(s));
+      if (unknown.length > 0) {
+        console.warn('[Decomposition] Relationship graph has unknown slugs:', unknown,
+          '— will attempt fuzzy matching at render time');
+      }
+
+      console.log('[Decomposition] Parsed', edges.length, 'valid edges from JSON');
+      return { edges };
     }
-    if (inCSV && commaCount >= 2) {
-      csvLines.push(line);
-    } else if (inCSV && commaCount < 2 && line.trim()) {
-      // End of CSV block
-      break;
-    }
+  } catch (parseErr) {
+    console.warn('[Decomposition] JSON parse failed:', parseErr.message);
   }
 
-  if (csvLines.length >= 2) return csvLines.join('\n');
-
-  // Last resort: use the whole content
-  return content.trim();
+  // Fallback: return empty graph
+  console.warn('[Decomposition] Could not extract relationship JSON from LLM response');
+  return { edges: [] };
 }
 
 // ─── Markdown Formatters ────────────────────────────────────────────────
@@ -1215,7 +1250,7 @@ function createPlaceholder(stepKey) {
     characters: { 'characters/placeholder.md': '# Characters\n\n(Placeholder - decomposition step failed)\n\nPlease manually add character files.' },
     'characters-detail': { 'characters/questions-answered.md': '# Characters - Questions Answered\n\n(Placeholder - decomposition step failed)' },
     relationships: { 'relationships/questions-answered.md': '# Relationships\n\n(Placeholder - decomposition step failed)\n\nPlease manually fill in relationship details.' },
-    'relationships-detail': { 'relationships/relationship-graph.csv': 'From/To\n(Placeholder - decomposition step failed)' },
+    'relationships-detail': { 'relationships/relationship-graph.json': '{"edges":[]}' },
     structure: { 'outline.md': '# Outline\n\n(Placeholder)', 'story/arc.md': '# Story Arc\n\n(Placeholder)' },
     'story-detail': {
       'story/questions-answered.md': '# Story - Questions Answered\n\n(Placeholder - decomposition step failed)',

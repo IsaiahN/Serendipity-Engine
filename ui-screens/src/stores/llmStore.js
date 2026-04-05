@@ -416,9 +416,13 @@ export const useLlmStore = create((set, get) => ({
             }));
           }
 
+          const textContent = data.content?.[0]?.text || '';
+          if (!textContent) {
+            console.warn('[LLM] Anthropic returned empty text content. stop_reason:', data.stop_reason, 'content blocks:', data.content?.length, 'usage:', JSON.stringify(data.usage));
+          }
           return {
             success: true,
-            content: data.content?.[0]?.text || '',
+            content: textContent,
             usage: data.usage,
             provider: providerKey,
             model: data.model,
@@ -472,9 +476,13 @@ export const useLlmStore = create((set, get) => ({
             }));
           }
 
+          const oaiContent = data.choices?.[0]?.message?.content || '';
+          if (!oaiContent) {
+            console.warn('[LLM] OpenAI-style returned empty content. finish_reason:', data.choices?.[0]?.finish_reason, 'usage:', JSON.stringify(data.usage));
+          }
           return {
             success: true,
-            content: data.choices?.[0]?.message?.content || '',
+            content: oaiContent,
             usage: data.usage,
             provider: providerKey,
             model: data.model,
@@ -540,9 +548,13 @@ export const useLlmStore = create((set, get) => ({
             }));
           }
 
+          const geminiContent = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          if (!geminiContent) {
+            console.warn('[LLM] Google returned empty content. finishReason:', data.candidates?.[0]?.finishReason, 'candidates:', data.candidates?.length, 'usage:', JSON.stringify(data.usageMetadata));
+          }
           return {
             success: true,
-            content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
+            content: geminiContent,
             usage: data.usageMetadata,
             provider: providerKey,
             model,

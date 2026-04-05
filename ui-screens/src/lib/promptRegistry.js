@@ -955,15 +955,16 @@ Use [CONFIRMED] and [INFERRED] markers for each answer.
   },
 
   // ═════════════════════════════════════════════════════════════════════
-  //  16d. DECOMPOSITION — Relationship Graph CSV
+  //  16d. DECOMPOSITION — Relationship Graph (JSON edges)
   // ═════════════════════════════════════════════════════════════════════
   DECOMPOSE_RELATIONSHIPS_DETAIL: {
-    build: ({ sourceExcerpt, characterNames, relSummary, title }) => GOLDEN_RULES + `
+    build: ({ sourceExcerpt, characterSlugs, characterNames, relSummary, title }) => GOLDEN_RULES + `
 ## Your Role: Literary Analyst — Relationship Graph Construction
 
-Build a CSV relationship matrix for "${title}".
+Build a JSON relationship graph for "${title}".
 
-### Characters: ${characterNames.join(', ')}
+### Characters (slug → display name):
+${characterSlugs.map((slug, i) => `- "${slug}" = ${characterNames[i]}`).join('\n')}
 
 ### Relationship analysis so far:
 ${relSummary}
@@ -972,22 +973,34 @@ ${relSummary}
 ${sourceExcerpt}
 
 ### Instructions:
-Build a CSV table where:
-- First column header is "From/To"
-- Column headers are character names (include minor characters with "(minor)" suffix and society groups with "(society)" suffix)
-- Each cell describes how the ROW character perceives the COLUMN character at the story's close
-- Use "SELF" for diagonal cells (a character's self-perception)
-- Leave cells blank for characters who never interact
-- Keep each cell to 1-3 sentences maximum
-- Write from the row character's voice and awareness level
+Build a JSON array of relationship edges. Each edge connects two characters who interact, share history, or have a meaningful dynamic in the story.
 
-### Output format (CSV only, no prose before or after):
-\`\`\`csv
-From/To,${characterNames.join(',')}
-${characterNames[0]},SELF,description of how ${characterNames[0]} sees ${characterNames[1] || 'others'},...
+Rules:
+- Use the **slug** values (the quoted strings above) for "from" and "to" — NOT the display names
+- Only create ONE edge per pair (order alphabetically by slug: the earlier slug goes in "from")
+- "type" must be exactly one of: "family", "friend", "rival", "authority", "mentor", "ally"
+  - **family**: blood relatives, adoptive family, guardian/ward
+  - **friend**: companions, allies who share warmth and trust
+  - **rival**: enemies, antagonists, opposition, betrayal
+  - **authority**: ruler/subject, master/servant, boss/employee
+  - **mentor**: teacher/student, guide/protégé
+  - **ally**: cooperative but not deeply personal (default for acquaintances)
+- "strength" is 1-5: 1 = barely interact, 5 = central relationship of the story
+- "description" is 1-2 sentences from the perspective of the story's themes (not a character's POV)
+- Skip pairs who never interact or acknowledge each other
+- Include relationships involving collective/societal characters if meaningful
+
+### Output format (JSON only, no prose before or after):
+\`\`\`json
+{
+  "edges": [
+    { "from": "${characterSlugs[0] || 'slug-a'}", "to": "${characterSlugs[1] || 'slug-b'}", "type": "friend", "strength": 4, "description": "Brief description of this relationship" },
+    { "from": "${characterSlugs[0] || 'slug-a'}", "to": "${characterSlugs[2] || 'slug-c'}", "type": "mentor", "strength": 3, "description": "Brief description" }
+  ]
+}
 \`\`\`
 
-Output ONLY the CSV with no extra commentary. Every row must have the same number of comma-separated fields as the header.
+Output ONLY the JSON object. No prose, no markdown, no commentary outside the JSON block.
 `,
   },
 
@@ -1596,38 +1609,43 @@ For each hallmark, use this structure:
 `,
   },
 
-  PROJECT_ENRICH_RELATIONSHIP_CSV: {
-    build: ({ characters, relationships }) => GOLDEN_RULES + `
+  PROJECT_ENRICH_RELATIONSHIP_JSON: {
+    build: ({ characterSlugs, characterNames, relationships }) => GOLDEN_RULES + `
 ## Your Role: Relationship Mapper
 
-Generate a CSV matrix showing how each character perceives every other character. This is a From/To matrix where each cell describes how the "From" character sees/feels about the "To" character.
+Generate a JSON relationship graph showing how characters relate to each other. Each edge captures the nature, strength, and nuance of a specific relationship.
 
-### Characters in this story:
-${characters}
+### Characters (slug → display name):
+${characterSlugs.map((slug, i) => `- "${slug}" = ${characterNames[i]}`).join('\n')}
 
 ### Existing relationship notes:
 ${relationships}
 
 ### Output format:
-A CSV with these rules:
-- First row: header with "From" then each character name
-- Each subsequent row: a character's name, then how they see each other character
-- Diagonal cells (self): "SELF"
-- Each cell: 1-2 sentence description of the relationship FROM that character's perspective
-- Use "N/A" for characters who have never interacted
-- Wrap cell content in quotes if it contains commas
+Return a JSON object with an "edges" array. Each edge has:
+- "from": character slug (exactly as listed above)
+- "to": character slug (exactly as listed above)
+- "type": one of "family", "friend", "rival", "authority", "mentor", "ally", "romantic", "enemy"
+- "strength": integer 1-5 (1=barely connected, 5=central bond)
+- "description": 1-2 sentence description of how "from" perceives/relates to "to"
 
 Example:
-"From","Alice","Bob","Carol"
-"Alice","SELF","Trusts completely, sees as her anchor","Suspects of hiding something"
-"Bob","Loves deeply but fears losing her","SELF","Old friend, growing apart"
-"Carol","Envies her freedom","Childhood crush, never acted on","SELF"
+\`\`\`json
+{
+  "edges": [
+    { "from": "alice-smith", "to": "bob-jones", "type": "romantic", "strength": 5, "description": "Loves deeply but fears losing him; sees him as her anchor in a chaotic world." },
+    { "from": "bob-jones", "to": "alice-smith", "type": "romantic", "strength": 4, "description": "Devoted but increasingly stifled; loves her yet resents the dependency." },
+    { "from": "carol-wu", "to": "alice-smith", "type": "rival", "strength": 3, "description": "Envies her freedom and effortless charm; masks jealousy with performative friendship." }
+  ]
+}
+\`\`\`
 
 ### Rules:
-- Relationships are ASYMMETRIC — Alice's view of Bob may differ from Bob's view of Alice
+- Relationships are ASYMMETRIC — create separate edges for A→B and B→A when both perspectives matter
 - Be psychologically specific, not generic ("respects" → "respects grudgingly, still bitter about the betrayal")
-- Include characters with meaningful interactions only (skip truly disconnected pairs with N/A)
-- Output ONLY the CSV, no preamble or markdown fences
+- Only include characters with meaningful interactions (skip truly disconnected pairs)
+- Use ONLY the exact slugs listed above for "from" and "to" fields
+- Output ONLY the JSON, no preamble or explanation
 `,
   },
 

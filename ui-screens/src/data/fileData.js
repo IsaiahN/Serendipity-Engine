@@ -957,12 +957,11 @@ The engine is functional. It produced a coherent, internally consistent story fr
 
 ### PHASE 5 — Relationships
 
-**[DESIGN] R-01: Relationship graph CSV loses formatting in some Markdown environments — CSV cells with commas inside quoted fields may parse incorrectly**
+**[RESOLVED] R-01: Relationship graph migrated from CSV to JSON edges format**
 
-- **File:** \`relationships/relationship-graph.csv\`
-- **Discovered at:** Phase 5, CSV creation
-- **Description:** The relationship graph cells contain long narrative text with commas, em dashes, and other punctuation. CSV parsers that don't correctly handle RFC 4180 quoting may split cells incorrectly when the file is opened in non-Markdown environments (e.g., Excel, Google Sheets). The file is readable as Markdown text but loses the grid structure.
-- **Recommendation:** Consider providing an alternative format option — a Markdown table version for Markdown-native environments, and the CSV version for spreadsheet environments. Alternatively, note in the template that CSV cells must be double-quoted and that commas inside cells are safe within quotes.
+- **File:** \`relationships/relationship-graph.json\`
+- **Resolved by:** Migrating to JSON edges format with typed, weighted relationships
+- **Description:** The original CSV matrix format suffered from parsing issues (commas in cells, fragile name matching, sparse matrix waste). Replaced with a JSON edges array where each edge has from/to slugs, type, strength (1-5), and description. This eliminates all CSV parsing fragility and enables richer relationship metadata.
 - **Priority:** LOW. The file works in its current context (VS Code/Markdown). Only an issue if exported to spreadsheet software.
 
 ---
@@ -1031,7 +1030,7 @@ The engine is functional. It produced a coherent, internally consistent story fr
 | C-01 | No roll collision check for author ↔ protagonist attribute overlap | DESIGN | \`Master-Story-Checklist.md\` | MEDIUM |
 | M-01 | Phase 7 MetaFiles review too late — no mid-process checkpoints | IMPROVEMENT | \`Master-Story-Checklist.md\` | MEDIUM |
 | A-01 | Name files lack cultural sublist structure | IMPROVEMENT | \`Names/*.md\` | MEDIUM |
-| R-01 | CSV format degrades in non-Markdown environments | DESIGN | \`relationship-graph-template.csv\` | LOW |
+| R-01 | CSV format degrades in non-Markdown environments | DESIGN | \`relationship-graph-template.json\` | LOW |
 | SF-01 | Short description missing from Phase 6 outputs | IMPROVEMENT | \`abstract.md\` template | LOW |
 | W-03 | Extreme age roll needs reinforced "keep it" guidance | IMPROVEMENT | \`physical-description.md\` | LOW |
 | C-02 | "Supporting Protagonist" on main protagonist lacks explanatory note | IMPROVEMENT | \`character-types.md\` | LOW |
@@ -1536,7 +1535,7 @@ It's not a question.
 | \`characters/esther-flint.md\` | ✓ |
 | \`characters/clara-penner-thumbnail.md\` | ✓ |
 | \`characters/questions-answered.md\` | ✓ |
-| \`relationships/relationship-graph.csv\` | ✓ |
+| \`relationships/relationship-graph.json\` | ✓ |
 | \`relationships/questions-answered.md\` | ✓ |
 
 ### Questions.md Coverage
@@ -1600,7 +1599,7 @@ It's not a question.
 
 ## Relationship Graph Change Log
 
-*Record any phase-shifts that occur during drafting — to be confirmed against \`relationships/relationship-graph.csv\`*
+*Record any phase-shifts that occur during drafting — to be confirmed against \`relationships/relationship-graph.json\`*
 
 | Chapter | Pair | Previous State | New State | Notes |
 |---------|------|----------------|-----------|-------|
@@ -3280,7 +3279,7 @@ Decomposition/
       {character-name}.md         ← one file per major character
       questions-answered.md       ← cast-level
     relationships/
-      relationship-graph.csv
+      relationship-graph.json
       questions-answered.md
 \`\`\`
 
@@ -3300,7 +3299,7 @@ The reference files in \`Characters/\`, \`Story/\`, and \`MetaFiles/\` (everythi
 | Narrator (Phase 2) | \`Story/narrator.md\` |
 | World (Phase 3) | \`Story/genres.md\`, \`Story/themes-and-tropes.md\`, \`Story/plot-structure.md\`, \`Story/narrative-techniques.md\`, \`Story/plot-twist-types.md\`, \`MetaFiles/seven-story-deaths.md\`, \`MetaFiles/story-network-theory.md\`, \`MetaFiles/tonal-control.md\` |
 | Characters (Phase 4) | \`Characters/Personality/mbti.md\`, \`Characters/Personality/enneagram.md\`, \`Characters/Personality/alignment.md\`, \`Characters/Development/character-types.md\`, \`Characters/Development/flaws-virtues-wounds.md\`, \`Characters/Development/character-voice.md\`, \`MetaFiles/story-consciousness-theory.md\` |
-| Relationships (Phase 5) | \`Relationships/relationship-dynamics.md\`, \`Relationships/relationship-types.md\`, \`Relationships/relationship-structures.md\`, \`MetaFiles/relationship-graph-template.csv\` |
+| Relationships (Phase 5) | \`Relationships/relationship-dynamics.md\`, \`Relationships/relationship-types.md\`, \`Relationships/relationship-structures.md\`, \`MetaFiles/relationship-graph-template.json\` |
 | Story Foundation (Phase 6) | \`Story/plot-structure.md\`, \`MetaFiles/story-consciousness-theory.md\`, \`MetaFiles/story-network-theory.md\` |
 
 Read the relevant reference file *before* assigning its attribute — not after. The goal is to match the text's evidence against the system's vocabulary, not to retrofit a label chosen without context.
@@ -3392,7 +3391,7 @@ Creations/
       {character-name}.md            ← one file per character; includes that character's Identity + Personality + Development + Names + Questions answers
       questions-answered.md          ← Characters/Questions.md answers at cast level (who is protagonist, who is load-bearing, etc.)
     relationships/
-      relationship-graph.csv         ← Phase 5 output
+      relationship-graph.json         ← Phase 5 output
       questions-answered.md          ← Relationships/questions.md answers
 \`\`\`
 
@@ -3625,13 +3624,13 @@ Before rolling any individual character, name the cast structure. This prevents 
 - [ ] **Roll / assign relationship types** — \`Relationships/relationship-types.md\`
 - [ ] **Roll / assign relationship dynamics** — \`Relationships/relationship-dynamics.md\`
 - [ ] **Roll / assign relationship structures** — \`Relationships/relationship-structures.md\`
-- [ ] **Build the Relationship Graph** — copy \`MetaFiles/relationship-graph-template.csv\` into \`Creations/story-{datetime}/relationships/relationship-graph.csv\`, replace placeholder names with actual character names, fill each cell in that character's voice.
+- [ ] **Build the Relationship Graph** — create \`Creations/story-{datetime}/relationships/relationship-graph.json\` with a JSON edges array, where each edge captures a directed relationship between two character slugs with type, strength, and description.
   - *Each cell should capture: current relationship state | emotional charge | any unresolved tension | arc direction (growing / decaying / static / unknown to them)*
   - *Include all named minor characters — append \`(minor)\` to their name in both the row and column header. A minor character who only interacts meaningfully with one or two people will have many blank cells, and that asymmetry is the point: it shows exactly where their load-bearing weight sits. Do not omit a minor character because they have few relationships — their absence from most cells and presence in a few is itself structural data.*
   - *Include named societies and collective groups that function as characters — append \`(society)\` to their name in both headers. Any group that acts as a pressure system, power structure, or collective identity in the story qualifies: a school, a nation, a criminal organization, a people defined by their shared oppression, a ruling body, a cultural institution. Society rows are written in the collective voice of that group; society columns show how individual characters perceive and relate to that force. Societies will have many blank cells — only fill where there is genuine relationship. The pattern of blanks and fills for a society entry reveals its reach and weight in the story. Societies do not have a SELF cell — use a brief description of the society's self-image or collective identity in that diagonal position.*
   - *Blank cell = characters have not met or are irrelevant to each other — intentional blanks are data*
 - [ ] Create \`Creations/story-{datetime}/relationships/questions-answered.md\` *(answers to \`Relationships/questions.md\` for each significant pair)*
-- [ ] Create \`Creations/story-{datetime}/relationships/relationship-graph.csv\`
+- [ ] Create \`Creations/story-{datetime}/relationships/relationship-graph.json\`
 
 ---
 
@@ -3733,7 +3732,7 @@ Not obligated to write. Not architecturally necessary to write. *Excited* to wri
 - \`author.md\` — the author's lens, wound, prose style, and voice
 - \`narrator.md\` — POV, reliability, tense, distance
 - \`characters/{name}.md\` — for every character who appears: their identity, emotional register, MBTI/Enneagram, flaw/virtue/wound, speech patterns, what they want, what they're hiding
-- \`relationships/relationship-graph.csv\` — the current state of every pair; what has shifted since the last chapter
+- \`relationships/relationship-graph.json\` — the current state of every pair; what has shifted since the last chapter
 - \`story/arc.md\` — where this chapter sits in the tonal arc and subproblem stack
 - \`outline.md\` — the chapter's intended goal, dominant tone, and active threads
 
@@ -3760,7 +3759,7 @@ Not obligated to write. Not architecturally necessary to write. *Excited* to wri
 
 *For every named character appearing in this chapter — open their file in \`characters/{name}.md\` and verify:*
 
-- [ ] **Name and address:** Is the character referred to by the correct name, nickname, or title — consistent with how other characters in this chapter's relationship dynamic address them? (Check \`relationship-graph.csv\` for how each other character perceives them.)
+- [ ] **Name and address:** Is the character referred to by the correct name, nickname, or title — consistent with how other characters in this chapter's relationship dynamic address them? (Check \`relationship-graph.json\` for how each other character perceives them.)
 - [ ] **Voice:** Does their dialogue and internal voice match their MBTI, Enneagram, emotional register, and wound? A Turbulent Avoidant with a Stoic philosophy does not speak the same way under pressure as an Anxious ENFJ with a Humanist philosophy — even if they're saying the same thing.
 - [ ] **Want vs. need:** Is this character still pursuing their want — or have they started unconsciously moving toward their need? Is that shift deliberate at this point in the arc, or a drift?
 - [ ] **Flaw in action:** Is the character's flaw present — not announced, but visible in behavior, choice, or reaction? A flaw that doesn't cost anything in this chapter is invisible.
@@ -3781,7 +3780,7 @@ Not obligated to write. Not architecturally necessary to write. *Excited* to wri
 ### After Drafting — Forward Continuity Check
 
 - [ ] What has changed by the end of this chapter that the next chapter must inherit? Write it as one sentence in \`story/chapter-checklist.md\` — this is the handoff note.
-- [ ] Did at least one relationship phase-shift in this chapter? Update \`relationship-graph.csv\` to reflect the current state of any pair that moved.
+- [ ] Did at least one relationship phase-shift in this chapter? Update \`relationship-graph.json\` to reflect the current state of any pair that moved.
 - [ ] Did a subproblem thread change state (dormant → active, active → critical, critical → resolved, or a new thread opened)? Update \`story/arc.md\`.
 - [ ] Any new character introduced? Roll them properly and add their file to \`characters/\` before the next chapter begins.
 - [ ] Does the chapter's final image or line set up a question, a pressure, or an incompleteness that pulls the reader into the next chapter? A chapter that resolves cleanly with no forward tension is a stopping point, not a continuation.- [ ] Return to \`story/chapter-{n}-notes.md\` and complete the After Drafting sections: thread states, relationship shifts, any new character flags, and the one-sentence handoff to the next chapter. This is the source document for Step 0 of Chapter N+1.
@@ -4849,7 +4848,7 @@ The world plays an infinite game: it was here before any of these characters, an
 
 **Applied to resonance:** The theme question is a finite game that the story resolves. But the *domain* the theme lives in — identity, love, power, truth — is an infinite game. Great stories resolve the finite question *and* leave the infinite domain visibly ongoing. The reader closes the book knowing the question has been answered for these people, and knowing it will have to be answered again, differently, by whoever comes next.
 
-*(The relationship graph — \`MetaFiles/relationship-graph-template.csv\` — is a map of interference patterns across the cast at a fixed point in time. It changes as phases shift.)*
+*(The relationship graph — \`MetaFiles/relationship-graph-template.json\` — is a map of interference patterns across the cast at a fixed point in time. It changes as phases shift.)*
 
 ---
 
@@ -7030,7 +7029,7 @@ The closeness is the weapon. People in intimate relationships know exactly where
 
 Intimate conflict also carries the highest potential for revelation: what a character does in conflict with someone they love reveals more about who they actually are than any amount of exposition. This is where the flaw becomes visible in behavior — not announced, but enacted.
 
-*In the system:* \`Relationships/questions.md\`, \`MetaFiles/relationship-graph-template.csv\` (state | charge | tension | arc direction), per-character files in \`characters/{name}.md\`.
+*In the system:* \`Relationships/questions.md\`, \`MetaFiles/relationship-graph-template.json\` (state | charge | tension | arc direction), per-character files in \`characters/{name}.md\`.
 
 ---
 

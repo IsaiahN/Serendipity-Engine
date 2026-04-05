@@ -5397,19 +5397,59 @@ function RelationshipGraph() {
     relationships.push({ from: fromKey, to: toKey, type, label: `${characters[fromKey].name} ↔ ${characters[toKey].name}`, strength: 3 });
   });
 
-  // Also try parsing from relationship-graph.csv if available
+  // Parse relationship-graph.json (preferred) or legacy CSV
+  const graphJsonRaw = rgFiles['relationships/relationship-graph.json'] || '';
   const csvContent = rgFiles['relationships/relationship-graph.csv'] || '';
-  if (csvContent && relationships.length === 0) {
+
+  // Helper: match a slug (with hyphens) to a character key (no hyphens)
+  const matchSlugToKey = (slug) => {
+    if (!slug) return null;
+    const normalized = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (characters[normalized]) return normalized;
+    // Try slug with hyphens removed
+    const dehyphenated = slug.replace(/-/g, '');
+    if (characters[dehyphenated]) return dehyphenated;
+    // Fuzzy: try prefix/contains match against known keys
+    return charKeys.find(k => k.includes(normalized) || normalized.includes(k)) || null;
+  };
+
+  if (graphJsonRaw && relationships.length === 0) {
+    // Parse JSON edges format
+    try {
+      const graphData = typeof graphJsonRaw === 'string' ? JSON.parse(graphJsonRaw) : graphJsonRaw;
+      const edges = graphData.edges || [];
+      edges.forEach(edge => {
+        const fromKey = matchSlugToKey(edge.from);
+        const toKey = matchSlugToKey(edge.to);
+        if (!fromKey || !toKey || !characters[fromKey] || !characters[toKey]) return;
+        if (fromKey === toKey) return;
+        // Deduplicate
+        if (relationships.some(r => (r.from === fromKey && r.to === toKey) || (r.from === toKey && r.to === fromKey))) return;
+        const validTypes = ['family', 'friend', 'rival', 'authority', 'mentor', 'ally'];
+        const type = validTypes.includes(edge.type) ? edge.type : 'ally';
+        relationships.push({
+          from: fromKey,
+          to: toKey,
+          type,
+          label: `${characters[fromKey].name} ↔ ${characters[toKey].name}`,
+          strength: Math.max(1, Math.min(5, parseInt(edge.strength) || 3)),
+          description: edge.description || '',
+        });
+      });
+    } catch (e) {
+      console.warn('Failed to parse relationship-graph.json:', e);
+    }
+  }
+
+  // Legacy fallback: parse from relationship-graph.csv if JSON not available
+  if (csvContent && relationships.length === 0 && csvContent.includes('From/To')) {
     const csvLines = csvContent.split('\n').filter(l => l.trim());
     if (csvLines.length > 1) {
-      const headers = csvLines[0].split(',').map(h => h.trim().replace(/"/g, ''));
       for (let i = 1; i < csvLines.length; i++) {
         const cols = csvLines[i].split(',').map(c => c.trim().replace(/"/g, ''));
         if (cols.length < 2) continue;
-        const fromName = cols[0];
-        const toName = cols[1];
-        const fromKey = matchCharKey(fromName);
-        const toKey = matchCharKey(toName);
+        const fromKey = matchCharKey(cols[0]);
+        const toKey = matchCharKey(cols[1]);
         if (!fromKey || !toKey || !characters[fromKey] || !characters[toKey]) continue;
         if (relationships.some(r => (r.from === fromKey && r.to === toKey) || (r.from === toKey && r.to === fromKey))) continue;
         const cellText = cols.slice(2).join(' ').toLowerCase();
@@ -7473,7 +7513,7 @@ const REDECOMPOSE_GROUPS = [
     label: 'Relationships',
     description: 'Character relationships and the relationship graph',
     steps: ['relationships', 'relationships-detail'],
-    files: ['relationships/questions-answered.md', 'relationships/relationship-graph.csv'],
+    files: ['relationships/questions-answered.md', 'relationships/relationship-graph.json'],
     icon: '🔗',
   },
   {
@@ -7517,10 +7557,10 @@ const ENRICH_GROUPS = [
   },
   {
     key: 'relationships',
-    label: 'Relationship Map (CSV)',
-    description: 'Build an asymmetric perception matrix: how each character sees every other character, in one sentence each.',
+    label: 'Relationship Map',
+    description: 'Build an asymmetric relationship graph: how each character relates to every other character, with type, strength, and nuance.',
     icon: '🔗',
-    outputs: ['relationships/relationship-graph.csv'],
+    outputs: ['relationships/relationship-graph.json'],
   },
   {
     key: 'storyDna',
@@ -7652,26 +7692,38 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
         completedSteps++;
       }
 
-      // ── 3. Relationship CSV ──
+      // ── 3. Relationship Graph (JSON) ──
       if (selectedKeys.includes('relationships')) {
         setProgress({ label: 'Building relationship map', completed: completedSteps, total: totalSteps });
-        const charFiles = Object.entries(projectFiles)
-          .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md'));
-        const characters = charFiles.map(([, c]) => c).join('\n\n---\n\n');
+        const charFileNames = Object.keys(projectFiles).filter(p => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered'));
+        const charSlugs = charFileNames.map(p => p.replace('characters/', '').replace('.md', ''));
+        const charNames = charSlugs.map(slug =>
+          slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+        );
         const relFiles = Object.entries(projectFiles)
           .filter(([p]) => p.startsWith('relationships/') && p.endsWith('.md'));
         const relationships = relFiles.map(([, c]) => c).join('\n\n');
-        const prompt = PROMPTS.PROJECT_ENRICH_RELATIONSHIP_CSV.build({ characters, relationships });
+        const prompt = PROMPTS.PROJECT_ENRICH_RELATIONSHIP_JSON.build({ characterSlugs: charSlugs, characterNames: charNames, relationships });
         const resp = await sendMessage({
           messages: [{ role: 'user', content: prompt }],
           role: 'system',
           maxTokens: 4000,
         });
         if (resp.success && resp.content) {
-          // Strip markdown fences if present
-          let csv = resp.content.replace(/^```(?:csv)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
-          await updateFile('relationships/relationship-graph.csv', csv);
-          savedCount++;
+          // Extract JSON from response (strip markdown fences if present)
+          let jsonStr = resp.content.replace(/^```(?:json)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
+          try {
+            const parsed = JSON.parse(jsonStr);
+            if (parsed.edges && Array.isArray(parsed.edges)) {
+              await updateFile('relationships/relationship-graph.json', JSON.stringify(parsed, null, 2));
+              savedCount++;
+            } else {
+              errorMessages.push('Relationship map: invalid JSON structure (missing edges array)');
+            }
+          } catch (e) {
+            console.warn('[Enrich] Failed to parse relationship JSON:', e, '\nRaw:', jsonStr.substring(0, 500));
+            errorMessages.push(`Relationship map: JSON parse error — ${e.message}`);
+          }
         } else {
           errorMessages.push(`Relationship map failed: ${resp.error || 'No response'}`);
         }
@@ -7841,13 +7893,14 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
 
         {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+          <style>{`@keyframes decomp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           {isRunning && progress && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
                     width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent',
-                    borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                    borderRadius: '50%', animation: 'decomp-spin 0.8s linear infinite',
                   }} />
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{progress.label}...</span>
                 </div>
@@ -8147,6 +8200,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
 
         {/* Footer */}
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+          <style>{`@keyframes decomp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           {/* Progress bar with animation */}
           {isRunning && (
             <div style={{ marginBottom: 12 }}>
@@ -8156,7 +8210,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <div style={{
                         width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent',
-                        borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                        borderRadius: '50%', animation: 'decomp-spin 0.8s linear infinite',
                       }} />
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{progress.label}...</span>
                     </div>
@@ -8181,7 +8235,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
                     width: 16, height: 16, border: '2px solid var(--accent)', borderTopColor: 'transparent',
-                    borderRadius: '50%', animation: 'spin 0.8s linear infinite',
+                    borderRadius: '50%', animation: 'decomp-spin 0.8s linear infinite',
                   }} />
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Starting analysis...</span>
                 </div>
