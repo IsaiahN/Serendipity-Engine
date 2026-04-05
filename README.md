@@ -215,9 +215,9 @@ Serendipity-Engine/
 
 StoryWeaver is built on top of a comprehensive story-building reference system grounded in three interlocking theories:
 
-**Story Consciousness Theory** -- A character is conscious when they are caught between two conflicting knowledge streams: what they've personally lived and what their world tells them is true. The story is the weighted integration of those streams under pressure.
+**What Makes a Character Feel Real** -- A character is dynamic when they are caught between two conflicting knowledge streams: what they've personally lived and what their world tells them is true. The story is the weighted integration of those streams under pressure.
 
-**Story Network Theory** -- A story world is a distributed intelligence system. No single character carries the full intelligence of a theme. Four archetype functions must be distributed across the cast for the network to function.
+**World Building Theory** -- A story world is a whole ecosystem. No single character carries the full intelligence of a theme. Four archetype functions must be distributed across the cast for the story to function.
 
 **The Seven Story Deaths** -- Seven structural failure modes that kill intelligence in narrative networks: The Monolith, Amnesia, Hierarchy, Isolation, Monoculture, Stasis, and Closure. These operate invisibly until the draft is dead.
 
