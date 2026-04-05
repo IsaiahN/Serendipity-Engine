@@ -15,7 +15,7 @@ import {
   Compass, Edit3, BookOpen, GitCompare, Network, MessageSquare,
   Clock, Palette, Settings, Download, Volume2, Search,
   Lightbulb, AlertTriangle, Pencil, ChevronUp, Send, SendHorizontal, ChevronsLeft, ChevronsRight, Globe,
-  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X, Copy,
+  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X, Copy, UserPlus, Link2,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -1837,7 +1837,7 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
 }
 
 /* ─── Full Cast Mode ─── */
-function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
+function FullCastMode({ onCharacterClick, onBack, onAddCharacter, isDecomposed }) {
   const fcFiles = useProjectStore(s => s.files);
   const fcProject = useProjectStore(s => s.activeProject);
   const characterProfiles = buildCharacterProfiles(fcFiles);
@@ -2026,18 +2026,20 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter }) {
         </button>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Full Cast/Characters{fcProject?.title ? ` — ${fcProject.title}` : ''}</h2>
         <Badge variant="muted">{allChars.length} characters</Badge>
-        <button
-          onClick={() => onAddCharacter?.()}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            background: 'var(--accent)', border: 'none',
-            borderRadius: 'var(--radius-sm)', color: '#000',
-            cursor: 'pointer', padding: '6px 14px', fontSize: '0.78rem', fontWeight: 600,
-            marginLeft: 'auto',
-          }}
-        >
-          <Plus size={14} /> Add Character
-        </button>
+        {!isDecomposed && (
+          <button
+            onClick={() => onAddCharacter?.()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 5,
+              background: 'var(--accent)', border: 'none',
+              borderRadius: 'var(--radius-sm)', color: '#000',
+              cursor: 'pointer', padding: '6px 14px', fontSize: '0.78rem', fontWeight: 600,
+              marginLeft: 'auto',
+            }}
+          >
+            <Plus size={14} /> Add Character
+          </button>
+        )}
       </div>
 
       {/* Societal Characters */}
@@ -7539,11 +7541,11 @@ const REDECOMPOSE_GROUPS = [
   },
 ];
 
-/* ─── Enrich Project Groups ─── */
+/* ─── Add Missing Details Groups ─── */
 const ENRICH_GROUPS = [
   {
     key: 'characters',
-    label: 'Enrich Characters',
+    label: 'Fill In Characters',
     description: 'Fill missing fields on existing characters (tier, voice notes, stream A/B, network role, etc.). Preserves everything you wrote.',
     icon: '🎭',
     outputs: ['characters/*.md (updated in-place)'],
@@ -7571,7 +7573,7 @@ const ENRICH_GROUPS = [
   },
 ];
 
-/* ─── Enrich Project Modal ─── */
+/* ─── Add Missing Details Modal ─── */
 function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [isRunning, setIsRunning] = useState(false);
@@ -7581,6 +7583,17 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
   const updateFile = useProjectStore(s => s.updateFile);
   const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
+  const navigate = useNavigate();
+
+  // ── Quick-add state ──
+  const [quickAction, setQuickAction] = useState(null); // null | 'person' | 'relationship'
+  const [qaName, setQaName] = useState('');
+  const [qaNameB, setQaNameB] = useState(''); // second character for relationships
+  const [qaLoading, setQaLoading] = useState(false);
+  const [qaResult, setQaResult] = useState(null); // parsed JSON from LLM
+  const [qaError, setQaError] = useState(null);
+  const [qaSelectedTier, setQaSelectedTier] = useState(null); // tier selected before confirming
+  const [qaSaved, setQaSaved] = useState(false);
 
   const toggleGroup = (idx) => {
     setSelectedGroups(prev =>
@@ -7594,6 +7607,165 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
     } else {
       setSelectedGroups(ENRICH_GROUPS.map((_, i) => i));
     }
+  };
+
+  // ── Get source text (manuscript) ──
+  const getSourceText = () => {
+    let text = projectFiles['story/full-draft.md'] || '';
+    if (!text) {
+      const chapters = Object.entries(projectFiles)
+        .filter(([p]) => p.startsWith('story/chapter-') && p.endsWith('.md'))
+        .sort(([a], [b]) => a.localeCompare(b));
+      text = chapters.map(([, c]) => c).join('\n\n');
+    }
+    return text;
+  };
+
+  // ── Get existing cast list for context ──
+  const getExistingCast = () => {
+    const charFiles = Object.entries(projectFiles)
+      .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered'));
+    return charFiles.map(([p]) => p.replace('characters/', '').replace('.md', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')).join(', ');
+  };
+
+  // ── Quick-add: Find person in manuscript ──
+  const handleQuickFindPerson = async () => {
+    if (!qaName.trim()) return;
+    setQaLoading(true);
+    setQaResult(null);
+    setQaError(null);
+    setQaSaved(false);
+    try {
+      const sourceText = getSourceText();
+      if (!sourceText) {
+        setQaError('No manuscript text found. Upload your story first.');
+        setQaLoading(false);
+        return;
+      }
+      // Send first 120K chars to keep within token limits
+      const excerpt = sourceText.substring(0, 120000);
+      const prompt = PROMPTS.EXTRACT_SINGLE_CHARACTER.build({
+        characterName: qaName.trim(),
+        sourceExcerpt: excerpt,
+        existingCast: getExistingCast(),
+        title: projectMeta?.title || '',
+      });
+      const resp = await sendMessage({
+        messages: [{ role: 'user', content: prompt }],
+        role: 'analyst',
+        maxTokens: 1500,
+      });
+      if (resp.success && resp.content) {
+        const jsonStr = resp.content.replace(/^```(?:json)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
+        const parsed = JSON.parse(jsonStr);
+        setQaResult(parsed);
+        setQaSelectedTier(parsed.suggestedTier || 'minor');
+      } else {
+        const errMsg = resp.error || '';
+        const isConn = !errMsg || errMsg.includes('No connected providers') || errMsg.includes('API key') || errMsg.includes('reconnect') || errMsg.includes('No response');
+        setQaError(isConn ? '__connection__' : errMsg);
+      }
+    } catch (e) {
+      console.warn('[QuickAdd] Person search failed:', e);
+      const errMsg = e.message || '';
+      const isConn = !errMsg || errMsg.includes('No connected providers') || errMsg.includes('API key') || errMsg.includes('reconnect') || errMsg.includes('No response');
+      setQaError(isConn ? '__connection__' : errMsg);
+    }
+    setQaLoading(false);
+  };
+
+  // ── Quick-add: Confirm and save person ──
+  const handleQuickSavePerson = async (tierOverride) => {
+    if (!qaResult?.found) return;
+    const tier = tierOverride || qaResult.suggestedTier || 'minor';
+    const name = qaResult.name || qaName.trim();
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const filePath = `characters/${slug}.md`;
+
+    // Build a starter profile
+    const content = `## ${name}\n\n### Core Identity\n- **Tier:** ${tier}\n- **Role:** ${qaResult.suggestedRole || 'Unknown'}\n\n### Summary\n${qaResult.summary || 'No summary available.'}\n`;
+    await updateFile(filePath, content);
+    await loadProjectFiles(activeProjectId);
+    setQaSaved(true);
+  };
+
+  // ── Quick-add: Find relationship in manuscript ──
+  const handleQuickFindRelationship = async () => {
+    if (!qaName.trim() || !qaNameB.trim()) return;
+    setQaLoading(true);
+    setQaResult(null);
+    setQaError(null);
+    setQaSaved(false);
+    try {
+      const sourceText = getSourceText();
+      if (!sourceText) {
+        setQaError('No manuscript text found. Upload your story first.');
+        setQaLoading(false);
+        return;
+      }
+      const excerpt = sourceText.substring(0, 120000);
+      const existingRel = projectFiles['relationships/relationship-graph.json'] || '';
+      const prompt = PROMPTS.EXTRACT_SINGLE_RELATIONSHIP.build({
+        characterA: qaName.trim(),
+        characterB: qaNameB.trim(),
+        sourceExcerpt: excerpt,
+        existingRelationships: existingRel ? existingRel.substring(0, 2000) : '',
+        title: projectMeta?.title || '',
+      });
+      const resp = await sendMessage({
+        messages: [{ role: 'user', content: prompt }],
+        role: 'analyst',
+        maxTokens: 1500,
+      });
+      if (resp.success && resp.content) {
+        const jsonStr = resp.content.replace(/^```(?:json)?\s*\n/gm, '').replace(/^```\s*$/gm, '').trim();
+        const parsed = JSON.parse(jsonStr);
+        setQaResult(parsed);
+      } else {
+        const errMsg = resp.error || '';
+        const isConn = !errMsg || errMsg.includes('No connected providers') || errMsg.includes('API key') || errMsg.includes('reconnect') || errMsg.includes('No response');
+        setQaError(isConn ? '__connection__' : errMsg);
+      }
+    } catch (e) {
+      console.warn('[QuickAdd] Relationship search failed:', e);
+      const errMsg = e.message || '';
+      const isConn = !errMsg || errMsg.includes('No connected providers') || errMsg.includes('API key') || errMsg.includes('reconnect') || errMsg.includes('No response');
+      setQaError(isConn ? '__connection__' : errMsg);
+    }
+    setQaLoading(false);
+  };
+
+  // ── Quick-add: Confirm and save relationship ──
+  const handleQuickSaveRelationship = async () => {
+    if (!qaResult?.found || !qaResult?.edges) return;
+    try {
+      const graphRaw = projectFiles['relationships/relationship-graph.json'] || '{"edges":[]}';
+      const graph = JSON.parse(graphRaw);
+      const existingEdges = graph.edges || [];
+      // Merge new edges, dedup by from+to
+      const edgeKey = (e) => `${e.from}→${e.to}`;
+      const existingKeys = new Set(existingEdges.map(edgeKey));
+      const newEdges = qaResult.edges.filter(e => !existingKeys.has(edgeKey(e)));
+      graph.edges = [...existingEdges, ...newEdges];
+      await updateFile('relationships/relationship-graph.json', JSON.stringify(graph, null, 2));
+      await loadProjectFiles(activeProjectId);
+      setQaSaved(true);
+    } catch (e) {
+      console.warn('[QuickAdd] Relationship save failed:', e);
+      setQaError('Failed to save relationship: ' + e.message);
+    }
+  };
+
+  // ── Reset quick-action state ──
+  const resetQuickAction = () => {
+    setQuickAction(null);
+    setQaName('');
+    setQaNameB('');
+    setQaResult(null);
+    setQaError(null);
+    setQaLoading(false);
+    setQaSaved(false);
+    setQaSelectedTier(null);
   };
 
   // ── Gather common story context from project files ──
@@ -7797,13 +7969,32 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
       // Reload project files
       await loadProjectFiles(activeProjectId);
 
-      const msg = `Enriched ${savedCount} file${savedCount !== 1 ? 's' : ''}.`
-        + (errorMessages.length > 0 ? ` Warnings: ${errorMessages.join('; ')}` : '');
-      setResult({ success: errorMessages.length === 0, message: msg });
+      const isConnectionIssue = errorMessages.some(m => m.includes('No connected providers') || m.includes('API key not found') || m.includes('reconnect'));
+      if (isConnectionIssue) {
+        setResult({
+          success: false,
+          message: 'Your AI provider connection failed. Please reconnect your model in Settings to continue.',
+          isConnectionError: true,
+        });
+      } else if (errorMessages.length > 0) {
+        setResult({
+          success: false,
+          message: `Updated ${savedCount} file${savedCount !== 1 ? 's' : ''}, but ${errorMessages.length} step${errorMessages.length !== 1 ? 's' : ''} failed: ${errorMessages.join('; ')}`,
+        });
+      } else {
+        setResult({ success: true, message: `Updated ${savedCount} file${savedCount !== 1 ? 's' : ''}.` });
+      }
 
     } catch (err) {
-      console.error('Enrich project failed:', err);
-      setResult({ success: false, message: `Enrichment failed: ${err.message}` });
+      console.error('Add Missing Details failed:', err);
+      const connErr = err.message?.includes('No connected providers') || err.message?.includes('API key not found');
+      setResult({
+        success: false,
+        message: connErr
+          ? 'Your AI provider connection failed. Please reconnect your model in Settings to continue.'
+          : `Operation failed: ${err.message}`,
+        isConnectionError: connErr,
+      });
     } finally {
       setIsRunning(false);
       setProgress(null);
@@ -7822,7 +8013,7 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
         <div style={{ padding: '20px 24px 16px', borderBottom: '1px solid var(--border)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
-              Enrich Project
+              Add Missing Details
             </h2>
             {!isRunning && (
               <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}>
@@ -7835,8 +8026,294 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
           </p>
         </div>
 
+        {/* Scrollable content area: Quick Actions + Body */}
+        <div style={{ overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '12px 24px 0', borderBottom: quickAction ? 'none' : '1px solid var(--border)' }}>
+          <style>{`@keyframes decomp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+          {!quickAction && !isRunning && (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button onClick={() => setQuickAction('person')} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.25)',
+                color: '#a78bfa', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.15)'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.4)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.08)'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.25)'; }}
+              >
+                <UserPlus size={14} /> Add Missing Person
+              </button>
+              <button onClick={() => setQuickAction('relationship')} style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                padding: '8px 12px', borderRadius: 'var(--radius-sm)',
+                background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.25)',
+                color: '#60a5fa', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.15)'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.4)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(59,130,246,0.08)'; e.currentTarget.style.borderColor = 'rgba(59,130,246,0.25)'; }}
+              >
+                <Link2 size={14} /> Add Missing Relationship
+              </button>
+            </div>
+          )}
+
+          {/* Quick-add: Person flow */}
+          {quickAction === 'person' && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#a78bfa', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <UserPlus size={14} /> Find a Missing Character
+                </span>
+                <button onClick={resetQuickAction} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>Cancel</button>
+              </div>
+              {!qaResult && !qaLoading && (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="text"
+                    value={qaName}
+                    onChange={e => setQaName(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickFindPerson()}
+                    placeholder="Character name (e.g. Aunt Em)"
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                      color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none',
+                    }}
+                    autoFocus
+                  />
+                  <button onClick={handleQuickFindPerson} disabled={!qaName.trim()} style={{
+                    padding: '7px 14px', borderRadius: 'var(--radius-sm)',
+                    background: qaName.trim() ? '#a78bfa' : 'var(--bg-tertiary)',
+                    border: 'none', color: qaName.trim() ? '#fff' : 'var(--text-muted)',
+                    fontSize: '0.78rem', fontWeight: 600, cursor: qaName.trim() ? 'pointer' : 'default',
+                  }}>Search</button>
+                </div>
+              )}
+              {qaLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <div style={{ width: 14, height: 14, border: '2px solid #a78bfa', borderTopColor: 'transparent', borderRadius: '50%', animation: 'decomp-spin 0.8s linear infinite' }} />
+                  Searching manuscript for "{qaName}"...
+                </div>
+              )}
+              {qaError && (
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', fontSize: '0.78rem', marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                    {qaError === '__connection__'
+                      ? 'Your AI provider connection failed. Please reconnect your model in Settings.'
+                      : qaError
+                    }
+                  </div>
+                  {qaError === '__connection__' && (
+                    <button
+                      onClick={() => { onClose?.(); navigate('/settings'); }}
+                      style={{
+                        marginTop: 8, padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                        color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 500,
+                      }}
+                    >
+                      Go to Settings →
+                    </button>
+                  )}
+                </div>
+              )}
+              {qaResult && !qaResult.found && (
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.8rem', color: '#f97316', marginTop: 6, lineHeight: 1.5 }}>
+                  <strong>Not found.</strong> "{qaName}" wasn't found in the manuscript.
+                  {qaResult.suggestion && <div style={{ marginTop: 4, color: 'var(--text-muted)' }}>{qaResult.suggestion}</div>}
+                  <button onClick={() => { setQaResult(null); setQaError(null); }} style={{
+                    marginTop: 6, padding: '3px 10px', borderRadius: 'var(--radius-sm)',
+                    background: 'none', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316',
+                    fontSize: '0.73rem', cursor: 'pointer',
+                  }}>Try Another Name</button>
+                </div>
+              )}
+              {qaResult && qaResult.found && !qaSaved && (
+                <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', marginTop: 6 }}>
+                  {qaResult.alreadyExtracted && (
+                    <div style={{ padding: '6px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', color: '#f97316', fontSize: '0.73rem', marginBottom: 8 }}>
+                      This character may already be in your cast under a different name.
+                    </div>
+                  )}
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{qaResult.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                    {qaResult.appearances} appearance{qaResult.appearances !== 1 ? 's' : ''} in text &middot; Suggested tier: <strong style={{ color: '#a78bfa' }}>{qaResult.suggestedTier}</strong>
+                    {qaResult.suggestedRole && <> &middot; {qaResult.suggestedRole}</>}
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 10 }}>{qaResult.summary}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 6 }}>Add as:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+                    {['protagonist', 'deuteragonist', 'antagonist', 'supporting', 'minor', 'catalyst', 'mentioned', 'collective'].map(tier => (
+                      <button key={tier} onClick={() => setQaSelectedTier(tier)} style={{
+                        padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: '0.72rem', fontWeight: 500, cursor: 'pointer',
+                        background: tier === qaSelectedTier ? 'rgba(139,92,246,0.15)' : 'transparent',
+                        border: tier === qaSelectedTier ? '1px solid rgba(139,92,246,0.4)' : '1px solid var(--border)',
+                        color: tier === qaSelectedTier ? '#a78bfa' : 'var(--text-muted)',
+                      }}>{tier}</button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => handleQuickSavePerson(qaSelectedTier)} style={{
+                      display: 'flex', alignItems: 'center', gap: 6, padding: '7px 16px', borderRadius: 'var(--radius-sm)',
+                      background: '#a78bfa', border: 'none', color: '#fff',
+                      fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                    }}>
+                      <UserPlus size={14} /> Add to Cast
+                    </button>
+                    <button onClick={resetQuickAction} style={{
+                      padding: '7px 14px', borderRadius: 'var(--radius-sm)',
+                      background: 'none', border: '1px solid var(--border)',
+                      color: 'var(--text-muted)', fontSize: '0.78rem', cursor: 'pointer',
+                    }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {qaSaved && (
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', fontSize: '0.8rem', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span><strong>{qaResult?.name}</strong> added to your cast!</span>
+                  <button onClick={() => { setQaResult(null); setQaError(null); setQaName(''); setQaSaved(false); }} style={{
+                    padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'none', border: '1px solid rgba(52,211,153,0.3)',
+                    color: '#34d399', fontSize: '0.72rem', cursor: 'pointer',
+                  }}>Add Another</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Quick-add: Relationship flow */}
+          {quickAction === 'relationship' && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Link2 size={14} /> Find a Missing Relationship
+                </span>
+                <button onClick={resetQuickAction} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>Cancel</button>
+              </div>
+              {!qaResult && !qaLoading && (
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={qaName}
+                    onChange={e => setQaName(e.target.value)}
+                    placeholder="Character A"
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                      color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none',
+                    }}
+                    autoFocus
+                  />
+                  <ArrowLeftRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <input
+                    type="text"
+                    value={qaNameB}
+                    onChange={e => setQaNameB(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleQuickFindRelationship()}
+                    placeholder="Character B"
+                    style={{
+                      flex: 1, padding: '7px 10px', borderRadius: 'var(--radius-sm)',
+                      background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                      color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none',
+                    }}
+                  />
+                  <button onClick={handleQuickFindRelationship} disabled={!qaName.trim() || !qaNameB.trim()} style={{
+                    padding: '7px 14px', borderRadius: 'var(--radius-sm)',
+                    background: (qaName.trim() && qaNameB.trim()) ? '#60a5fa' : 'var(--bg-tertiary)',
+                    border: 'none', color: (qaName.trim() && qaNameB.trim()) ? '#fff' : 'var(--text-muted)',
+                    fontSize: '0.78rem', fontWeight: 600, cursor: (qaName.trim() && qaNameB.trim()) ? 'pointer' : 'default', flexShrink: 0,
+                  }}>Search</button>
+                </div>
+              )}
+              {qaLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <div style={{ width: 14, height: 14, border: '2px solid #60a5fa', borderTopColor: 'transparent', borderRadius: '50%', animation: 'decomp-spin 0.8s linear infinite' }} />
+                  Analyzing relationship between "{qaName}" and "{qaNameB}"...
+                </div>
+              )}
+              {qaError && (
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', color: '#ef4444', fontSize: '0.78rem', marginTop: 6, lineHeight: 1.5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                    {qaError === '__connection__'
+                      ? 'Your AI provider connection failed. Please reconnect your model in Settings.'
+                      : qaError
+                    }
+                  </div>
+                  {qaError === '__connection__' && (
+                    <button
+                      onClick={() => { onClose?.(); navigate('/settings'); }}
+                      style={{
+                        marginTop: 8, padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                        background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                        color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 500,
+                      }}
+                    >
+                      Go to Settings →
+                    </button>
+                  )}
+                </div>
+              )}
+              {qaResult && !qaResult.found && (
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', fontSize: '0.8rem', color: '#f97316', marginTop: 6, lineHeight: 1.5 }}>
+                  <strong>No relationship found.</strong> {qaResult.reason || `"${qaName}" and "${qaNameB}" don't appear to interact in the manuscript.`}
+                  <div><button onClick={() => { setQaResult(null); setQaError(null); }} style={{
+                    marginTop: 6, padding: '3px 10px', borderRadius: 'var(--radius-sm)',
+                    background: 'none', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316',
+                    fontSize: '0.73rem', cursor: 'pointer',
+                  }}>Try Different Characters</button></div>
+                </div>
+              )}
+              {qaResult && qaResult.found && !qaSaved && (
+                <div style={{ padding: '12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)', border: '1px solid var(--border)', marginTop: 6 }}>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                    {qaResult.characterA} &harr; {qaResult.characterB}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 6 }}>
+                    {qaResult.interactions} interaction{qaResult.interactions !== 1 ? 's' : ''} found
+                  </div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{qaResult.summary}</div>
+                  {qaResult.edges?.map((edge, i) => (
+                    <div key={i} style={{
+                      padding: '6px 10px', borderRadius: 'var(--radius-sm)', marginBottom: 4,
+                      background: 'var(--bg-primary)', border: '1px solid var(--border)', fontSize: '0.75rem', lineHeight: 1.4,
+                    }}>
+                      <span style={{ color: '#60a5fa', fontWeight: 600 }}>{edge.from}</span>
+                      <span style={{ color: 'var(--text-muted)' }}> → </span>
+                      <span style={{ color: '#60a5fa', fontWeight: 600 }}>{edge.to}</span>
+                      <span style={{ color: 'var(--text-muted)' }}> &middot; {edge.type} &middot; strength {edge.strength}/5</span>
+                      <div style={{ color: 'var(--text-secondary)', marginTop: 2 }}>{edge.description}</div>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                    <button onClick={handleQuickSaveRelationship} style={{
+                      padding: '6px 14px', borderRadius: 'var(--radius-sm)', background: '#60a5fa',
+                      border: 'none', color: '#fff', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+                    }}>Add to Relationship Graph</button>
+                    <button onClick={() => { setQaResult(null); setQaError(null); }} style={{
+                      padding: '6px 14px', borderRadius: 'var(--radius-sm)', background: 'none',
+                      border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: '0.78rem', cursor: 'pointer',
+                    }}>Cancel</button>
+                  </div>
+                </div>
+              )}
+              {qaSaved && (
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.3)', color: '#34d399', fontSize: '0.8rem', marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Relationship added to graph!</span>
+                  <button onClick={() => { setQaResult(null); setQaError(null); setQaName(''); setQaNameB(''); setQaSaved(false); }} style={{
+                    padding: '3px 10px', borderRadius: 'var(--radius-sm)', background: 'none', border: '1px solid rgba(52,211,153,0.3)',
+                    color: '#34d399', fontSize: '0.72rem', cursor: 'pointer',
+                  }}>Add Another</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         {/* Body */}
-        <div style={{ padding: '12px 24px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '12px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <button onClick={selectAll} style={{
               background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,
@@ -7890,9 +8367,10 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
             })}
           </div>
         </div>
+        </div>{/* end scrollable content area */}
 
         {/* Footer */}
-        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <style>{`@keyframes decomp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
           {isRunning && progress && (
             <div style={{ marginBottom: 12 }}>
@@ -7920,17 +8398,33 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
 
           {result && (
             <div style={{
-              padding: '8px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+              padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
               fontSize: '0.78rem', lineHeight: 1.5,
-              background: result.success ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
+              background: result.success ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.08)',
               color: result.success ? '#34d399' : '#ef4444',
-              border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.25)'}`,
             }}>
-              {result.message}
+              {!result.success && <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />}
+              <div>
+                <div>{result.message}</div>
+                {result.isConnectionError && (
+                  <button
+                    onClick={() => { onClose?.(); navigate('/settings'); }}
+                    style={{
+                      marginTop: 6, padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500,
+                    }}
+                  >
+                    Go to Settings →
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
-          {selectedGroups.length > 0 && !isRunning && !result?.success && (
+          {selectedGroups.length > 0 && !isRunning && !result?.success && !result?.isConnectionError && (
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
               background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.2)',
@@ -7938,7 +8432,7 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
             }}>
               <Lightbulb size={14} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>
-                Enrichment <strong>adds</strong> missing details to your project files. Your existing content is preserved.
+                This <strong>adds</strong> missing details to your project files. Your existing content is preserved.
                 {selectedGroups.some(idx => ENRICH_GROUPS[idx].key === 'storyDna') &&
                   ' Story DNA sections will be appended to author.md and narrator.md.'}
               </span>
@@ -7959,9 +8453,9 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
                 style={{ padding: '8px 24px', opacity: selectedGroups.length === 0 ? 0.5 : 1 }}
               >
                 {isRunning ? (
-                  <><Brain size={13} style={{ marginRight: 6, animation: 'pulse 1.5s infinite' }} /> Enriching...</>
+                  <><Brain size={13} style={{ marginRight: 6, animation: 'pulse 1.5s infinite' }} /> Running...</>
                 ) : (
-                  <><Brain size={13} style={{ marginRight: 6 }} /> Enrich{selectedGroups.length > 0 ? ` (${selectedGroups.length} tasks)` : ''}</>
+                  <><Brain size={13} style={{ marginRight: 6 }} /> Run{selectedGroups.length > 0 ? ` (${selectedGroups.length} tasks)` : ''}</>
                 )}
               </Button>
             )}
@@ -7980,6 +8474,7 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
   const [startTime, setStartTime] = useState(null);
   const [elapsed, setElapsed] = useState(0);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
+  const navigate = useNavigate();
 
   // Elapsed time ticker
   useEffect(() => {
@@ -8099,10 +8594,25 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
       await loadFiles(activeProjectId);
 
       const failedSteps = metadata.steps.filter(s => !s.success);
-      setResult({
-        success: true,
-        message: `Regenerated ${savedCount} file${savedCount !== 1 ? 's' : ''}${errorCount > 0 ? ` (${errorCount} failed to save)` : ''}.${failedSteps.length > 0 ? ` ${failedSteps.length} step(s) had errors: ${failedSteps.map(s => s.label).join(', ')}.` : ''}`,
-      });
+      const hasFailures = failedSteps.length > 0 || errorCount > 0;
+      // Check if failures are due to API connection issues
+      const connectionErrors = failedSteps.filter(s => s.error && (s.error.includes('No connected providers') || s.error.includes('API key not found') || s.error.includes('reconnect')));
+      const isConnectionIssue = connectionErrors.length > 0;
+
+      if (isConnectionIssue) {
+        setResult({
+          success: false,
+          message: `Your AI provider connection failed. Please reconnect your model in Settings to continue.`,
+          isConnectionError: true,
+        });
+      } else {
+        setResult({
+          success: !hasFailures,
+          message: hasFailures
+            ? `Regenerated ${savedCount} file${savedCount !== 1 ? 's' : ''}, but ${failedSteps.length} step${failedSteps.length !== 1 ? 's' : ''} failed: ${failedSteps.map(s => s.label).join(', ')}.${errorCount > 0 ? ` ${errorCount} file${errorCount !== 1 ? 's' : ''} also failed to save.` : ''}`
+            : `Regenerated ${savedCount} file${savedCount !== 1 ? 's' : ''}.`,
+        });
+      }
     } catch (err) {
       console.error('Redecompose failed:', err);
       setResult({ success: false, message: `Re-decomposition failed: ${err.message}` });
@@ -8251,18 +8761,34 @@ function RedecomposeModal({ onClose, projectFiles, projectMeta }) {
           {/* Result message */}
           {result && (
             <div style={{
-              padding: '8px 12px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
+              display: 'flex', alignItems: 'flex-start', gap: 8,
+              padding: '10px 14px', borderRadius: 'var(--radius-sm)', marginBottom: 12,
               fontSize: '0.78rem', lineHeight: 1.5,
-              background: result.success ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.1)',
+              background: result.success ? 'rgba(52,211,153,0.1)' : 'rgba(239,68,68,0.08)',
               color: result.success ? '#34d399' : '#ef4444',
-              border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.3)'}`,
+              border: `1px solid ${result.success ? 'rgba(52,211,153,0.3)' : 'rgba(239,68,68,0.25)'}`,
             }}>
-              {result.message}{result.success && startTime ? ` (${formatElapsed(Math.floor((Date.now() - startTime) / 1000))})` : ''}
+              {!result.success && <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1 }} />}
+              <div>
+                <div>{result.message}{result.success && startTime ? ` (${formatElapsed(Math.floor((Date.now() - startTime) / 1000))})` : ''}</div>
+                {result.isConnectionError && (
+                  <button
+                    onClick={() => { onClose?.(); navigate('/settings'); }}
+                    style={{
+                      marginTop: 6, padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+                      color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 500,
+                    }}
+                  >
+                    Go to Settings →
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
           {/* Warning */}
-          {selectedGroups.length > 0 && !isRunning && !result?.success && (
+          {selectedGroups.length > 0 && !isRunning && !result?.success && !result?.isConnectionError && (
             <div style={{
               display: 'flex', alignItems: 'flex-start', gap: 8, padding: '8px 12px', borderRadius: 'var(--radius-sm)',
               background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)',
@@ -8537,6 +9063,8 @@ function ThemePickerModal({ onClose, currentTheme, onThemeChange }) {
 export default function WorkspaceScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const needsReconnect = useLlmStore(s => s.needsReconnect);
+  const llmActiveProviders = useLlmStore(s => s.activeProviders);
   const initialMode = searchParams.get('mode') || 'guided';
   const initialAction = searchParams.get('action'); // e.g. 'add-character'
   const initialPanel = searchParams.get('panel');   // e.g. 'cast'
@@ -9043,6 +9571,7 @@ export default function WorkspaceScreen() {
         onAddCharacter={() => setShowAddCharModal(true)}
         onCharacterClick={(name) => { setSelectedCharacter(name); setActiveMode('character-profile'); }}
         onBack={() => setActiveMode('guided')}
+        isDecomposed={isDecomposed}
       />;
       case 'comparison': return <ComparisonMode />;
       case 'graph': return <RelationshipGraph />;
@@ -9084,6 +9613,33 @@ export default function WorkspaceScreen() {
         onTourClick={() => setShowTour(true)}
         onShowShortcuts={() => setShowShortcutsModal(true)}
       />
+
+      {/* ── Provider reconnection banner ── */}
+      {(needsReconnect || llmActiveProviders.length === 0) && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          padding: '8px 16px', background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.2)',
+          fontSize: '0.78rem', color: '#ef4444',
+        }}>
+          <AlertTriangle size={14} />
+          <span>
+            {needsReconnect
+              ? 'Your AI provider needs to be reconnected — your API key could not be read after a storage change.'
+              : 'No AI provider connected. Add one in Settings to use AI features.'}
+          </span>
+          <button
+            onClick={() => navigate('/settings')}
+            style={{
+              padding: '3px 12px', borderRadius: 'var(--radius-sm)',
+              background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+              color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Open Settings
+          </button>
+        </div>
+      )}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* ─── Thread List (far left) — expandable ─── */}
@@ -9329,7 +9885,7 @@ export default function WorkspaceScreen() {
                     <Sparkles size={12} /> Regenerate Analysis
                   </button>
                 )}
-                {/* Enrich Project button — available for all projects that have some content */}
+                {/* Add Missing Details button — available for all projects that have some content */}
                 <button
                   onClick={() => setShowEnrichModal(true)}
                   style={{
@@ -9343,7 +9899,7 @@ export default function WorkspaceScreen() {
                   onMouseEnter={e => { e.currentTarget.style.borderColor = '#22c55e'; e.currentTarget.style.color = '#22c55e'; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                 >
-                  <Brain size={12} /> Enrich Project
+                  <Brain size={12} /> Add Missing Details
                 </button>
                 {leftTab === 'phases' && (
                   <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
@@ -9370,6 +9926,7 @@ export default function WorkspaceScreen() {
                     onCharacterClick={(name) => { setSelectedCharacter(name); setActiveMode('character-profile'); }}
                     onViewFullCast={() => setActiveMode('full-cast')}
                     onCharacterChat={(name) => { setSelectedCharacter(name); setActiveMode('chat'); }}
+                    isDecomposed={isDecomposed}
                     onCharacterDelete={async (name) => {
                       // CastRoster already shows inline Delete/Cancel confirmation UI
                       const path = `characters/${name.toLowerCase().replace(/\s+/g, '-')}.md`;

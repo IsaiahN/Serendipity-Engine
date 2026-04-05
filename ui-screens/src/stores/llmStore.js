@@ -6,7 +6,7 @@
  * Supports streaming, role-based routing, usage tracking, and retry with exponential backoff.
  */
 import { create } from 'zustand';
-import { storeApiKey, getApiKey, removeApiKey, listProviders } from '../lib/db';
+import { storeApiKey, getApiKey, removeApiKey, listProviders, getSetting, setSetting } from '../lib/db';
 import { LLM_PROVIDERS } from '../lib/constants';
 
 /**
@@ -84,32 +84,78 @@ export const useLlmStore = create((set, get) => ({
   currentAbortController: null,
   // Whether a streaming request is currently in progress
   isStreaming: false,
+  // Whether any provider needs reconnection (encryption key lost)
+  needsReconnect: false,
 
   /**
    * Load saved providers from IndexedDB
+   *
+   * Uses two sources of truth:
+   * 1. `apiKeys` table — provider records with encrypted keys, model, baseUrl
+   * 2. `settings` table, key `connectedProviders` — simple string[] of provider keys
+   *    that were last confirmed connected. This survives independently of encryption.
    */
   loadProviders: async () => {
     set({ loading: true });
     try {
       const stored = await listProviders();
+      // Read the persisted connected-provider list from settings (simple string array)
+      const savedConnected = (await getSetting('connectedProviders', [])) || [];
       const providers = {};
+      let hasDecryptionFailure = false;
 
       for (const record of stored) {
+        // A provider is considered connected if EITHER the apiKeys record says so
+        // OR it appears in the persisted connectedProviders list
+        let connected = record.connected ?? false;
+        if (!connected && savedConnected.includes(record.provider)) {
+          connected = true;
+          console.info(`[LLM] Provider "${record.provider}" restored from connectedProviders setting.`);
+        }
+
+        // Health check: verify the API key can actually be decrypted
+        // This catches the case where the encryption key was lost (power loss, storage clear)
+        if (connected && record.encrypted) {
+          try {
+            const key = await getApiKey(record.provider);
+            if (!key) {
+              console.warn(`[LLM] Provider "${record.provider}" marked connected but API key could not be decrypted. Marking as disconnected.`);
+              connected = false;
+              hasDecryptionFailure = true;
+            }
+          } catch (e) {
+            console.warn(`[LLM] Provider "${record.provider}" decryption check failed:`, e.message);
+            connected = false;
+            hasDecryptionFailure = true;
+          }
+        }
+
         providers[record.provider] = {
           provider: record.provider,
           model: record.model || null,
           baseUrl: record.baseUrl || PROVIDER_ENDPOINTS[record.provider],
-          connected: record.connected ?? false,
+          connected,
           lastTested: record.lastTested || null,
           responseTime: record.responseTime || null,
+          needsReconnect: hasDecryptionFailure && !connected,
         };
       }
 
+      const activeProviders = Object.keys(providers).filter(k => providers[k].connected);
+
       set({
         providers,
-        activeProviders: Object.keys(providers).filter(k => providers[k].connected),
+        activeProviders,
         loading: false,
+        needsReconnect: hasDecryptionFailure,
       });
+
+      // Sync the persisted list so it stays current
+      await setSetting('connectedProviders', activeProviders).catch(() => {});
+
+      if (hasDecryptionFailure) {
+        console.warn('[LLM] One or more providers need to be reconnected. The encryption key may have been lost after a power loss or browser storage change.');
+      }
     } catch (err) {
       console.warn('Failed to load providers:', err);
       set({ loading: false });
@@ -261,11 +307,15 @@ export const useLlmStore = create((set, get) => ({
         lastTested: Date.now(),
       });
 
+      const newActive = [...new Set([...get().activeProviders, providerKey])];
       set(state => ({
         providers: { ...state.providers, [providerKey]: providerData },
-        activeProviders: [...new Set([...state.activeProviders, providerKey])],
+        activeProviders: newActive,
         lastError: null,
       }));
+
+      // Persist connected provider list to settings for reliable recovery on restart
+      await setSetting('connectedProviders', newActive).catch(() => {});
 
       return { success: true, responseTime };
     } catch (err) {
@@ -279,13 +329,16 @@ export const useLlmStore = create((set, get) => ({
    */
   disconnectProvider: async (providerKey) => {
     await removeApiKey(providerKey);
+    const newActive = get().activeProviders.filter(k => k !== providerKey);
     set(state => {
       const { [providerKey]: _, ...remaining } = state.providers;
       return {
         providers: remaining,
-        activeProviders: state.activeProviders.filter(k => k !== providerKey),
+        activeProviders: newActive,
       };
     });
+    // Update persisted connected provider list
+    await setSetting('connectedProviders', newActive).catch(() => {});
   },
 
   /**
@@ -344,7 +397,13 @@ export const useLlmStore = create((set, get) => ({
     const { providers, activeProviders } = get();
 
     if (activeProviders.length === 0) {
-      return { success: false, error: 'No connected providers. Please add an AI model in Settings.' };
+      const { needsReconnect } = get();
+      return {
+        success: false,
+        error: needsReconnect
+          ? 'No connected providers. Your API key could not be read — this can happen after a power loss or browser storage change. Please re-enter your API key in Settings.'
+          : 'No connected providers. Please add an AI model in Settings.',
+      };
     }
 
     // Use role-based routing to select provider
@@ -357,7 +416,16 @@ export const useLlmStore = create((set, get) => ({
     const apiKey = await getApiKey(providerKey);
 
     if (!apiKey) {
-      return { success: false, error: 'API key not found. Please reconnect provider.' };
+      // Mark this provider as needing reconnection
+      const newActive = get().activeProviders.filter(k => k !== providerKey);
+      set(state => ({
+        providers: { ...state.providers, [providerKey]: { ...state.providers[providerKey], connected: false, needsReconnect: true } },
+        activeProviders: newActive,
+        needsReconnect: true,
+      }));
+      // Update persisted list so the disconnect survives reload
+      await setSetting('connectedProviders', newActive).catch(() => {});
+      return { success: false, error: 'API key could not be read — this can happen after a power loss or browser storage change. Please re-enter your API key in Settings.' };
     }
 
     try {

@@ -1567,6 +1567,7 @@ function DecomposeMode({ formData, setFormData, onComplete, progress, error, onC
 
   // ── Error screen (non-LLM errors) ────────────────────────
   if (error && error !== 'no-llm') {
+    const isConnectionError = error.includes('No connected providers') || error.includes('API key not found') || error.includes('reconnect provider');
     return (
       <div style={{
         minHeight: '100vh',
@@ -1578,30 +1579,63 @@ function DecomposeMode({ formData, setFormData, onComplete, progress, error, onC
       }}>
         <div style={{ width: '100%', maxWidth: 500 }}>
           <Card style={{ padding: 40, textAlign: 'center' }}>
-            <X size={40} style={{ margin: '0 auto 20px', color: 'var(--health-just-started, #ef4444)' }} />
-            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 12 }}>Decomposition Failed</h1>
+            {isConnectionError
+              ? <Settings size={40} style={{ margin: '0 auto 20px', color: '#ef4444' }} />
+              : <X size={40} style={{ margin: '0 auto 20px', color: 'var(--health-just-started, #ef4444)' }} />
+            }
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: 12 }}>
+              {isConnectionError ? 'AI Provider Connection Failed' : 'Decomposition Failed'}
+            </h1>
             <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-              Something went wrong during decomposition.
+              {isConnectionError
+                ? 'Your AI provider could not be reached. This usually means your API key has expired, the provider is disconnected, or the connection was interrupted.'
+                : 'Something went wrong during decomposition.'
+              }
             </p>
-            <div style={{
-              background: 'var(--bg-tertiary)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-sm)',
-              padding: 12,
-              marginBottom: 24,
-              fontSize: '0.8rem',
-              color: 'var(--text-muted)',
-              fontFamily: 'monospace',
-              textAlign: 'left',
-              wordBreak: 'break-word',
-            }}>
-              {error}
-            </div>
+            {isConnectionError ? (
+              <div style={{
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-md, 8px)',
+                padding: '16px 20px',
+                marginBottom: 24,
+                textAlign: 'left',
+                fontSize: '0.85rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.7,
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-primary)' }}>To fix this:</div>
+                <div>1. Open <strong>Settings</strong> and check your AI provider</div>
+                <div>2. Verify your API key is valid and test the connection</div>
+                <div>3. Come back here and retry</div>
+              </div>
+            ) : (
+              <div style={{
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                padding: 12,
+                marginBottom: 24,
+                fontSize: '0.8rem',
+                color: 'var(--text-muted)',
+                fontFamily: 'monospace',
+                textAlign: 'left',
+                wordBreak: 'break-word',
+              }}>
+                {error}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <Button variant="secondary" onClick={() => { onClearError(); }}>
                 Back
               </Button>
-              <Button variant="primary" onClick={() => { onClearError(); handleComplete(); }}>
+              {isConnectionError && (
+                <Button variant="primary" onClick={() => navigate('/settings')}>
+                  <Settings size={16} style={{ marginRight: 6 }} />
+                  Open Settings
+                </Button>
+              )}
+              <Button variant={isConnectionError ? 'secondary' : 'primary'} onClick={() => { onClearError(); handleComplete(); }}>
                 Retry
               </Button>
             </div>

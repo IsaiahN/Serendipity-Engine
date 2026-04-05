@@ -142,8 +142,9 @@ export async function getApiKey(provider) {
   if (!record) return null;
   try {
     return await decryptApiKey(record.encrypted);
-  } catch {
-    return null; // Key was regenerated, user must re-enter
+  } catch (err) {
+    console.error(`[DB] Failed to decrypt API key for "${provider}". The encryption key may have been regenerated after a power loss or browser storage change. The user will need to re-enter their API key.`, err.message);
+    return null;
   }
 }
 

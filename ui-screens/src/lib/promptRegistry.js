@@ -1532,7 +1532,126 @@ ${storyContext ? `\n### Story context (from other project files):\n${storyContex
   },
 
   // ═════════════════════════════════════════════════════════════════════
-  //  23. PROJECT ENRICHMENT — Fill structural gaps in a project
+  //  23a. QUICK-ADD — Extract a single character or relationship from source text
+  // ═════════════════════════════════════════════════════════════════════
+
+  EXTRACT_SINGLE_CHARACTER: {
+    build: ({ characterName, sourceExcerpt, existingCast, title }) => GOLDEN_RULES + `
+## Your Role: Character Spotter
+
+The author believes their manuscript "${title || 'this story'}" contains a character named **${characterName}** that was missed during decomposition. Search the source text for every mention of this name (including nicknames, titles, or partial references) and extract a profile.
+
+### Source text (search this):
+${sourceExcerpt}
+
+### Already-extracted cast (do NOT duplicate these):
+${existingCast || 'None yet.'}
+
+### Instructions:
+1. Find all appearances of "${characterName}" in the source text.
+2. If the character exists in the text, produce a JSON summary:
+\`\`\`json
+{
+  "found": true,
+  "name": "Full Name As It Appears",
+  "suggestedTier": "minor",
+  "suggestedRole": "Brief narrative function (e.g. 'Dorothy\\'s protector')",
+  "appearances": 3,
+  "summary": "2-3 sentence description of who they are, what they do in the story, and why they matter.",
+  "alreadyExtracted": false
+}
+\`\`\`
+3. If the character is NOT found in the text, return:
+\`\`\`json
+{
+  "found": false,
+  "name": "${characterName}",
+  "suggestion": "Did you mean [closest match]?"
+}
+\`\`\`
+
+### Tier guide:
+- **protagonist**: Central POV character the story follows
+- **deuteragonist**: Second most important character
+- **antagonist**: Primary opposition force
+- **supporting**: Named characters with recurring presence and their own arc
+- **minor**: Named characters who appear briefly but serve a specific function
+- **catalyst**: Characters who trigger events but don't change themselves
+- **mentioned**: Referenced but never appear on-page
+- **collective**: Groups that act as one entity (e.g. "The Munchkins")
+
+### Rules:
+- Set "alreadyExtracted" to true if this character already exists in the cast list above (even under a different name variant)
+- Be honest about tier — don't inflate a mentioned character to supporting
+- Output ONLY the JSON, no preamble
+`,
+  },
+
+  EXTRACT_SINGLE_RELATIONSHIP: {
+    build: ({ characterA, characterB, sourceExcerpt, existingRelationships, title }) => GOLDEN_RULES + `
+## Your Role: Relationship Analyst
+
+Analyze the relationship between **${characterA}** and **${characterB}** in "${title || 'this story'}" by examining the source text.
+
+### Source text (search this):
+${sourceExcerpt}
+
+### Existing relationship data:
+${existingRelationships || 'None yet.'}
+
+### Instructions:
+Search the source text for every interaction, reference, or implicit connection between these two characters. Then produce a JSON analysis:
+
+\`\`\`json
+{
+  "found": true,
+  "characterA": "${characterA}",
+  "characterB": "${characterB}",
+  "interactions": 5,
+  "edges": [
+    {
+      "from": "slug-a",
+      "to": "slug-b",
+      "type": "mentor",
+      "strength": 4,
+      "description": "How A perceives/relates to B — psychologically specific, 1-2 sentences"
+    },
+    {
+      "from": "slug-b",
+      "to": "slug-a",
+      "type": "ally",
+      "strength": 3,
+      "description": "How B perceives/relates to A — psychologically specific, 1-2 sentences"
+    }
+  ],
+  "summary": "2-3 sentence overview of this relationship's arc and significance."
+}
+\`\`\`
+
+If the characters never interact or connect:
+\`\`\`json
+{
+  "found": false,
+  "characterA": "${characterA}",
+  "characterB": "${characterB}",
+  "reason": "Brief explanation of why no relationship was found"
+}
+\`\`\`
+
+### Relationship types: family, friend, rival, authority, mentor, ally, romantic, enemy
+
+### Slug format: lowercase-hyphenated (e.g. "Dorothy Gale" → "dorothy-gale")
+
+### Rules:
+- Relationships are ASYMMETRIC — A's view of B often differs from B's view of A
+- Be psychologically specific, not generic
+- Strength: 1 = barely connected, 5 = central bond
+- Output ONLY the JSON, no preamble
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  23b. PROJECT ENRICHMENT — Fill structural gaps in a project
   // ═════════════════════════════════════════════════════════════════════
   PROJECT_ENRICH_CHARACTERS: {
     build: ({ existingCharacters, storyContext }) => GOLDEN_RULES + `

@@ -162,7 +162,7 @@ function MinorCharCell({ c, onCharacterClick, onCharacterChat }) {
   );
 }
 
-export default function CastRoster({ onCharacterClick, onViewFullCast, onAddCharacter, onCharacterChat, onCharacterDelete }) {
+export default function CastRoster({ onCharacterClick, onViewFullCast, onAddCharacter, onCharacterChat, onCharacterDelete, isDecomposed }) {
   const files = useProjectStore(s => s.files);
   const characters = buildCastFromFiles(files);
   const mainChars = characters.filter(c => c.tier === 'main');
@@ -175,18 +175,20 @@ export default function CastRoster({ onCharacterClick, onViewFullCast, onAddChar
         <h4 style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
           Cast Roster
         </h4>
-        <button
-          onClick={() => onAddCharacter?.()}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            background: 'none', border: '1px solid var(--border)',
-            borderRadius: 'var(--radius-sm)', color: 'var(--accent)',
-            cursor: 'pointer', padding: '3px 8px', fontSize: '0.65rem', fontWeight: 600,
-          }}
-          title="Add new character"
-        >
-          <Plus size={11} /> New
-        </button>
+        {!isDecomposed && (
+          <button
+            onClick={() => onAddCharacter?.()}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              background: 'none', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-sm)', color: 'var(--accent)',
+              cursor: 'pointer', padding: '3px 8px', fontSize: '0.65rem', fontWeight: 600,
+            }}
+            title="Add new character"
+          >
+            <Plus size={11} /> New
+          </button>
+        )}
       </div>
 
       {/* Main Characters — full-width rows */}
