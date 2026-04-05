@@ -52,9 +52,10 @@ StoryWeaver guides your story through eight phases, each building on the last:
 
 Already have a manuscript? Upload it and StoryWeaver reverse-engineers it through the same 8-phase framework, extracting the author profile, narrator analysis, world-building, character sheets, relationship graph, and structural outline. Use this to understand why a story works, find gaps in your draft, or build the foundation for a sequel, prequel, or POV shift.
 
-<img width="758" height="315" alt="image" src="https://github.com/user-attachments/assets/a0b75cf7-c935-4188-94b6-3f4f134b2162" />
 
 ### Paradigm Shift
+
+<img width="758" height="315" alt="image" src="https://github.com/user-attachments/assets/a0b75cf7-c935-4188-94b6-3f4f134b2162" />
 
 Take any project and transform it. Blend genres, transpose mediums (novel to screenplay), shift the POV to a different character, change the narrator's tone. StoryWeaver forks the project, filters the cast to only characters relevant to the new perspective, and regenerates the structural files while preserving your original.
 
@@ -63,6 +64,7 @@ Take any project and transform it. Blend genres, transpose mediums (novel to scr
 A chat-based collaborator that knows your entire project. Brainstorm plot twists, flesh out character backstories, workshop dialogue, or ask structural questions. The assistant has full context of your author profile, world, cast, and outline.
 
 ### Editor Mode
+<img width="757" height="284" alt="image" src="https://github.com/user-attachments/assets/07f42cf2-4efb-4bd5-91ad-a67f969a8cdf" />
 
 Developmental editing powered by AI. Get craft-level feedback on prose, pacing, voice consistency, and structural coherence. The editor reads your work against the same framework that built it.
 
