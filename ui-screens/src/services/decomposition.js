@@ -539,20 +539,38 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
         relSummary: (previousFiles['relationships/questions-answered.md'] || '').substring(0, 2000),
         title: metadata.title || 'this manuscript',
       });
-      const rdResult = await sendMessage({
-        messages: [{ role: 'user', content: prompt }],
-        role: 'analyst',
-        maxTokens: 4000,
-      });
-      console.log('[Decomposition] Relationship graph result: success=', rdResult.success, 'content length=', rdResult.content?.length);
-      if (rdResult.success && rdResult.content) {
-        const cleaned = removeEmdashes(rdResult.content);
+
+      // Try up to 2 attempts — LLMs occasionally return empty for large casts
+      let rdContent = '';
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const rdResult = await sendMessage({
+          messages: [{ role: 'user', content: prompt }],
+          role: 'analyst',
+          maxTokens: 4000,
+        });
+        console.log('[Decomposition] Relationship graph attempt', attempt + 1, ': success=', rdResult.success, 'content length=', rdResult.content?.length);
+        if (rdResult.success && rdResult.content) {
+          rdContent = rdResult.content;
+          break;
+        }
+        if (!rdResult.success) {
+          throw new Error(rdResult.error || 'Relationship graph LLM call failed');
+        }
+        // Empty content — retry once
+        if (attempt === 0) {
+          console.warn('[Decomposition] Relationship graph returned empty, retrying...');
+        }
+      }
+
+      if (rdContent) {
+        const cleaned = removeEmdashes(rdContent);
         const graphJson = extractRelationshipJSON(cleaned, charSlugs);
         files['relationships/relationship-graph.json'] = JSON.stringify(graphJson, null, 2);
         console.log('[Decomposition] Relationship graph: extracted', graphJson.edges?.length || 0, 'edges');
       } else {
-        console.warn('[Decomposition] Relationship graph LLM call failed:', rdResult.error || 'empty content');
-        throw new Error(rdResult.error || 'Relationship graph generation failed (empty response)');
+        // Fall back to empty graph rather than failing the entire step
+        console.warn('[Decomposition] Relationship graph: LLM returned empty after retries, using empty graph');
+        files['relationships/relationship-graph.json'] = JSON.stringify({ edges: [] }, null, 2);
       }
       break;
     }
