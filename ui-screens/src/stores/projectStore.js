@@ -196,18 +196,48 @@ export const useProjectStore = create((set, get) => ({
   },
 
   /**
-   * Open / set active project
+   * Load a project's data (record + files) WITHOUT switching the active project.
+   * Use this when you need to read/write to a project that isn't currently active
+   * (e.g., writing files to a forked project during paradigm shift).
+   *
+   * Returns { project, files } or null if project doesn't exist.
    */
-  setActiveProject: async (projectId) => {
+  loadProjectData: async (projectId) => {
     const project = await db.projects.get(projectId);
     if (!project) return null;
 
-    set({ activeProjectId: projectId, activeProject: project });
-    // Mark clean when switching projects (all previous changes should be saved)
-    set({ isDirty: false });
+    const fileRecords = await db.projectFiles
+      .where('projectId').equals(projectId)
+      .toArray();
+    const files = {};
+    for (const f of fileRecords) {
+      files[f.path] = f.content;
+    }
+
+    return { project, files };
+  },
+
+  /**
+   * Switch the UI to a different project.
+   * Sets activeProjectId, loads files + session log, resets dirty state.
+   * Callers should save any unsaved edits BEFORE calling this.
+   */
+  switchToProject: async (projectId) => {
+    const project = await db.projects.get(projectId);
+    if (!project) return null;
+
+    set({ activeProjectId: projectId, activeProject: project, isDirty: false });
     await get().loadProjectFiles(projectId);
     await get().loadSessionLog(projectId);
     return project;
+  },
+
+  /**
+   * Open / set active project (convenience alias for switchToProject).
+   * Kept for backward compatibility with existing call sites.
+   */
+  setActiveProject: async (projectId) => {
+    return get().switchToProject(projectId);
   },
 
   /**

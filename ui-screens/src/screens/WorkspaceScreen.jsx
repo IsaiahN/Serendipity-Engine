@@ -1033,10 +1033,20 @@ function EditorMode({ file }) {
   );
 }
 
-// fileContents is imported from ../data/fileData.js
-
-// fileContents imported from ../data/fileData.js
-
+/**
+ * Demo-gated file content fallback.
+ * Only returns static fileData.js content if the current project IS the demo project.
+ * This prevents "The Shunning Season" content from bleeding into user projects
+ * that happen to have empty file records.
+ */
+function getDemoFileContent(file) {
+  const demoId = localStorage.getItem('demoProjectId');
+  const activeId = useProjectStore.getState().activeProjectId;
+  if (demoId && String(activeId) === String(demoId)) {
+    return fileContents[file] || null;
+  }
+  return null;
+}
 
 // Fallback content for files without specific content
 const defaultFileContent = (fileName) => ({
@@ -1338,9 +1348,9 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
   const [readerFontSize, setReaderFontSize] = useState(1.05);
   const [readerLineHeight, setReaderLineHeight] = useState(2);
   const [readerFont, setReaderFont] = useState('Georgia, serif');
-  // Prefer live project data from Zustand store; fall back to static demo data
+  // Prefer live project data; only fall back to static demo data for the demo project
   const storeFiles = useProjectStore(s => s.files);
-  const fc = storeFileToFc(storeFiles, file) || fileContents[file] || defaultFileContent(file || 'chapter-1.md');
+  const fc = storeFileToFc(storeFiles, file) || getDemoFileContent(file) || defaultFileContent(file || 'chapter-1.md');
   const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
   const displayContent = editedContent !== undefined
@@ -1673,9 +1683,9 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
 
 /* ─── IDE-like File Editor ─── */
 function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onContentChange, onSave }) {
-  // Prefer live project data from Zustand store; fall back to static demo data
+  // Prefer live project data; only fall back to static demo data for the demo project
   const storeFiles = useProjectStore(s => s.files);
-  const fc = storeFileToFc(storeFiles, file) || fileContents[file] || defaultFileContent(file || 'untitled.md');
+  const fc = storeFileToFc(storeFiles, file) || getDemoFileContent(file) || defaultFileContent(file || 'untitled.md');
   const fallbackText = fc.rawText || fc.content.join('\n\n');
   const content = editedContent !== undefined ? editedContent : fallbackText;
   const [saved, setSaved] = useState(editedContent === undefined);

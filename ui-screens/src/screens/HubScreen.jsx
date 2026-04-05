@@ -117,7 +117,11 @@ export default function HubScreen() {
 
   const commitRename = async (id) => {
     if (renameValue.trim()) {
-      await setActiveProject(id);
+      // Ensure this project is active (it usually already is from handleSelectProject)
+      const store = useProjectStore.getState();
+      if (store.activeProjectId !== id) {
+        await setActiveProject(id);
+      }
       await updateProject({ title: renameValue.trim() });
     }
     setRenamingId(null);
@@ -167,7 +171,10 @@ export default function HubScreen() {
   const saveSeries = async () => {
     if (selectedProject) {
       const store = useProjectStore.getState();
-      await store.setActiveProject(selectedProject.id);
+      // Only switch if not already active (avoids redundant file loading)
+      if (store.activeProjectId !== selectedProject.id) {
+        await store.setActiveProject(selectedProject.id);
+      }
       await store.updateProject({ series: seriesValue.trim() || null });
       await store.loadProjects();
       setEditingSeries(false);
