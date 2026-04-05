@@ -15,7 +15,7 @@ import {
   Compass, Edit3, BookOpen, GitCompare, Network, MessageSquare,
   Clock, Palette, Settings, Download, Volume2, Search,
   Lightbulb, AlertTriangle, Pencil, ChevronUp, Send, SendHorizontal, ChevronsLeft, ChevronsRight, Globe,
-  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X, Copy, UserPlus, Link2,
+  Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X, Copy, UserPlus, Link2, Loader2,
 } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
@@ -125,6 +125,25 @@ const engineFileTree = [
 ];
 
 /**
+ * Natural sort comparator — sorts "chapter-2" before "chapter-10".
+ * Splits strings into text/number chunks and compares numbers numerically.
+ */
+const naturalSort = (a, b) => {
+  const re = /(\d+)/g;
+  const aParts = a.split(re), bParts = b.split(re);
+  for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
+    if (i % 2 === 1) { // numeric chunk
+      const diff = parseInt(aParts[i], 10) - parseInt(bParts[i], 10);
+      if (diff !== 0) return diff;
+    } else { // text chunk
+      const cmp = aParts[i].localeCompare(bParts[i]);
+      if (cmp !== 0) return cmp;
+    }
+  }
+  return aParts.length - bParts.length;
+};
+
+/**
  * Build project file tree dynamically from store files object.
  * Groups files into folders (characters/, story/, world/, etc.) and lists root-level files.
  */
@@ -132,7 +151,7 @@ function buildProjectFileTree(files) {
   const folders = {};
   const rootFiles = [];
 
-  Object.keys(files).sort().forEach(path => {
+  Object.keys(files).sort(naturalSort).forEach(path => {
     const slashIdx = path.indexOf('/');
     if (slashIdx === -1) {
       // Root-level file
@@ -149,8 +168,8 @@ function buildProjectFileTree(files) {
   // Root files first
   rootFiles.forEach(f => tree.push(f));
   // Then folders with their children
-  Object.keys(folders).sort().forEach(folder => {
-    tree.push({ name: folder, exists: true, children: folders[folder].sort() });
+  Object.keys(folders).sort(naturalSort).forEach(folder => {
+    tree.push({ name: folder, exists: true, children: folders[folder].sort(naturalSort) });
   });
 
   return tree;
@@ -1045,9 +1064,19 @@ function storeFileToFc(storeFiles, filePath) {
   // Split into paragraphs (double-newline separated)
   const paragraphs = raw.split(/\n\n+/).filter(Boolean);
 
-  const isChapter = /^story\/chapter-\d+\.md$/.test(filePath);
+  // Detect chapter files (both padded chapter-01 and unpadded chapter-1)
+  const chapterMatch = filePath.match(/^story\/chapter-0*(\d+)\.md$/);
+  const isChapter = !!chapterMatch;
 
-  return { title, content: paragraphs, chapter: isChapter, rawText: raw };
+  // Compute chapter navigation metadata
+  let chapterNum = null, totalChapters = 0, pages = 1;
+  if (isChapter && storeFiles) {
+    chapterNum = parseInt(chapterMatch[1], 10);
+    totalChapters = Object.keys(storeFiles).filter(f => /^story\/chapter-\d+\.md$/.test(f)).length;
+    pages = Math.max(1, Math.ceil(paragraphs.length / 40));
+  }
+
+  return { title, content: paragraphs, chapter: isChapter, chapterNum, totalChapters, pages, rawText: raw };
 }
 
 /* ─── Lightweight Markdown Renderer ─── */
@@ -1277,7 +1306,7 @@ function MarkdownBlock({ text, isMarkdown }) {
   return <>{elements}</>;
 }
 
-function ReaderMode({ file, onEdit, editedContent }) {
+function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
   // Welcome screen when no file is selected
   if (!file) {
     return (
@@ -1585,13 +1614,27 @@ function ReaderMode({ file, onEdit, editedContent }) {
         lineHeight: readerLineHeight,
         color: 'var(--text-primary)',
       }}>
-        {isMarkdown ? (
+        {displayContent.chapter ? (
+          // Chapter prose: paragraph-based rendering with book-like indentation
+          displayContent.content.map((para, i) => {
+            // Skip the first heading (already shown as title)
+            if (i === 0 && /^#{1,3}\s/.test(para)) return null;
+            return (
+              <p key={i} style={{
+                marginBottom: 20,
+                textIndent: '2em',
+                whiteSpace: 'pre-wrap',
+              }}>
+                {para}
+              </p>
+            );
+          })
+        ) : isMarkdown ? (
           <MarkdownBlock text={displayContent.rawText} isMarkdown={true} />
         ) : (
           displayContent.content.map((para, i) => (
             <p key={i} style={{
               marginBottom: 20,
-              textIndent: displayContent.chapter ? '2em' : 0,
               whiteSpace: 'pre-wrap',
             }}>
               {para}
@@ -1601,15 +1644,27 @@ function ReaderMode({ file, onEdit, editedContent }) {
       </div>
 
       {/* Chapter navigation (only for chapter files) */}
-      {displayContent.chapter && (
+      {displayContent.chapter && fc.chapterNum != null && (() => {
+        // Find prev/next chapter file (supports both padded chapter-01 and unpadded chapter-1)
+        const findChapterFile = (num) => {
+          const padded = `story/chapter-${String(num).padStart(2, '0')}.md`;
+          const unpadded = `story/chapter-${num}.md`;
+          if (storeFiles?.[padded]) return padded;
+          if (storeFiles?.[unpadded]) return unpadded;
+          return null;
+        };
+        const prevFile = fc.chapterNum > 1 ? findChapterFile(fc.chapterNum - 1) : null;
+        const nextFile = findChapterFile(fc.chapterNum + 1);
+        return (
         <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginTop: 40 }}>
-          <Button variant="ghost" disabled={fc.chapterNum <= 1}>← Chapter {fc.chapterNum - 1}</Button>
+          <Button variant="ghost" disabled={!prevFile} onClick={() => prevFile && onNavigate?.(prevFile)}>← Chapter {fc.chapterNum - 1}</Button>
           <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', alignSelf: 'center' }}>
-            Page 1 of {fc.pages}
+            Chapter {fc.chapterNum} of {fc.totalChapters}
           </span>
-          <Button variant="ghost" disabled={fc.chapterNum >= fc.totalChapters}>Chapter {fc.chapterNum + 1} →</Button>
+          <Button variant="ghost" disabled={!nextFile} onClick={() => nextFile && onNavigate?.(nextFile)}>Chapter {fc.chapterNum + 1} →</Button>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -4855,13 +4910,36 @@ function ComparisonMode() {
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
       {/* Loading state */}
-      {isComparing && (
-        <Card style={{ padding: 20, textAlign: 'center', marginBottom: 16, animation: 'fadeIn 0.3s ease' }}>
-          <Sparkles size={20} color="var(--accent)" style={{ marginBottom: 8, animation: 'pulse 1.5s infinite' }} />
-          <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Running Deep Comparison</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{comparisonProgress}</div>
-        </Card>
-      )}
+      {isComparing && (() => {
+        // Parse progress like "Analyzing Narrator... (2/10)" to get current/total
+        const progressMatch = comparisonProgress.match(/\((\d+)\/(\d+)\)/);
+        const current = progressMatch ? parseInt(progressMatch[1], 10) : 0;
+        const total = progressMatch ? parseInt(progressMatch[2], 10) : 0;
+        const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+        return (
+          <Card style={{ padding: 24, textAlign: 'center', marginBottom: 16, animation: 'fadeIn 0.3s ease' }}>
+            <Sparkles size={20} color="var(--accent)" style={{ marginBottom: 8, animation: 'pulse 1.5s infinite' }} />
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>Running Deep Comparison</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 14 }}>{comparisonProgress}</div>
+            {total > 0 && (
+              <div style={{ maxWidth: 320, margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4 }}>
+                  <Loader2 size={12} style={{ animation: 'spin 1.2s linear infinite', flexShrink: 0 }} />
+                  <span>Step {current} of {total}</span>
+                  <span style={{ marginLeft: 'auto' }}>{pct}%</span>
+                </div>
+                <div style={{ width: '100%', height: 6, borderRadius: 3, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${pct}%`, height: '100%', borderRadius: 3,
+                    background: 'linear-gradient(90deg, var(--accent), #a78bfa)',
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+              </div>
+            )}
+          </Card>
+        );
+      })()}
       {!comparisonData && !isComparing && (
         <Card style={{ padding: 20, textAlign: 'center' }}>
           <p style={{ color: 'var(--text-muted)' }}>No comparison data available. Run a comparison first.</p>
@@ -9485,12 +9563,8 @@ export default function WorkspaceScreen() {
   const openFile = (fileName, parentFolder) => {
     const fullPath = parentFolder ? `${parentFolder}${fileName}` : fileName;
     setActiveFile(fullPath);
-    // Chapters and story content open in reader, everything else in file editor
-    if (fileName.startsWith('chapter-') || parentFolder === 'story/') {
-      setActiveMode('reader');
-    } else {
-      setActiveMode('file-editor');
-    }
+    // All files default to reader mode; user can switch to editor from there
+    setActiveMode('reader');
   };
 
   const renderCenter = () => {
@@ -9554,7 +9628,7 @@ export default function WorkspaceScreen() {
             }}
           />;
       case 'editor': return <EditorMode file={activeFile} />;
-      case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} editedContent={editedFiles[activeFile]} />;
+      case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} editedContent={editedFiles[activeFile]} onNavigate={(path) => setActiveFile(path)} />;
       case 'file-editor': return <FileEditorMode
         file={activeFile}
         onPreview={() => setActiveMode('reader')}

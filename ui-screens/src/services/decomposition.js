@@ -731,7 +731,7 @@ const dividerPatterns = [
 /**
  * Medium → prioritised pattern sets to try.
  * Each entry is { label, unitSlug, patterns[] }.
- * `unitSlug` is the singular noun used in filenames (e.g. "chapter" → chapter-1.md).
+ * `unitSlug` is the singular noun used in filenames (e.g. "chapter" → chapter-01.md).
  */
 const MEDIUM_PATTERNS = {
   'novel':           [
@@ -866,7 +866,8 @@ function splitAtBoundaries(lines, boundaries, unitLabel, unitSlug) {
 
     const body = bodyLines.join('\n').trim();
     const titlePart = boundaries[c].title ? `: ${boundaries[c].title}` : '';
-    files[`story/${unitSlug}-${num}.md`] = `# ${unitLabel} ${num}${titlePart}\n\n${body}`;
+    const padded = String(num).padStart(2, '0');
+    files[`story/${unitSlug}-${padded}.md`] = `# ${unitLabel} ${num}${titlePart}\n\n${body}`;
   }
   return files;
 }
@@ -1151,8 +1152,8 @@ function parseChapterMarkdown(content) {
   const chapters = content.split(/^# Chapter /m).slice(1);
 
   chapters.forEach((chapter, index) => {
-    const chapterNum = index + 1;
-    files[`story/chapter-${chapterNum}.md`] = `# Chapter ${chapter}`.trim();
+    const padded = String(index + 1).padStart(2, '0');
+    files[`story/chapter-${padded}.md`] = `# Chapter ${chapter}`.trim();
   });
 
   return files;
@@ -1257,7 +1258,7 @@ function createPlaceholder(stepKey) {
       'abstract.md': '# Abstract\n\n(Placeholder - decomposition step failed)',
     },
     review: { 'dry-run-audit.md': '# Structural Review\n\n(Placeholder - decomposition step failed)' },
-    chapters: { 'story/chapter-1.md': '# Chapter 1\n\n(Placeholder - decomposition step failed)' },
+    chapters: { 'story/chapter-01.md': '# Chapter 1\n\n(Placeholder - decomposition step failed)' },
   };
 
   return placeholders[stepKey] || {};
