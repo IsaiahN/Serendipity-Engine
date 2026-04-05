@@ -67,6 +67,10 @@ Developmental editing powered by AI. Get craft-level feedback on prose, pacing, 
 
 Dedicated workspaces for exploring your world's rules and hallmarks, visualizing character relationship webs, and tracking your story's timeline and chapter progression.
 
+### Version History
+
+Every file change is tracked automatically with a word-level diff engine. Browse a chronological timeline of edits, preview what changed between any two versions with color-coded additions and deletions, and restore any previous version with one click. Integrated with the undo/redo system for in-session editing and the session changelog for cross-session tracking.
+
 ### File Integrity Auditing
 
 After any major operation (decomposition, paradigm shift, generation), StoryWeaver automatically scans all project files and surfaces anything missing, empty, or incomplete. Color-coded severity levels (critical, high, medium, low) with one-click recovery actions: re-analyze, add missing details, or regenerate specific files.
@@ -78,6 +82,18 @@ AI-generated heuristic scores for narrative arc, character depth, world building
 ### Export
 
 Export your project as DOCX, PDF, plain text, or a zipped project archive. All formats preserve chapter structure and metadata.
+
+### Deep Comparison
+
+Compare any two works across ten analytical dimensions: author psychology, narrator, world building, characters, relationships, story structure, tone, theme, audience, and author inferences. Four comparison modes let you compare two of your own projects, two uploaded books, your work against a published piece, or track evolution across a series. Each dimension gets an LLM-powered analysis with a divergence score, and results are displayed with expandable dimension cards, a radar chart visualization, and side-by-side character comparisons. Series mode adds timeline and evolution tracking across multiple installments.
+
+### Drawing Board
+
+A creative scratchpad for collecting ideas that haven't found a home in the project structure yet. Add notes, upload images (with a multi-image slider for visual references), attach documents (.txt, .md, .docx, .pdf), or write rough drafts. Organize items into custom groups, switch between board view (visual grid), list view (compact table), gallery view (image-focused), or filter to show only unlinked items. Every item tracks whether it's been used in the project, so you can see which ideas made it into the story and which are still waiting.
+
+### Voice Casting Briefs
+
+AI-generated voice direction documents for audiobook narration or TTS production. StoryWeaver reads every character profile in your project and produces a casting brief for each: name, age range, accent, pitch, pace, vocal quality, emotional range, a one-line direction for the voice actor, and a "similar to" reference (e.g., "Think: Morgan Freeman"). Useful for audiobook producers, podcast creators, or anyone who wants to hear their characters before writing dialogue.
 
 ### Progressive Web App
 
