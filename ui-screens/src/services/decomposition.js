@@ -124,7 +124,7 @@ export async function decomposeStory(sendMessage, sourceText, options = {}) {
  * @param {object} options - { onProgress, title, medium }
  * @returns {{ files: { path: content }, metadata: { steps } }}
  */
-export async function redecomposeSteps(sendMessage, sourceText, stepKeys, existingFiles = {}, options = {}) {
+export async function redecomposeSteps(sendMessage, sourceText, stepKeys, existingFiles = {}, options = {}) { // v2-fixed
   if (!sourceText?.trim()) {
     throw new Error('Source text is required for re-decomposition');
   }

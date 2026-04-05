@@ -7002,12 +7002,12 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             <Card style={{ padding: 16, marginTop: 8 }}>
               <h3 style={labelStyle}>Core Values</h3>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                {char.coreValues.map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+                {(Array.isArray(char.coreValues) ? char.coreValues : [char.coreValues]).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
               </div>
               {char.personalCode && (
                 <>
                   <h3 style={labelStyle}>Personal Code</h3>
-                  {char.personalCode.map((c, i) => (
+                  {(Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
                     <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
                       "{c}"
                     </div>
