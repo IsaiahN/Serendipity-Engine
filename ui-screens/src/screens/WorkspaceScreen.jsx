@@ -2651,14 +2651,54 @@ const stableVariance = (seed, index, range = 1) => {
 };
 
 function buildTimelineData(files = {}, phaseAnswers = {}) {
-  // Pre-compute sorted chapter files once (shared across all characters + plot spine)
-  const chapterFiles = Object.entries(files)
-    .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
-    .sort(([a], [b]) => {
-      const na = parseInt(a.match(/chapter-(\d+)/)?.[1] || 0);
-      const nb = parseInt(b.match(/chapter-(\d+)/)?.[1] || 0);
-      return na - nb;
-    });
+  // Detect story unit files: chapters, acts, scenes, parts, episodes, sections, passages, pages
+  // Matches patterns like story/chapter-1.md, story/act-03.md, story/scene-12.md, etc.
+  const storyUnitPattern = /^story\/(chapter|act|scene|part|episode|section|passage|page)-0*(\d+)\.md$/;
+
+  // Find all story unit files, group by type to pick dominant unit type
+  const typeGroups = {}; // unitType → [{ path, content, unitType, num }]
+  Object.entries(files).forEach(([p, content]) => {
+    const m = p.match(storyUnitPattern);
+    if (m) {
+      const unitType = m[1];
+      const num = parseInt(m[2], 10);
+      if (!typeGroups[unitType]) typeGroups[unitType] = [];
+      typeGroups[unitType].push({ path: p, content, unitType, num });
+    }
+  });
+
+  // Pick the dominant unit type: the type with the most files that have real content (>100 chars)
+  // If tied, prefer non-chapter types (acts, scenes) since those are more intentional structures
+  let dominantType = 'chapter';
+  let maxScore = 0;
+  for (const [type, units] of Object.entries(typeGroups)) {
+    const contentfulCount = units.filter(u => (u.content || '').length > 100).length;
+    const totalChars = units.reduce((s, u) => s + (u.content || '').length, 0);
+    // Score: count of files with real content, with total chars as tiebreaker
+    const score = contentfulCount * 1000000 + totalChars;
+    if (score > maxScore || (score === maxScore && type !== 'chapter')) {
+      maxScore = score;
+      dominantType = type;
+    }
+  }
+
+  // Deduplicate within the dominant type by number (prefer file with more content)
+  const unitMap = new Map();
+  (typeGroups[dominantType] || []).forEach(u => {
+    const existing = unitMap.get(u.num);
+    if (!existing || (u.content || '').length > (existing.content || '').length) {
+      unitMap.set(u.num, u);
+    }
+  });
+
+  // Sort by number and determine labels
+  const storyUnits = [...unitMap.values()].sort((a, b) => a.num - b.num);
+  const unitType = dominantType;
+  const unitLabel = unitType.charAt(0).toUpperCase() + unitType.slice(1);
+  const unitAbbrev = { chapter: 'Ch', act: 'Act', scene: 'Sc', part: 'Pt', episode: 'Ep', section: 'Sec', passage: 'Psg', page: 'Pg' }[unitType] || 'Ch';
+
+  // Build the array matching the old chapterFiles format: [path, content]
+  const chapterFiles = storyUnits.map(u => [u.path, u.content]);
 
   // 1. Extract characters from character files
   const charFiles = Object.entries(files).filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'));
@@ -2698,7 +2738,7 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
         const variance = stableVariance(`${name}-reality`, i, 2) - 1;
         return Math.max(0, Math.min(10, v + Math.round(variance)));
       }) : [],
-      beats: finalArc.map((_, i) => `Chapter ${i + 1}`),
+      beats: finalArc.map((_, i) => `${unitLabel} ${storyUnits[i]?.num || i + 1}`),
       interactions: {},
     };
   });
@@ -2723,10 +2763,14 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
       })
     : []; // No fake placeholder data — empty until chapters are written
 
-  // Debug: log chapter sizes to help diagnose flat timelines
+  // Debug: log story unit sizes to help diagnose flat timelines
+  const allTypes = Object.entries(typeGroups).map(([t, u]) => `${t}(${u.length})`).join(', ');
   if (chapterFiles.length > 0) {
-    console.info('[Timeline] Chapter sizes:', chapterFiles.map(([p, c]) => `${p.split('/').pop()}: ${(c || '').length} chars`).join(', '));
-    console.info('[Timeline] Plot spine values:', plotSpine.join(', '), `| Characters: ${characters.length} | Chapters: ${chapterFiles.length}`);
+    console.info(`[Timeline] Dominant type: ${unitType} | All types found: ${allTypes}`);
+    console.info(`[Timeline] ${unitLabel} files (${chapterFiles.length}):`, chapterFiles.map(([p, c]) => `${p.split('/').pop()}: ${(c || '').length} chars`).join(', '));
+    console.info('[Timeline] Plot spine values:', plotSpine.join(', '), `| Characters: ${characters.length}`);
+  } else {
+    console.info(`[Timeline] No story unit files found | Types detected: ${allTypes || 'none'}`);
   }
 
   // 3. Build act structure
@@ -2739,7 +2783,7 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
     { label: 'Act 3 — Resolution', start: act2End, end: totalChapters, color: 'rgba(74, 222, 128, 0.05)', borderColor: 'rgba(74, 222, 128, 0.15)', labelColor: '#4ade80' },
   ];
 
-  return { characters, plotSpine, acts };
+  return { characters, plotSpine, acts, unitAbbrev, unitLabel, storyUnits };
 }
 
 // SVG helper: build a smooth curve path through points
@@ -2767,11 +2811,11 @@ function buildPath(points, width, height, maxVal = 10, smooth = true) {
 }
 
 /* ─── Interwoven Threads View (Overview) ─── */
-function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView, acts = [], plotSpine = [] }) {
+function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView, acts = [], plotSpine = [], unitAbbrev = 'Ch', storyUnits = [] }) {
   const W = 900, H = 300, PAD = { top: 30, bottom: 30, left: 10, right: 10 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
-  const chapters = 12;
+  const chapters = Math.max(storyUnits.length, visibleChars[0]?.arc?.length || 0, 2);
   const stepX = plotW / (chapters - 1);
 
   return (
@@ -2780,7 +2824,7 @@ function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView, ac
         {/* Act background regions */}
         {acts.map((act) => {
           const x1 = PAD.left + (act.start === 0 ? -5 : (act.start - 0.5) * stepX);
-          const x2 = PAD.left + (act.end === 12 ? plotW + 5 : (act.end - 0.5) * stepX);
+          const x2 = PAD.left + (act.end >= chapters ? plotW + 5 : (act.end - 0.5) * stepX);
           return (
             <g key={act.label}>
               <rect
@@ -2800,13 +2844,14 @@ function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView, ac
           );
         })}
 
-        {/* Chapter grid lines */}
+        {/* Story unit grid lines */}
         {Array.from({ length: chapters }, (_, i) => {
           const x = PAD.left + i * stepX;
+          const label = storyUnits[i] ? `${unitAbbrev} ${storyUnits[i].num}` : `${unitAbbrev} ${i + 1}`;
           return (
             <g key={i}>
               <line x1={x} y1={PAD.top} x2={x} y2={H - PAD.bottom} stroke="rgba(100,116,139,0.1)" strokeWidth={1} />
-              <text x={x} y={H - 8} textAnchor="middle" fill="var(--text-muted)" fontSize={10}>Ch {i + 1}</text>
+              <text x={x} y={H - 8} textAnchor="middle" fill="var(--text-muted)" fontSize={10}>{label}</text>
             </g>
           );
         })}
@@ -2956,7 +3001,7 @@ function ThreadsOverview({ onSelectChar, journeyMode, visibleChars, dataView, ac
 }
 
 /* ─── Single Character Arc Detail ─── */
-function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataView, timelineCharacters = [] }) {
+function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataView, timelineCharacters = [], unitAbbrev = 'Ch', storyUnits = [] }) {
   const char = timelineCharacters.find(c => c.name === charName);
   if (!char) return null;
   const others = timelineCharacters.filter(c => c.name !== charName);
@@ -2964,7 +3009,7 @@ function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataV
   const W = 900, H = 240, PAD = { top: 20, bottom: 30, left: 10, right: 10 };
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
-  const chapters = 12;
+  const chapters = Math.max(storyUnits.length, char.arc?.length || 0, 2);
   const stepX = plotW / (chapters - 1);
 
   return (
@@ -2993,10 +3038,11 @@ function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataV
           {/* Grid */}
           {Array.from({ length: chapters }, (_, i) => {
             const x = PAD.left + i * stepX;
+            const label = storyUnits[i] ? `${unitAbbrev} ${storyUnits[i].num}` : `${unitAbbrev} ${i + 1}`;
             return (
               <g key={i}>
                 <line x1={x} y1={PAD.top} x2={x} y2={H - PAD.bottom} stroke="rgba(100,116,139,0.1)" strokeWidth={1} />
-                <text x={x} y={H - 8} textAnchor="middle" fill="var(--text-muted)" fontSize={10}>Ch {i + 1}</text>
+                <text x={x} y={H - 8} textAnchor="middle" fill="var(--text-muted)" fontSize={10}>{label}</text>
               </g>
             );
           })}
@@ -3134,9 +3180,10 @@ function CharacterArcDetail({ charName, onBack, onSelectChar, journeyMode, dataV
         </h4>
         <div style={{ overflowX: 'auto' }}>
           <div style={{ display: 'flex', gap: 2, paddingLeft: 80, marginBottom: 4 }}>
-            {Array.from({ length: 12 }, (_, i) => (
-              <div key={i} style={{ width: 60, textAlign: 'center', fontSize: '0.6rem', color: 'var(--text-muted)' }}>Ch {i + 1}</div>
-            ))}
+            {Array.from({ length: chapters }, (_, i) => {
+              const label = storyUnits[i] ? `${unitAbbrev} ${storyUnits[i].num}` : `${unitAbbrev} ${i + 1}`;
+              return <div key={i} style={{ width: 60, textAlign: 'center', fontSize: '0.6rem', color: 'var(--text-muted)' }}>{label}</div>;
+            })}
           </div>
           {others.map((o) => {
             const interactions = char.interactions[o.name] || [];
@@ -3179,7 +3226,8 @@ function TimelineMode() {
   const [dataView, setDataView] = useState('both'); // 'plan' | 'reality' | 'both'
 
   const timelineFiles = useProjectStore(s => s.files);
-  const { characters: timelineCharacters, plotSpine, acts } = buildTimelineData(timelineFiles);
+  const { characters: timelineCharacters, plotSpine, acts, unitAbbrev, storyUnits } = buildTimelineData(timelineFiles);
+  const numUnits = storyUnits?.length || 12;
 
   const visibleChars = timelineCharacters.filter(c =>
     (c.tier === 'main' && showMain) || (c.tier === 'minor' && showMinor)
@@ -3244,7 +3292,7 @@ function TimelineMode() {
       </div>
 
       {view === 'overview' && (
-        <ThreadsOverview onSelectChar={handleSelectChar} journeyMode={journeyMode} visibleChars={visibleChars} dataView={dataView} acts={acts} plotSpine={plotSpine} />
+        <ThreadsOverview onSelectChar={handleSelectChar} journeyMode={journeyMode} visibleChars={visibleChars} dataView={dataView} acts={acts} plotSpine={plotSpine} unitAbbrev={unitAbbrev} storyUnits={storyUnits} />
       )}
       {view === 'character' && selectedChar && (
         <CharacterArcDetail
@@ -3254,6 +3302,8 @@ function TimelineMode() {
           journeyMode={journeyMode}
           dataView={dataView}
           timelineCharacters={timelineCharacters}
+          unitAbbrev={unitAbbrev}
+          storyUnits={storyUnits}
         />
       )}
 
@@ -6398,7 +6448,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
   // Build timeline data for arc intensity lookup
   const cpFiles = useProjectStore(s => s.files);
-  const { characters: cpTimelineCharacters } = buildTimelineData(cpFiles);
+  const { characters: cpTimelineCharacters, unitLabel: cpUnitLabel } = buildTimelineData(cpFiles);
 
   // ESC key to close zoom modal
   useEffect(() => {
@@ -6987,14 +7037,14 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
           {/* Beat-by-beat timeline */}
           {char.beats && char.beats.length > 0 && (
           <Card style={{ padding: 16, marginBottom: 16 }}>
-            <h3 style={labelStyle}>Chapter Beats</h3>
+            <h3 style={labelStyle}>{cpUnitLabel || 'Chapter'} Beats</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {char.beats.map((beat, i) => {
                 const tc = cpTimelineCharacters.find(c => c.name === characterName);
                 const intensity = tc ? tc.arc[i] : 5;
                 return (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', width: 40, flexShrink: 0 }}>Ch {i + 1}</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', width: 50, flexShrink: 0 }}>{beat.split(' ').slice(0, 2).join(' ')}</span>
                     <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'var(--bg-tertiary)', overflow: 'hidden' }}>
                       <div style={{ width: `${intensity * 10}%`, height: '100%', borderRadius: 3, background: char.color, opacity: 0.4 + (intensity / 10) * 0.6, transition: 'width 0.3s ease' }} />
                     </div>
