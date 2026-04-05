@@ -61,7 +61,7 @@ export function currentActivePhase(pctMap = {}) {
 function StatusIcon({ pct, locked }) {
   if (locked) return <Lock size={13} color="var(--text-muted)" style={{ opacity: 0.5 }} />;
   if (pct === 100) return <Check size={14} color="var(--health-exceptional)" />;
-  if (pct > 0) return <Loader size={14} color="var(--accent)" />;
+  if (pct > 0) return <Loader size={14} color="var(--accent)" style={{ animation: 'spin 1.5s linear infinite' }} />;
   return <Circle size={14} color="var(--text-muted)" />;
 }
 

@@ -2651,25 +2651,37 @@ const stableVariance = (seed, index, range = 1) => {
 };
 
 function buildTimelineData(files = {}, phaseAnswers = {}) {
+  // Pre-compute sorted chapter files once (shared across all characters + plot spine)
+  const chapterFiles = Object.entries(files)
+    .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
+    .sort(([a], [b]) => {
+      const na = parseInt(a.match(/chapter-(\d+)/)?.[1] || 0);
+      const nb = parseInt(b.match(/chapter-(\d+)/)?.[1] || 0);
+      return na - nb;
+    });
+
   // 1. Extract characters from character files
   const charFiles = Object.entries(files).filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'));
   const characters = charFiles.map(([path, content], idx) => {
     const name = path.replace('characters/', '').replace('.md', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     const isMain = (content || '').toLowerCase().includes('protagonist') || (content || '').toLowerCase().includes('main character') || idx < 3;
 
-    // Count mentions per chapter to build an arc
-    const chapterFiles = Object.entries(files)
-      .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
-      .sort(([a], [b]) => {
-        const na = parseInt(a.match(/\d+/)?.[0] || 0);
-        const nb = parseInt(b.match(/\d+/)?.[0] || 0);
-        return na - nb;
-      });
+    // Build search terms: try multiple name parts for better matching
+    // e.g. "Elphaba Thropp The Wicked Witch" → search for "Elphaba" and "Thropp"
+    const nameParts = name.split(' ').filter(w => w.length > 2 && !['the', 'of', 'and', 'for'].includes(w.toLowerCase()));
+    const searchTerm = nameParts[0] || name;
 
     const arc = chapterFiles.map(([, chContent], chIdx) => {
-      const mentions = ((chContent || '').match(new RegExp(name.split(' ')[0], 'gi')) || []).length;
-      // Use deterministic hash-based value when mentions are 0, instead of Math.random()
-      return Math.min(Math.round(mentions * 1.5), 10) || Math.round(stableVariance(name, chIdx, 3) + 1);
+      const text = chContent || '';
+      // Count mentions — case-insensitive, handles prose and UPPERCASE script dialogue tags
+      const mentions = (text.match(new RegExp(searchTerm, 'gi')) || []).length;
+      // Also check for a second name part (surname) to catch references by last name
+      const surname = nameParts.length > 1 ? nameParts[1] : null;
+      const surnameMentions = surname && surname.length > 2
+        ? (text.match(new RegExp(surname, 'gi')) || []).length
+        : 0;
+      const totalMentions = mentions + Math.floor(surnameMentions * 0.5);
+      return Math.min(Math.round(totalMentions * 1.5), 10) || Math.round(stableVariance(name, chIdx, 3) + 1);
     });
 
     // If no chapters, use empty arc (no fake data)
@@ -2700,19 +2712,22 @@ function buildTimelineData(files = {}, phaseAnswers = {}) {
     });
   });
 
-  // 2. Build plot spine from chapter content lengths / intensity
-  const chapterFiles = Object.entries(files)
-    .filter(([p]) => p.match(/^story\/chapter-\d+\.md$/))
-    .sort(([a], [b]) => parseInt(a.match(/\d+/)?.[0] || 0) - parseInt(b.match(/\d+/)?.[0] || 0));
-
+  // 2. Build plot spine from chapter content lengths — normalized relative to longest chapter
+  const chapterLengths = chapterFiles.map(([, content]) => (content || '').length);
+  const maxLen = Math.max(...chapterLengths, 1); // avoid division by zero
   const numPoints = Math.max(chapterFiles.length, characters[0]?.arc.length || 0);
   const plotSpine = chapterFiles.length > 0
-    ? chapterFiles.map(([, content]) => {
-        const len = (content || '').length;
-        // Normalize to 1-10 scale based on content density
-        return Math.min(Math.round((len / 500) + 2), 10);
+    ? chapterLengths.map(len => {
+        // Normalize to 1-10 scale relative to the longest chapter
+        return Math.max(1, Math.round((len / maxLen) * 9 + 1));
       })
     : []; // No fake placeholder data — empty until chapters are written
+
+  // Debug: log chapter sizes to help diagnose flat timelines
+  if (chapterFiles.length > 0) {
+    console.info('[Timeline] Chapter sizes:', chapterFiles.map(([p, c]) => `${p.split('/').pop()}: ${(c || '').length} chars`).join(', '));
+    console.info('[Timeline] Plot spine values:', plotSpine.join(', '), `| Characters: ${characters.length} | Chapters: ${chapterFiles.length}`);
+  }
 
   // 3. Build act structure
   const totalChapters = numPoints;
@@ -7597,15 +7612,15 @@ const REDECOMPOSE_GROUPS = [
     icon: '🔗',
   },
   {
-    label: 'Story Structure',
-    description: 'Plot outline, story arc, abstract, and story questions',
+    label: 'Story Structure & Timeline',
+    description: 'Plot outline, story arc, abstract, and timeline data',
     steps: ['structure', 'story-detail'],
-    files: ['outline.md', 'story/story-structure.md', 'story/questions-answered.md', 'abstract.md'],
+    files: ['outline.md', 'story/arc.md', 'story/story-structure.md', 'story/questions-answered.md', 'abstract.md'],
     icon: '📐',
   },
   {
     label: 'Structural Review',
-    description: 'Full structural audit of the manuscript',
+    description: 'Full structural audit and consistency check',
     steps: ['review'],
     files: ['dry-run-audit.md'],
     icon: '🔍',
@@ -7616,6 +7631,13 @@ const REDECOMPOSE_GROUPS = [
     steps: ['chapters'],
     files: ['story/chapter-*.md'],
     icon: '📖',
+  },
+  {
+    label: 'Full Re-Analysis',
+    description: 'Complete top-to-bottom re-analysis of the entire manuscript',
+    steps: ['author', 'narrator', 'world', 'world-detail', 'characters', 'characters-detail', 'relationships', 'relationships-detail', 'structure', 'story-detail', 'review', 'chapters'],
+    files: ['All project files'],
+    icon: '🔄',
   },
 ];
 

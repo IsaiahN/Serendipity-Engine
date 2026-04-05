@@ -172,7 +172,7 @@ export default function WritingProfile({ projectId = null, compact = false, show
             disabled={analyzing || Object.keys(files).length === 0}
             style={{ width: '100%' }}
           >
-            <RefreshCw size={12} style={{ marginRight: 4 }} />
+            <RefreshCw size={12} style={{ marginRight: 4, ...(analyzing ? { animation: 'spin 1s linear infinite' } : {}) }} />
             {analyzing ? 'Analyzing...' : 'Analyze Now'}
           </Button>
         )}
@@ -276,7 +276,7 @@ export default function WritingProfile({ projectId = null, compact = false, show
               onClick={handleAnalyzeNow}
               disabled={analyzing}
             >
-              <RefreshCw size={12} style={{ marginRight: 4 }} />
+              <RefreshCw size={12} style={{ marginRight: 4, ...(analyzing ? { animation: 'spin 1s linear infinite' } : {}) }} />
               {analyzing ? 'Analyzing...' : 'Refresh'}
             </Button>
           )}
