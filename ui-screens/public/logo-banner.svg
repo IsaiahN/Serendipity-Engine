@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="600" height="120">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffd699" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#f0a050" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="textGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f0a050"/>
+      <stop offset="100%" stop-color="#ffd699"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="600" height="120" rx="12" fill="#0c0e14"/>
+  <!-- Star glow -->
+  <circle cx="60" cy="60" r="36" fill="url(#glow)"/>
+  <!-- Star shape (four-pointed) -->
+  <path d="M60 20 C61.2 42 78 58.8 100 60 C78 61.2 61.2 78 60 100 C58.8 78 42 61.2 20 60 C42 58.8 58.8 42 60 20Z" fill="#f0a050"/>
+  <path d="M60 30 C60.75 46.5 73.5 59.25 90 60 C73.5 60.75 60.75 73.5 60 90 C59.25 73.5 46.5 60.75 30 60 C46.5 59.25 59.25 46.5 60 30Z" fill="#ffd699" opacity="0.5"/>
+  <!-- Title text -->
+  <text x="125" y="55" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="32" font-weight="700" fill="url(#textGrad)">Serendipity</text>
+  <text x="125" y="90" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="22" font-weight="400" fill="#7a7568" letter-spacing="4">STORYWEAVER</text>
+  <!-- Divider pipe -->
+  <line x1="350" y1="35" x2="350" y2="95" stroke="#f0a050" stroke-width="1.5" opacity="0.4"/>
+  <!-- Tagline -->
+  <text x="370" y="60" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#a09888">AI-Powered Creative</text>
+  <text x="370" y="80" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="13" fill="#a09888">Writing Workbench</text>
+</svg>

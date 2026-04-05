@@ -108,7 +108,7 @@ function LoadingFallback() {
     }}>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '2rem', marginBottom: 12 }}>✦</div>
-        <div>Loading Serendipity Engine...</div>
+        <div>Loading Serendipity | StoryWeaver...</div>
       </div>
     </div>
   );

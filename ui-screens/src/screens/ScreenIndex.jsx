@@ -38,7 +38,7 @@ export default function ScreenIndex() {
       <div style={{ textAlign: 'center', marginBottom: 48 }}>
         <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>✦</div>
         <h1 style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}>
-          Serendipity Engine
+          Serendipity | StoryWeaver
         </h1>
         <p style={{ fontSize: '1.05rem', color: 'var(--text-secondary)', maxWidth: 500, margin: '0 auto' }}>
           UI/UX Prototype — Screen Map
@@ -94,7 +94,7 @@ export default function ScreenIndex() {
 
       {/* Footer */}
       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-        Serendipity Engine by Isaiah Nwukor — UI/UX Prototypes
+        Serendipity | StoryWeaver by Isaiah Nwukor
       </p>
     </div>
   );

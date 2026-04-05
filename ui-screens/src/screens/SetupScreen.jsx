@@ -172,7 +172,7 @@ export default function SetupScreen() {
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: 4 }}>Connect Your AI Models</h1>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            The Serendipity Engine uses AI models you provide. Connect at least one to get started.
+            StoryWeaver uses AI models you provide. Connect at least one to get started.
           </p>
         </div>
 

@@ -27,7 +27,7 @@ export default function TermsScreen() {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{ fontSize: '2rem', marginBottom: 8 }}>✦</div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent)' }}>Serendipity Engine</h1>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--accent)' }}>Serendipity | StoryWeaver</h1>
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: 4 }}>Before we begin</p>
         </div>
 
@@ -44,11 +44,11 @@ export default function TermsScreen() {
         }}>
           {/* Scrollable Content */}
           <div style={{ flex: 1, overflowY: 'auto', paddingRight: 8, marginBottom: 24 }}>
-            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 16 }}>License — The Serendipity Engine</h2>
+            <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 16 }}>License — Serendipity | StoryWeaver</h2>
 
             <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
               <p style={{ marginBottom: 12 }}>
-                The Serendipity Engine is free for personal creative use. Stories created using the engine belong entirely to you — the engine makes no ownership claims on your creative output.
+                Serendipity | StoryWeaver is free for personal creative use. Stories created using the engine belong entirely to you. StoryWeaver makes no ownership claims on your creative output.
               </p>
               <p style={{ marginBottom: 12 }}>
                 Commercial use of the engine itself (building products on top of it) requires a commercial license. Attribution is appreciated but not required for stories you produce.
@@ -82,7 +82,7 @@ export default function TermsScreen() {
                 marginTop: 8,
               }}>
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontStyle: 'italic' }}>
-                  The principle: The Serendipity Engine is a creative partner, not a cheating tool. It's the difference between hiring an editor to improve your novel and hiring someone to write your term paper.
+                  The principle: StoryWeaver is a creative partner, not a cheating tool. It's the difference between hiring an editor to improve your novel and hiring someone to write your term paper.
                 </p>
               </div>
             </div>
@@ -115,11 +115,11 @@ export default function TermsScreen() {
                   e.preventDefault();
                   // Generate a minimal PDF of the terms text
                   const termsText = [
-                    'LICENSE — THE SERENDIPITY ENGINE',
+                    'LICENSE — SERENDIPITY | STORYWEAVER',
                     '',
-                    'The Serendipity Engine is free for personal creative use. Stories created',
-                    'using the engine belong entirely to you — the engine makes no ownership',
-                    'claims on your creative output.',
+                    'Serendipity | StoryWeaver is free for personal creative use. Stories',
+                    'created using the engine belong entirely to you. StoryWeaver makes',
+                    'no ownership claims on your creative output.',
                     '',
                     'Commercial use of the engine itself (building products on top of it)',
                     'requires a commercial license. Attribution is appreciated but not required',
@@ -143,7 +143,7 @@ export default function TermsScreen() {
                     '    where that distinction matters',
                     '  - Any use that violates the content rating system\'s intent',
                     '',
-                    'The principle: The Serendipity Engine is a creative partner, not a cheating',
+                    'The principle: StoryWeaver is a creative partner, not a cheating',
                     'tool. It\'s the difference between hiring an editor to improve your novel and',
                     'hiring someone to write your term paper.',
                   ];
@@ -158,7 +158,7 @@ export default function TermsScreen() {
                   let y = pageH - 50;
 
                   // Collect stream content
-                  let streamContent = `BT\n/F1 14 Tf\n${marginX} ${y} Td\n(Serendipity Engine — Terms & License) Tj\nET\n`;
+                  let streamContent = `BT\n/F1 14 Tf\n${marginX} ${y} Td\n(Serendipity | StoryWeaver — Terms & License) Tj\nET\n`;
                   y -= 30;
 
                   const escPdf = (s) => s.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');

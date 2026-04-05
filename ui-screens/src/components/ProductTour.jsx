@@ -14,7 +14,7 @@ import { useSettingsStore } from '../stores/settingsStore';
 const TOUR_STEPS = [
   {
     id: 'welcome',
-    title: 'Welcome to Serendipity Engine',
+    title: 'Welcome to Serendipity | StoryWeaver',
     description:
       'Your AI-powered creative companion for building rich, complex stories. This tour will show you the key features that make story development intuitive and rewarding.',
     target: null, // center modal
@@ -72,7 +72,7 @@ const TOUR_STEPS = [
     id: 'done',
     title: 'You\'re Ready',
     description:
-      'You now understand the Serendipity Engine\'s core workflow. Start with the Author phase, answer honestly, and let the system guide you toward story clarity.',
+      'You now understand StoryWeaver\'s core workflow. Start with the Author phase, answer honestly, and let the system guide you toward story clarity.',
     target: null, // center modal
     position: 'center',
   },

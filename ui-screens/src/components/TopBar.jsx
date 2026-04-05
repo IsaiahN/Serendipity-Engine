@@ -226,7 +226,7 @@ export default function TopBar({ projectName, healthRating, showHealth = true, p
         }}
       >
         <span style={{ fontSize: '1.2rem' }}>✦</span>
-        Serendipity Engine
+        Serendipity | StoryWeaver
       </div>
 
       {/* Project Name (if in workspace) — double-click to rename */}

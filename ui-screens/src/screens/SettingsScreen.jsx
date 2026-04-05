@@ -1615,7 +1615,7 @@ function AboutSettings() {
   return (
     <>
       <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>
-        <span>✦ About Serendipity Engine</span>
+        <span>✦ About Serendipity | StoryWeaver</span>
       </h2>
 
       <SettingRow label="Version" desc="">

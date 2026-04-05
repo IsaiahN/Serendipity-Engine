@@ -102,7 +102,7 @@ export async function exportAsZip(projectData) {
  * Creates a professional document with title page, TOC, and formatted chapters
  */
 export async function exportAsDocx(files, projectTitle, options = {}) {
-  const { authorName = 'Serendipity Engine', includeMetadata = true } = options;
+  const { authorName = 'Serendipity | StoryWeaver', includeMetadata = true } = options;
 
   // Get chapters sorted by number
   const chapters = Object.entries(files)
@@ -269,7 +269,7 @@ export async function exportAsDocx(files, projectTitle, options = {}) {
  * Export project as PDF using jsPDF
  */
 export async function exportAsPdf(files, projectTitle, options = {}) {
-  const { authorName = 'Serendipity Engine' } = options;
+  const { authorName = 'Serendipity | StoryWeaver' } = options;
 
   // Get chapters sorted by number
   const chapters = Object.entries(files)
@@ -458,7 +458,7 @@ export async function exportAsPdf(files, projectTitle, options = {}) {
  * EPUB is a ZIP file with a specific structure
  */
 export async function exportAsEpub(files, projectTitle, options = {}) {
-  const { authorName = 'Serendipity Engine' } = options;
+  const { authorName = 'Serendipity | StoryWeaver' } = options;
   const projectSlug = slugify(projectTitle);
   const uuid = `urn:uuid:${generateUUID()}`;
 
@@ -698,7 +698,7 @@ blockquote {
  * Export project as Fountain screenplay format
  */
 export function exportAsFountain(files, projectTitle, options = {}) {
-  const { authorName = 'Serendipity Engine' } = options;
+  const { authorName = 'Serendipity | StoryWeaver' } = options;
 
   // Get chapters sorted by number
   const chapters = Object.entries(files)

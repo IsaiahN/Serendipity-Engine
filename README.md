@@ -1,245 +1,239 @@
-# Serendipity Engine
-*A structured random story generation system built for humans and LLMs.*
+<p align="center">
+  <img src="ui-screens/public/logo-banner.svg" alt="Serendipity | StoryWeaver" width="600" />
+</p>
+
+<p align="center">
+  <strong>An AI-powered creative writing workbench that guides authors through building complete works of fiction.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/react-19-blue" alt="React 19" />
+  <img src="https://img.shields.io/badge/vite-8-purple" alt="Vite 8" />
+  <img src="https://img.shields.io/badge/PWA-installable-orange" alt="PWA" />
+  <img src="https://img.shields.io/badge/license-personal%20use-green" alt="License" />
+</p>
 
 ---
 
-## Quick Navigation
+## What Is StoryWeaver?
 
-| I want to… | Go here |
-|---|---|
-| **Start generating a story now** | `MetaFiles/Master-Story-Checklist.md` |
-| **Write as myself, not a generated author** | `MetaFiles/author-profile-template.md` |
-| **Understand how the system works** | [How to Use It](#how-to-use-it) |
-| **Use this with an LLM** | [Writing Workshop in a Box](#writing-workshop-in-a-box--using-this-with-an-llm) |
-| **Reverse-engineer an existing story** | [Decomposition](#decomposition) |
-| **Extend, adapt, or write a sequel** | [Decomposition](#decomposition) — Build and Extend / Weaponize sections |
-| **Understand why the system is built this way** | [The Three Theoretical Pillars](#the-three-theoretical-pillars) |
-| **See all reference files** | [Key Files at a Glance](#key-files-at-a-glance) |
-| **See why writing is hard** | [Why Writing Is Hard](#why-writing-is-hard) |
+StoryWeaver is a progressive web app that walks you through an 8-phase process to build, write, and refine a complete work of fiction. You bring your own AI model (OpenAI, Anthropic, Google, or any OpenRouter-compatible provider), and StoryWeaver orchestrates it as a collaborative tool at every step: brainstorming, structural analysis, prose generation, continuity checking, and editorial feedback.
+
+You are always the author. The AI never overrides your decisions, never takes creative control, and never produces output you haven't explicitly requested. StoryWeaver is a workbench, not an autopilot.
+
+The system is medium-agnostic. Novels, screenplays, stage plays, graphic novels, short stories, narrative podcasts, video game scripts. If it has characters, a world, and something at stake, StoryWeaver can build it.
 
 ---
 
-## What This Is
+## Features
 
-The Serendipity Engine is a reference system for generating fully realized stories from scratch. It works by building a story from the outside in — first the author, then the narrator, then the world, then the characters, then the relationships, then the story itself — using seeded randomization at every step to break creative defaults and produce combinations that wouldn't emerge from deliberate selection.
+### The 8-Phase Pipeline
 
-It is not a writing tool. It does not write the story. It generates the complete architecture — the author's psychology, the world's rules, every character's identity and wound, every relationship's dynamic — so that when writing begins, the structural decisions have already been made by the system rather than by the operator's preferences or blind spots.
+StoryWeaver guides your story through eight phases, each building on the last:
 
-The goal is to make the author a stranger to their own story. Strange combinations produce genuine discovery.
+**Phase 1 -- Author.** Define who you are as a writer. Your wound, your voice, your blind spots, your Big Picture Statement. Everything downstream filters through this lens.
 
-**The system is medium-agnostic and format-agnostic.** The architecture it builds — wound, world, cast, relationships, tonal arc — is the same regardless of what you are making. Novels, screenplays, stage plays, graphic novels, audio dramas, video game narratives, short stories, narrative podcasts, long-form journalism, biography, documentary. The Narrator phase and prose style selection are where medium-specific decisions live; everything else transfers directly. If it has characters, a world, and something at stake, this system can build it.
+**Phase 2 -- Narrator.** Choose the mask the author puts on. POV, tense, reliability, narrative distance. The gap between author and narrator is where irony lives.
 
----
+**Phase 3 -- World.** Genre, themes, setting, rules, hallmarks. Build the world your characters will inhabit, complete with the objects, places, and forces that define it.
 
-## The Three Theoretical Pillars
+**Phase 4 -- Characters.** Build a full cast with identity, psychology, wounds, arcs, and per-character voice fingerprints. Each character is constructed with the same rigor as the author.
 
-The system is built on three interlocking theories. You don't need to read them to use the checklist, but they explain why the system works the way it does.
+**Phase 5 -- Relationships.** Map every significant pairing: dynamics, attachment styles, power structures, and how they evolve under pressure.
 
-**1. Story Consciousness Theory** (`MetaFiles/story-consciousness-theory.md`)
-A character is conscious when they are caught between two conflicting knowledge streams — what they've personally lived (Stream A) and what their world tells them is true (Stream B). The story is the weighted integration of those two streams under pressure. Every scene, arc, and climax is a function of which stream wins. Characters without this tension are not conscious — they are props.
+**Phase 6 -- Story Foundation.** Outline, arc, tonal arc, subplot threading. Know the ending before writing the beginning.
 
-**2. Story Network Theory** (`MetaFiles/story-network-theory.md`)
-A story world is a distributed intelligence system. No single character can carry the full intelligence of a theme. The protagonist is one neuron — important, but temporary. What the world learns through the protagonist, and whether that learning persists after they're gone, is the story's true subject. Character diversity isn't a moral goal; it's a structural requirement. Four archetype functions must be distributed across the cast for the network to function.
+**Phase 7 -- Quality Control.** A structural audit against the theoretical framework before any prose is written. Health scores, gap detection, and editorial suggestions.
 
-**3. The Seven Story Deaths** (`MetaFiles/seven-story-deaths.md`)
-The seven conditions that kill intelligence in networks apply equally to stories. A story can be killed by: centralizing everything in one character (The Monolith), letting consequences vanish (Amnesia), treating hierarchy as natural (Hierarchy), severing the cast from each other (Isolation), repeating instead of varying (Monoculture), locking the world in the past (Stasis), or cutting the story off from anything larger than itself (Closure). These aren't writing tips. They are structural failure modes that operate invisibly until the draft is dead.
+**Phase 8 -- Execution.** Chapter-by-chapter writing with full context awareness. The AI knows the author's voice, the narrator's style, every character's speech patterns, and the outline.
 
----
+### Decomposition Mode
 
-## How to Use It
+Already have a manuscript? Upload it and StoryWeaver reverse-engineers it through the same 8-phase framework, extracting the author profile, narrator analysis, world-building, character sheets, relationship graph, and structural outline. Use this to understand why a story works, find gaps in your draft, or build the foundation for a sequel, prequel, or POV shift.
 
-**Start here:** `MetaFiles/Master-Story-Checklist.md`
+### Paradigm Shift
 
-The checklist walks the full pipeline in order:
+Take any project and transform it. Blend genres, transpose mediums (novel to screenplay), shift the POV to a different character, change the narrator's tone. StoryWeaver forks the project, filters the cast to only characters relevant to the new perspective, and regenerates the structural files while preserving your original.
 
-1. **Seed the engine** — generate a datetime-based seed from `MetaFiles/randomization-engine.md`. Record it as line 1 of your session file. All rolls derive from it.
-2. **Build the Author** — the author is the first character. Their psychology, wound, prose style, and worldview become the lens through which every subsequent decision is filtered.
-3. **Build the Narrator** — the mask the author puts on. The gap between author and narrator is where irony and unreliable narration live.
-4. **Build the World** — genre, themes, plot structure, world rules, and a check against the seven story deaths.
-5. **Build the Cast** — define cast architecture first, then roll each character fully. Every character is built the same way the author was.
-6. **Map the Relationships** — roll dynamics, attachment styles, and structures for every significant pair. Build the relationship graph.
-7. **Build the Story** — know the ending first. Then the arc, tonal arc, subplot map, and outline.
-8. **Review against the MetaFiles and craft reference** — Phase 7 checks all three theory files plus the 7-element story diagnostic (`Story/story-elements.md`) before writing begins.
-9. **Cross the bridge** — a short dedicated section between Phase 7 and Phase 8 addresses the threshold problem: the gap between a fully built story and the first sentence of the draft. Five orientation questions that are not gatekeeping — they are the act of turning to face the work.
-10. **Execute chapter by chapter** — with a per-chapter checklist and a running relationship graph.
+### Story Assistant
 
----
+A chat-based collaborator that knows your entire project. Brainstorm plot twists, flesh out character backstories, workshop dialogue, or ask structural questions. The assistant has full context of your author profile, world, cast, and outline.
 
-## Writing Workshop in a Box — Using This With an LLM
+### Editor Mode
 
-The Serendipity Engine is designed to be used collaboratively with a large language model. Every reference file is a briefing. Every checklist step is an instruction the LLM can execute, reflect back, or ask you questions from. The system does not require an LLM — but with one, it becomes a full structural writing workshop that runs in a single session.
+Developmental editing powered by AI. Get craft-level feedback on prose, pacing, voice consistency, and structural coherence. The editor reads your work against the same framework that built it.
 
-**What you can do with an LLM and this system:**
+### World Building, Relationships, and Timeline Views
 
-- **Generate complete story architecture** — paste the relevant reference files as context and run the checklist phase by phase. The LLM rolls, selects, synthesizes, and produces the output files. You get a complete author profile, world, cast, relationship graph, and outlined story before a single word of prose is written.
-- **Generate a first-pass draft** — once the architecture exists, the LLM has everything it needs: the author's voice fingerprint, the narrator's type and reliability level, every character's wound and speech pattern, the tonal arc, and the chapter outline. A first-pass chapter is a legitimate output of a fully populated session. Treat it as raw material — not finished prose, but scaffolding with real structure under it.
-- **Use the system as a structural editor** — paste an existing draft and run the Decomposition Mode. The LLM audits your work against the same framework used to build it, surfacing gaps, missing threads, and structural failures you cannot see from inside your own draft.
-- **Run the author questions interactively** — instead of filling out `MetaFiles/author-profile-template.md` alone, have the LLM ask you each question in turn, push back on vague answers, and compile your responses into the final author profile. This turns the template into a real interview.
+Dedicated workspaces for exploring your world's rules and hallmarks, visualizing character relationship webs, and tracking your story's timeline and chapter progression.
 
-**If you want the story to feel like yours:**
+### File Integrity Auditing
 
-Do not generate a randomized author. Make yourself the Author.
+After any major operation (decomposition, paradigm shift, generation), StoryWeaver automatically scans all project files and surfaces anything missing, empty, or incomplete. Color-coded severity levels (critical, high, medium, low) with one-click recovery actions: re-analyze, add missing details, or regenerate specific files.
 
-Open `MetaFiles/author-profile-template.md`. Answer every field — your actual wound, your actual voice, your actual blind spots, your actual Big Picture Statement. The system will then build the world, cast, and story around the psychology you brought in, rather than a stranger's. The randomization still operates in every other phase — the world's genre, the characters' attributes, the relationship dynamics — but the lens through which all of it is filtered will be yours.
+### Health Scoring
 
-This is the difference between using the system to explore what a story could be and using it to build the story only you could write.
+AI-generated heuristic scores for narrative arc, character depth, world building, dialogue quality, and overall story structure. These are subjective ratings meant as guideposts, not judgments.
+
+### Export
+
+Export your project as DOCX, PDF, plain text, or a zipped project archive. All formats preserve chapter structure and metadata.
+
+### Progressive Web App
+
+Install StoryWeaver on any device. Works offline after first load. Responsive design for desktop, tablet, and mobile.
 
 ---
 
-## Folder Structure
+## Getting Started
 
-```
-MetaFiles/          ← Theory documents, operational tools, and reference files
-Characters/         ← Identity, Personality, Development, and Names list files
-  Identity/
-  Personality/
-  Development/
-  Names/
-Relationships/      ← Relationship types, dynamics, and structures list files
-Story/              ← Genres, themes, narrator, plot structure, world building
-  World Building/
-Creations/          ← Generated stories live here (created per session, not tracked)
-  story-{YYYY-MM-DD}/
-    author.md
-    narrator.md
-    abstract.md
-    outline.md
-    characters/
-    relationships/
-    world/
-    story/
-Decomposition/      ← Reverse-engineered existing works (see below)
-  story-{title}/
-    test-{title}.md       ← the source text
-    author.md
-    narrator.md
-    abstract.md
-    outline.md
-    characters/
-    relationships/
-    world/
-    story/
+### Prerequisites
+
+You need Node.js 18+ and an API key from at least one supported AI provider:
+
+- OpenAI (GPT-4, GPT-4o, etc.)
+- Anthropic (Claude 3.5, Claude 4, etc.)
+- Google (Gemini)
+- Any provider accessible through OpenRouter
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/Serendipity-Engine.git
+cd Serendipity-Engine/ui-screens
+
+# Install dependencies
+npm install
+
+# Start the development server
+npm run dev
 ```
 
----
+Open `http://localhost:5173` in your browser.
 
-## Decomposition
+### First Run
 
-The engine can also run in reverse.
+1. **Accept the terms.** StoryWeaver shows a brief license and acceptable use policy on first launch.
+2. **Connect an AI model.** The Setup screen asks you to add at least one API key. Your keys are stored locally in your browser and never sent anywhere except directly to the provider's API.
+3. **Start a story.** Click "New Story" to begin the guided 8-phase pipeline, or click "Deconstruct a Book" to upload an existing manuscript for decomposition.
+4. **Try the demo.** Click "Try Demo Project" on the Hub to explore a pre-built project ("The Shunning Season") and see what a fully developed story looks like inside StoryWeaver.
 
-Given an existing work — a novel, a play, a screenplay, a short story — you can decompose it using the same phase structure as the checklist, inferring the attributes the author likely set (consciously or not) rather than rolling them fresh. The result is a complete structural audit of the source material in the engine's vocabulary.
+### Building for Production
 
-**What decomposition gives you:**
+```bash
+npm run build    # Creates optimized build in dist/
+npm run preview  # Preview the production build locally
+```
 
-- **Unpack what made a story work** — map the architecture beneath the prose, identify what decisions (character type, wound, arc shape, plot structure, tonal arc) were load-bearing, and see the framework the author used even if they never named it
-- **Find gaps in the narrative or lore** — the audit surfaces threads the story opened and didn't close, world-building that was sketched but not developed, and structural weaknesses the original author may not have noticed or chose to accept
-- **Create prequels, sequels, spinoffs, and POV shifts** — once the world's architecture is decomposed, you have a blueprint for extending it; the same framework that built the original story tells you what territory it left unexplored; a POV shift (the same story from a different character's perspective) is a direct output of the character and relationship decompositions
-- **Build and extend trilogies and multi-installment series** — a decomposed first story becomes the structural floor for every installment that follows. The sequel's job is not to repeat the first story — it is to use the established world, cast, and rules as a known ceiling and then push through it: deeper into the world, further along the character arcs, or into territory the first story deliberately left dark. A well-designed series also doubles back — a later installment can make a decision or image from the first story suddenly *revelatory*, recontextualizing it entirely without contradicting it. This is what authors withhold: not because the material doesn't exist, but because one story cannot hold everything the world contains. Decomposition surfaces what was withheld — the threads planted but not paid off, the characters sketched but not developed, the rules established but never tested to their limit — and those gaps are the sequel's natural territory.
+### Running Tests
 
-  **The test for a revelatory update:** it must make prior installments *more true*, not *differently true*. When it works, the audience holds the new fact against everything they already knew and feels the click of recognition — the sense that this was always the case and they simply hadn't seen it yet. When it fails, they feel confusion or betrayal instead, because the new fact contradicts the emotional logic of what came before rather than deepening it. Recognition and confusion are not matters of taste — they are structural outcomes. Recognition means the groundwork was in the earlier story. Confusion means it wasn't.
-
-  **Why prequels fail:** a prequel is not a story set earlier in the timeline — that is a location, not a reason to exist. A prequel earns its existence only if it answers a question the original story *raised but could not answer from inside its own frame*: what created the conditions the protagonist inherited? What happened to produce the wound that made the villain? What was the world before the rules the original took for granted were established? A prequel built to answer those questions uses the original as its load-bearing ceiling — every scene is in conversation with something the audience already knows, adding depth downward. A prequel built instead to mine audience attachment to a world — to deliver more of a thing people liked — has no structural reason to exist. It can only produce callbacks, never revelation. The framework catches this at Phase 1: if the prequel's Big Picture Statement cannot be stated independently of nostalgia for the original, the story has no wound at its center and no question it exists to answer.
-- **Expand the world and weaponize its own logic** — a decomposed world carries more than its plot used. The hallmarks, mechanics, societies, and rules that were established in service of one story's argument can be turned, combined, or collided in a subsequent story to produce effects the first installment made possible but never delivered. The most devastating twists in long-form fiction are not invented from nothing — they are made by taking two things the audience already accepts as true about this world and showing them what happens when those two things are in the same room at the same time. The reader already knows both facts. They simply never held them together. Decomposition maps all the world's live wires — the mechanics with untested edge cases, the societies with unresolved contradictions, the hallmarks whose symbolic weight was established but never fully spent — and those are the exact points where a writer can apply pressure to produce shock, grief, revelation, or devastation that lands because it was always structurally inevitable.
-- **Generate derivative works in different registers** — a decomposed story combined with a *different* author profile, writing style, tonal arc, or medium (novel → play, play → film adaptation) is the structural engine behind works like *Wicked* relative to *The Wizard of Oz*: same world, same characters, different author psychology, different POV, different thematic angle, transformed result
-
-The difference between *The Wizard of Oz* and *Wicked* is not that Gregory Maguire wrote about Oz. It is that he decomposed Oz with a different author Enneagram, inverted the POV to the Wicked Witch, shifted the moral alignment of the Wizard from True Neutral to something darker, and changed the tonal register from earnest-wonder to political-cynicism. Every one of those is a Serendipity Engine lever.
-
-**Reference decomposition:** [`Decomposition/story-the-wonderful-wizard-of-oz/`](Decomposition/story-the-wonderful-wizard-of-oz/)
-The full structural decomposition of L. Frank Baum's *The Wonderful Wizard of Oz* (1900), including author profile, narrator analysis, world-building audit, chapter-by-chapter outline, full attribute sheets for all six major characters, relationship graph, and a final comparison of what the engine would have generated differently. The source text is included at [`Decomposition/story-the-wonderful-wizard-of-oz/test-the-wizard-of-oz.md`](Decomposition/story-the-wonderful-wizard-of-oz/test-the-wizard-of-oz.md).
+```bash
+npm test         # Run the full test suite (Vitest)
+npm run test:watch  # Run in watch mode during development
+```
 
 ---
 
-## Key Files at a Glance
+## Project Structure
 
-**Operational tools:**
+```
+Serendipity-Engine/
+  MetaFiles/              # Theory documents and reference files
+  Characters/             # Character attribute lists and templates
+  Relationships/          # Relationship type and dynamic lists
+  Story/                  # Genre, theme, plot, and craft references
+  Decomposition/          # Example decomposed works (Wizard of Oz)
+  ui-screens/             # The StoryWeaver PWA (this is the app)
+    src/
+      components/         # React components (TopBar, Cast, Audit, etc.)
+      screens/            # Page-level screens (Hub, Workspace, Settings)
+      stores/             # Zustand state management
+      services/           # Business logic (decomposition, export, audit)
+      lib/                # Utilities (prompt registry, DB, constants)
+      data/               # Static demo data
+      utils/              # Shared pure functions
+      __tests__/          # Unit tests (Vitest)
+    public/               # Static assets, icons, manifest
+```
 
-| File | Purpose |
-|---|---|
-| `MetaFiles/Master-Story-Checklist.md` | **Start here.** Complete 8-phase workflow |
-| `MetaFiles/author-profile-template.md` | **Real Author / Persona template.** Use instead of Phase 1 rolls when you are writing as yourself or a deliberate persona. Covers every Phase 1 field through reflection rather than randomization — Identity, Personality, Development, Voice & Craft, Writing Identity, Blind Spots, and Big Picture Statement. |
-| `MetaFiles/randomization-engine.md` | Datetime seeding + roll derivation algorithm |
-| `MetaFiles/relationship-graph-template.csv` | Relationship matrix — copy per story. Three tiers: **major** characters (full rows/columns), **minor** characters (append `(minor)` — sparse cells, load-bearing ones filled), **society/group** characters (append `(society)` — governing bodies, oppressed peoples, institutions, collective identities that act as pressure systems on individuals). |
+### Key Architecture Decisions
 
-**Theory documents:**
+**React 19 + Vite 8** for the UI framework and build tooling.
 
-| File | Purpose |
-|---|---|
-| `MetaFiles/story-consciousness-theory.md` | Character consciousness framework |
-| `MetaFiles/story-network-theory.md` | Story-as-network framework |
-| `MetaFiles/seven-story-deaths.md` | Structural failure modes + antagonist design |
+**Zustand 5** for state management. Three stores: project store (active project, files, dirty state), LLM store (provider configs, active model), and settings store (theme, preferences).
 
-**Author & character reference:**
+**Dexie.js (IndexedDB)** for all persistent storage. Projects, files, session logs, and version history all live in the browser's IndexedDB. Nothing is sent to a server. Your data stays on your device.
 
-| File | Purpose |
-|---|---|
-| `MetaFiles/writing-prose-styles.md` | Author prose style reference |
-| `MetaFiles/language-content.md` | Content rating + profanity + banter patterns |
-| `MetaFiles/tonal-control.md` | Tonal arc design · tone types · drift check · tone failure modes |
-| `Characters/Development/values-code-selfcare.md` | Core values, personal code, and self-care rolls |
-| `Characters/Development/character-voice.md` | Per-character voice fingerprint · speech rhythm · vocabulary · tic · metaphor family · defensive pattern · subtext default |
-| `Characters/Development/cascading-attributes.md` | Attribute dependency graph · recommended roll order |
+**Prompt Registry** is a single file (`src/lib/promptRegistry.js`) containing every system prompt sent to AI models. Golden Rules (no emdashes, author sovereignty, stay in scope, context completeness, no meta-commentary, markdown output) are prepended to every prompt.
 
-**Story craft reference:**
-
-| File | Purpose |
-|---|---|
-| `Story/story-elements.md` | 7-element diagnostic — Theme, Character, Setting, Plot, Conflict, POV, Style |
-| `Story/narrative-techniques.md` | Full craft device taxonomy — 8 groups, 78 techniques |
-| `Story/plot-twist-types.md` | Twist archetype taxonomy — 7 categories, 47 types |
-| `Story/plot-structure.md` | Story structures, conflict types, scene framework, stakes |
-| `Story/themes-and-tropes.md` | Theme clusters and trope patterns |
-| `Story/narrator.md` | Narrator types, POV, reliability, tense, distance |
-| `Story/genres.md` | Genre list — rolled for Author (Phase 1) and Story (Phase 3) |
-| `Story/world-hallmarks.md` | **Phase 3 active tool.** Read this file during Phase 3 — World Building to build `world/hallmarks.md`. Defines six hallmark categories (Object / Artifact, Place / Path, Force / Phenomenon, Mechanic / Rule, Symbol / Visual Motif, Event / Moment), the poster test and two supporting tests for qualification, the per-entry format (9 fields), and the boundary rules distinguishing hallmarks (escape the text; recognizable to outsiders) from callbacks (reward the prepared reader; do not survive outside the text). Full step-by-step build instructions in the checklist Phase 3 — World Hallmarks step. |
+**BYOK (Bring Your Own Key).** StoryWeaver never stores, proxies, or intermediates your API keys. They go directly from your browser to the provider's API endpoint.
 
 ---
 
-## Design Principle
+## Use Cases
 
-Every list file specifies who rolls (Author / Character / Story), how many times, whether there are probability weights, and what foil or pairing logic applies. The randomization engine is file-agnostic — it only provides the mechanism. The files provide the meaning.
+**Write your first novel.** StoryWeaver's guided pipeline ensures you have a load-bearing structure before writing the first sentence. No more 30,000-word drafts that collapse because the foundation was never laid.
 
-When a roll produces something strange or uncomfortable: keep it. Regression to the mean is not random. The strangeness is the system working correctly.
+**Finish the project you've been sitting on.** Upload your half-finished manuscript through Decomposition, let StoryWeaver audit what you have, identify the gaps, and build out the missing structural elements so you can push through to the end.
+
+**Explore "what if" versions of your story.** Use Paradigm Shift to see your literary fiction reimagined as a thriller, your novel restructured as a screenplay, or your story told from the antagonist's perspective.
+
+**Learn story craft.** Even if you never generate a word of prose, the 8-phase pipeline teaches structural thinking: what makes characters conscious, how relationship dynamics create tension, why tonal control matters, and how the seven structural failure modes kill stories silently.
+
+**Reverse-engineer stories you admire.** Run Decomposition on a published work to understand the architecture beneath the prose. What decisions were load-bearing? What was the author's wound? Where did the structure bend?
+
+**Build a series.** Decompose your first book, then use it as the structural floor for sequels. StoryWeaver tracks what threads were planted but not paid off, what characters were sketched but not developed, and what rules were established but never tested to their limits.
 
 ---
 
-## Why Writing Is Hard
+## The Reference System
 
-Most would-be authors sit down believing writing is one skill. It isn't. It is six simultaneous disciplines that have to cohere in real time, in every scene, all the way to the last page:
+StoryWeaver is built on top of a comprehensive story-building reference system grounded in three interlocking theories:
 
-| Discipline | What it requires |
-|---|---|
-| **Structural architecture** | Plot, arc, and subproblem threading — the load-bearing skeleton. Every scene must advance, complicate, or pay off something. A scene that does none of these is structurally absent regardless of how well it is written. |
-| **Psychological modeling** | Every character's inner life, its distortions, and the gap between what they believe and what is true. Characters who behave consistently with their wound — and inconsistently with their stated self-image — feel real. Characters who don't, don't. |
-| **Sociological modeling** | Society as a character. What the world costs the people who live inside it, and what it demands from them in exchange for belonging. Stories without this have characters in a vacuum — technically present, structurally floating. |
-| **Sensory and scenic craft** | Setting doing active work — exerting pressure, externalizing interior state, carrying history, creating contrast. A setting that does none of these things is a stage direction, not a scene. |
-| **Voice** | The prose itself. Sentence rhythm, register, the specific vocabulary a character or narrator reaches for under pressure. The per-character voice fingerprint — speech rhythm, vocabulary register, dialogue tic, metaphor family, defensive speech pattern, subtext default — is rolled the same way any other attribute is. |
-| **Tonal control across time** | Sustaining, escalating, or deliberately breaking the story's emotional register across a draft that may take months or years to write. Tone drifts. The writer's real season leaks into the fictional one. Managing that drift — using it when it serves, correcting it when it doesn't — is craft at the level of the whole work, not the scene. The tonal arc is designed in Phase 6 and checked at the start of every drafting session. |
+**Story Consciousness Theory** -- A character is conscious when they are caught between two conflicting knowledge streams: what they've personally lived and what their world tells them is true. The story is the weighted integration of those streams under pressure.
 
-There is a seventh failure mode that operates before any of the six disciplines are engaged: **mistaking content for story**. A writer who starts from world — from setting, lore, characters, timeline — rather than from wound has no question the story exists to answer. They produce material that is recognizable and internally consistent, sometimes beautiful, but structurally hollow. Readers who already care about the world will enjoy it. Everyone else will call it a tour. The same failure applies to sequels, prequels, and spinoffs that are built from audience attachment to a prior work rather than from a new wound with a new question: they can only produce callbacks, not revelation. The system catches this at Phase 1 — no world, no character, no outline is built until the Big Picture Statement exists. That statement is the wound made explicit. If it cannot be written, the story does not yet exist.
+**Story Network Theory** -- A story world is a distributed intelligence system. No single character carries the full intelligence of a theme. Four archetype functions must be distributed across the cast for the network to function.
 
-The Serendipity Engine addresses all seven structurally. The quality of what the system produces from that structure is still on the writer — but the ground is load-bearing before the first sentence is written.
+**The Seven Story Deaths** -- Seven structural failure modes that kill intelligence in narrative networks: The Monolith, Amnesia, Hierarchy, Isolation, Monoculture, Stasis, and Closure. These operate invisibly until the draft is dead.
+
+The full theory documents, attribute lists, and craft references live in the `MetaFiles/`, `Characters/`, `Relationships/`, and `Story/` directories.
+
+---
+
+## License
+
+**Serendipity | StoryWeaver** is free for personal creative use.
+
+Stories created using StoryWeaver belong entirely to you. The engine makes no ownership claims on your creative output. Attribution is appreciated but not required for stories you produce.
+
+Commercial use of the engine itself (building products on top of it, reselling, or redistributing) requires a commercial license. Contact the author for commercial licensing inquiries.
+
+### Acceptable Use
+
+StoryWeaver is designed for writers, authors, storytellers, students of narrative, and anyone who wants to learn the structural principles behind compelling fiction.
+
+StoryWeaver is not for academic dishonesty (generating essays or assignments to submit as schoolwork), plagiarism (passing off generated content as entirely human-written where that distinction matters), or any use that violates the content rating system's intent.
+
+The principle: StoryWeaver is a creative partner, not a cheating tool. It's the difference between hiring an editor to improve your novel and hiring someone to write your term paper.
+
+### Your Data
+
+All project data is stored locally in your browser's IndexedDB. Your API keys are stored in localStorage and sent only to the AI provider you configured. Nothing is sent to any server controlled by StoryWeaver. If you clear your browser data, your projects are gone. Use the Export feature to back up your work.
 
 ---
 
 ## Why "Serendipity"
 
-On the surface, the name describes the Author's experience: the system surfaces a story you didn't plan, full of specificity you couldn't have arrived at by deciding. You find something you weren't looking for. That is serendipitous.
+The name describes the author's experience: the system surfaces a story you didn't plan, full of specificity you couldn't have arrived at by deciding. You find something you weren't looking for.
 
-But the name holds at every level.
+But it holds at every level. Every character arrives at their position the way real people arrive at theirs: through conditions they didn't choose. Their agency, what they do once they arrive, is real. The conditions themselves were serendipitous.
 
-Every character in a generated story arrives at their position the way real people arrive at theirs — through conditions they didn't choose. Family by circumstance. A world with specific rules by birth. Those rules determined what attachments were permitted and which were ruled inadmissible. The character's wound, flaw, and virtue emerged from the collision of those conditions with a psychology they also didn't choose. By the time the story begins, each character is already the product of a long chain of chances they never called.
+The author finds the story. The characters find themselves in the plot. The reader finds themselves in the story. All of them chose what to do once they arrived.
 
-Their agency — what they do once they arrive — is real. The conditions themselves were serendipitous.
+---
 
-So the name is true at every level simultaneously:
-
-- **The author** finds the story — circumstance determines what the story is about
-- **The characters** find themselves in the plot — born into positions that generate the conflict
-- **The reader** finds themselves in the story — the mirror structure invites them to become a co-observer, not just a recipient
-
-The characters didn't choose to be there. The author and the reader did — and that choice is what makes the mirror work. The author chose to build a world governed by conditions they didn't control. The reader chose to enter one. What they find inside is still serendipitous.
-
-All of them chose what to do once they arrived.
-
-That is also what stories are about. The engine isn't just a tool for generating them — it is a model of the thing stories have always been trying to describe: the specific territory where circumstance ends and personal will begins.
-
+<p align="center">
+  <strong>Serendipity | StoryWeaver</strong><br>
+  Built by Isaiah Nwukor
+</p>

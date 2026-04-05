@@ -37,7 +37,7 @@ export function InstallBanner() {
       </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary, #e8e0d4)', marginBottom: 2 }}>
-          Install Serendipity Engine
+          Install Serendipity | StoryWeaver
         </div>
         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #7a7568)' }}>
           Works offline. Faster loads. Your own app.

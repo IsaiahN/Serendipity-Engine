@@ -262,7 +262,7 @@ export default function HubScreen() {
         {/* Logo */}
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: '1.2rem' }}>✦</span>
-          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--accent)' }}>Serendipity Engine</span>
+          <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--accent)' }}>Serendipity | StoryWeaver</span>
         </div>
 
         {/* New Story Button */}
