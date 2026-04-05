@@ -52,11 +52,11 @@ StoryWeaver guides your story through eight phases, each building on the last:
 
 Already have a manuscript? Upload it and StoryWeaver reverse-engineers it through the same 8-phase framework, extracting the author profile, narrator analysis, world-building, character sheets, relationship graph, and structural outline. Use this to understand why a story works, find gaps in your draft, or build the foundation for a sequel, prequel, or POV shift.
 
-
 ### Paradigm Shift
 
 <img width="758" height="315" alt="image" src="https://github.com/user-attachments/assets/a0b75cf7-c935-4188-94b6-3f4f134b2162" />
 <img width="758" height="390" alt="image" src="https://github.com/user-attachments/assets/753e6616-051c-4743-bf82-2cc12bb23b57" />
+<img width="758" height="389" alt="image" src="https://github.com/user-attachments/assets/d6e90098-30d8-489d-9802-4ac47b20b580" />
 
 Take any project and transform it. Blend genres, transpose mediums (novel to screenplay), shift the POV to a different character, change the narrator's tone. StoryWeaver forks the project, filters the cast to only characters relevant to the new perspective, and regenerates the structural files while preserving your original.
 
