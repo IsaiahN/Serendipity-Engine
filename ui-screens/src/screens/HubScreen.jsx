@@ -446,30 +446,13 @@ export default function HubScreen() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                   <BookOpen size={20} color="var(--accent)" />
                   <h2 style={{ fontSize: '1.2rem', fontWeight: 600, flex: 1 }}>{selectedProject.title}</h2>
-                  {deleteConfirmId === selectedProject.id ? (
-                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                      <button
-                        onClick={() => handleDeleteProject(selectedProject.id)}
-                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600 }}
-                      >
-                        Confirm Delete
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirmId(null)}
-                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setDeleteConfirmId(selectedProject.id)}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
-                      title="Delete project"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
+                  <button
+                    onClick={() => setDeleteConfirmId(selectedProject.id)}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
+                    title="Delete project"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                   {selectedProject.genre && <Badge variant="accent">{selectedProject.genre}</Badge>}
@@ -603,6 +586,75 @@ export default function HubScreen() {
           </div>
         </div>
       </div>
+
+      {/* Delete Project Confirmation Modal */}
+      {deleteConfirmId && (() => {
+        const projectToDelete = projects.find(p => p.id === deleteConfirmId);
+        return (
+          <div
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+            }}
+            onClick={() => setDeleteConfirmId(null)}
+          >
+            <div
+              style={{
+                background: 'var(--bg-card, #1e1e2e)', borderRadius: 'var(--radius-lg, 12px)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                padding: '28px 32px', maxWidth: 420, width: '90%',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <Trash2 size={20} color="#ef4444" />
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  Delete Project
+                </h3>
+              </div>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>
+                Are you sure you want to permanently delete
+                <strong style={{ color: 'var(--text-primary)' }}> {projectToDelete?.title || 'this project'}</strong>?
+              </p>
+              <p style={{
+                fontSize: '0.78rem', color: '#ef4444', lineHeight: 1.5, marginBottom: 24,
+                background: 'rgba(239, 68, 68, 0.08)', borderRadius: 'var(--radius-sm, 6px)',
+                padding: '10px 12px', border: '1px solid rgba(239, 68, 68, 0.15)',
+              }}>
+                This will permanently delete all files, chapters, characters, notes, and session history. This action cannot be undone.
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                <button
+                  onClick={() => setDeleteConfirmId(null)}
+                  style={{
+                    background: 'transparent', border: '1px solid var(--border-subtle, #333)',
+                    color: 'var(--text-secondary)', padding: '8px 18px',
+                    borderRadius: 'var(--radius-md, 8px)', cursor: 'pointer',
+                    fontSize: '0.82rem', fontWeight: 500,
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleDeleteProject(deleteConfirmId)}
+                  style={{
+                    background: '#ef4444', border: 'none', color: '#fff',
+                    padding: '8px 18px', borderRadius: 'var(--radius-md, 8px)',
+                    cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600,
+                  }}
+                  onMouseEnter={e => e.target.style.background = '#dc2626'}
+                  onMouseLeave={e => e.target.style.background = '#ef4444'}
+                >
+                  Delete Project
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Series Order Manager Modal */}
       {managingSeries && (

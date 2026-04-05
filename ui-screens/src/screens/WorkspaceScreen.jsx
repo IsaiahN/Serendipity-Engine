@@ -40,6 +40,8 @@ import VoiceCasting from '../components/VoiceCasting';
 import FeedbackManager from '../components/FeedbackManager';
 import SandboxMode from '../components/SandboxMode';
 import GenreShiftDashboard from '../components/GenreShiftDashboard';
+import FileAuditBanner from '../components/FileAuditBanner';
+import { auditProject as runFileAudit } from '../services/fileAuditService';
 import { countWords } from '../services/exportEngine';
 import { STORY_MEDIUMS } from '../lib/constants';
 
@@ -97,7 +99,7 @@ const centerStageModes = [
   { key: 'board', icon: Palette, label: 'Drawing Board' },
   { key: 'voice-casting', icon: Music, label: 'Voice Casting' },
   { key: 'feedback', icon: BarChart3, label: 'Feedback' },
-  { key: 'genre-shift', icon: Sparkles, label: 'Genre Shift' },
+  { key: 'genre-shift', icon: Sparkles, label: 'Paradigm Shift' },
   { key: 'sandbox', icon: Copy, label: 'Sandbox' },
   { key: 'search', icon: Search, label: 'Search' },
 ];
@@ -5609,6 +5611,53 @@ function RelationshipGraph() {
     }
   }
 
+  // Fallback: infer relationships from character co-mentions in story files when no explicit data exists
+  if (relationships.length === 0 && charKeys.length > 1) {
+    // Find story content files
+    const storyContent = Object.entries(rgFiles)
+      .filter(([p]) => p.startsWith('story/') && p.endsWith('.md'))
+      .map(([, c]) => (c || '').toLowerCase())
+      .join(' ');
+    const charContent = Object.entries(rgFiles)
+      .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions'))
+      .reduce((acc, [p, c]) => { acc[p.replace('characters/', '').replace('.md', '').replace(/-/g, '')] = (c || '').toLowerCase(); return acc; }, {});
+
+    charKeys.forEach((fromKey, fi) => {
+      charKeys.forEach((toKey, ti) => {
+        if (ti <= fi) return; // avoid duplicates and self
+        const fromName = characters[fromKey].name.split(' ')[0].toLowerCase();
+        const toName = characters[toKey].name.split(' ')[0].toLowerCase();
+        if (fromName.length < 3 || toName.length < 3) return;
+
+        // Check co-occurrence: both names in same story file chunks, or mentioned in each other's character files
+        const coMentionStory = storyContent.includes(fromName) && storyContent.includes(toName);
+        const mentionedInFrom = (charContent[fromKey] || '').includes(toName);
+        const mentionedInTo = (charContent[toKey] || '').includes(fromName);
+        const crossMention = mentionedInFrom || mentionedInTo;
+
+        if (coMentionStory || crossMention) {
+          // Infer relationship type from character file content
+          const combinedText = (charContent[fromKey] || '') + ' ' + (charContent[toKey] || '');
+          const type = combinedText.includes('sister') || combinedText.includes('brother') || combinedText.includes('father') || combinedText.includes('mother') || combinedText.includes('family') || combinedText.includes('daughter') || combinedText.includes('son') ? 'family'
+            : combinedText.includes('rival') || combinedText.includes('enemy') || combinedText.includes('antagoni') || combinedText.includes('betray') || combinedText.includes('oppose') ? 'rival'
+            : combinedText.includes('friend') || combinedText.includes('companion') || combinedText.includes('loyal') || combinedText.includes('protective') ? 'friend'
+            : combinedText.includes('mentor') || combinedText.includes('teach') || combinedText.includes('guide') || combinedText.includes('wisdom') ? 'mentor'
+            : combinedText.includes('authority') || combinedText.includes('ruler') || combinedText.includes('power over') || combinedText.includes('wizard') ? 'authority'
+            : 'ally';
+          const strength = (crossMention && coMentionStory) ? 4 : crossMention ? 3 : 2;
+          relationships.push({
+            from: fromKey, to: toKey, type,
+            label: `${characters[fromKey].name.split(' ')[0]} ↔ ${characters[toKey].name.split(' ')[0]}`,
+            strength,
+          });
+        }
+      });
+    });
+    if (relationships.length > 0) {
+      console.info(`[Relationships] Inferred ${relationships.length} relationships from character co-mentions`);
+    }
+  }
+
   // Center character defaults to first character
   const centerCharacter = centerCharacterOverride && characters[centerCharacterOverride] ? centerCharacterOverride : (Object.keys(characters)[0] || '');
 
@@ -9227,6 +9276,8 @@ export default function WorkspaceScreen() {
   const phaseInitRef = useRef(false); // tracks whether we've set initial phase for this project
   const [showGateWarning, setShowGateWarning] = useState(false); // modal for locked phases
   const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
+  const [fileAuditReport, setFileAuditReport] = useState(null); // file integrity audit result
+  const [auditDismissed, setAuditDismissed] = useState(false); // user dismissed audit banner
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
@@ -9267,6 +9318,8 @@ export default function WorkspaceScreen() {
     setActiveMode('guided');
     setActivePhase(null);
     setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
+    setFileAuditReport(null);
+    setAuditDismissed(false);
     phaseInitRef.current = false; // allow re-initialization for new project
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
@@ -9457,9 +9510,12 @@ export default function WorkspaceScreen() {
 
   // Compute phase percentages dynamically from answers vs questions
   // Decomposed projects have all phases pre-marked as complete
-  const isDecomposed = activeProject?.mode === 'decompose' ||
-    activeProject?.metadata?.mode === 'decompose' ||
-    Object.values(phaseAnswers).some(a => a?._decomposed);
+  // Projects explicitly set to 'create' mode (e.g., via Paradigm Shift) are NOT decomposed
+  const explicitMode = activeProject?.metadata?.mode || activeProject?.mode;
+  const isDecomposed = explicitMode === 'decompose' || (
+    explicitMode !== 'create' &&
+    Object.values(phaseAnswers).some(a => a?._decomposed)
+  );
   const phasePcts = {};
   phases.forEach(p => {
     if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === '⟡')) {
@@ -9525,6 +9581,19 @@ export default function WorkspaceScreen() {
       // Fallback: keep defaults
     });
   }, [projectFiles, phaseAnswers, activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── File integrity audit ──
+  // Runs when files change (after decomposition, paradigm shift, or manual save)
+  useEffect(() => {
+    if (!activeProject || !projectFiles) return;
+    // Small delay to avoid running during rapid file updates
+    const timer = setTimeout(() => {
+      const report = runFileAudit(projectFiles, activeProject);
+      setFileAuditReport(report);
+      setAuditDismissed(false); // show banner again after new audit
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [projectFiles, activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Auto-show product tour for first-time users
   useEffect(() => {
@@ -9747,6 +9816,10 @@ export default function WorkspaceScreen() {
         projectName={activeProject?.title || 'Untitled Story'}
         healthRating={overallHealthRating}
         projectMode={activeProject?.metadata?.mode || (isDecomposed ? 'decompose' : null)}
+        onRename={(newTitle) => {
+          const updateProject = useProjectStore.getState().updateProject;
+          if (updateProject) updateProject({ title: newTitle });
+        }}
         onHealthClick={() => {
           setRightCollapsed(false);
           setTimeout(() => {
@@ -10323,6 +10396,26 @@ export default function WorkspaceScreen() {
 
           {/* Content */}
           <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }} data-tour="guide-area">
+            {/* File integrity audit banner */}
+            {fileAuditReport && fileAuditReport.status !== 'healthy' && !auditDismissed && (
+              <div style={{ padding: '12px 16px 0' }}>
+                <FileAuditBanner
+                  auditReport={fileAuditReport}
+                  onDismiss={() => setAuditDismissed(true)}
+                  onRedecompose={(steps) => {
+                    // Open the redecompose modal with steps pre-selected
+                    setShowRedecomposeModal(true);
+                  }}
+                  onAddMissingDetails={(groups) => {
+                    // Open the enrich modal
+                    setShowEnrichModal(true);
+                  }}
+                  onRegenerateAnalysis={() => {
+                    setShowRedecomposeModal(true);
+                  }}
+                />
+              </div>
+            )}
             {renderCenter()}
           </div>
         </div>

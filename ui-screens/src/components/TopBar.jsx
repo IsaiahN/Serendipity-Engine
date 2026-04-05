@@ -147,13 +147,42 @@ function ShortcutsModal({ onClose }) {
   );
 }
 
-export default function TopBar({ projectName, healthRating, showHealth = true, projectMode, onHealthClick, onSettingsClick, onThemeClick, onTourClick, onShowShortcuts }) {
+export default function TopBar({ projectName, healthRating, showHealth = true, projectMode, onHealthClick, onSettingsClick, onThemeClick, onTourClick, onShowShortcuts, onRename }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isWorkspace = location.pathname.startsWith('/workspace');
   const [showTooltip, setShowTooltip] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const renameRef = useRef(null);
+
+  // Focus the rename input when entering rename mode
+  useEffect(() => {
+    if (isRenaming && renameRef.current) {
+      renameRef.current.focus();
+      renameRef.current.select();
+    }
+  }, [isRenaming]);
+
+  const startRename = () => {
+    if (!onRename) return;
+    setRenameValue(projectName || '');
+    setIsRenaming(true);
+  };
+
+  const commitRename = () => {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== projectName && onRename) {
+      onRename(trimmed);
+    }
+    setIsRenaming(false);
+  };
+
+  const cancelRename = () => {
+    setIsRenaming(false);
+  };
 
   // Ctrl+K / Cmd+K keyboard shortcut for command palette
   useEffect(() => {
@@ -200,11 +229,43 @@ export default function TopBar({ projectName, healthRating, showHealth = true, p
         Serendipity Engine
       </div>
 
-      {/* Project Name (if in workspace) */}
+      {/* Project Name (if in workspace) — double-click to rename */}
       {isWorkspace && projectName && (
         <>
           <span style={{ color: 'var(--text-muted)' }}>/</span>
-          <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{projectName}</span>
+          {isRenaming ? (
+            <input
+              ref={renameRef}
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename();
+                if (e.key === 'Escape') cancelRename();
+              }}
+              style={{
+                fontSize: '0.9rem', color: 'var(--text-primary)',
+                background: 'var(--bg-tertiary)', border: '1px solid var(--accent)',
+                borderRadius: 4, padding: '2px 8px', outline: 'none',
+                minWidth: 120, maxWidth: 400,
+              }}
+            />
+          ) : (
+            <span
+              onDoubleClick={startRename}
+              title={onRename ? 'Double-click to rename' : undefined}
+              style={{
+                fontSize: '0.9rem', color: 'var(--text-primary)',
+                cursor: onRename ? 'text' : 'default',
+                padding: '2px 4px', borderRadius: 4,
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => { if (onRename) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {projectName}
+            </span>
+          )}
           {projectMode && (
             <span style={{
               fontSize: '0.6rem',

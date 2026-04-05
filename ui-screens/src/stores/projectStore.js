@@ -387,6 +387,43 @@ export const useProjectStore = create((set, get) => ({
   },
 
   /**
+   * Delete specific files from the active project by path patterns
+   * @param {string[]} paths - Array of exact paths or patterns (startsWith matching if ends with *)
+   */
+  deleteFiles: async (paths) => {
+    const projectId = get().activeProjectId;
+    if (!projectId || !paths?.length) return;
+
+    try {
+      for (const pathPattern of paths) {
+        if (pathPattern.endsWith('*')) {
+          // Prefix match — delete all files starting with prefix
+          const prefix = pathPattern.slice(0, -1);
+          const matches = await db.projectFiles
+            .where('projectId').equals(projectId)
+            .filter(f => f.path.startsWith(prefix))
+            .toArray();
+          for (const m of matches) {
+            await db.projectFiles.delete(m.id);
+          }
+        } else {
+          // Exact match
+          const record = await db.projectFiles
+            .where('[projectId+path]')
+            .equals([projectId, pathPattern])
+            .first();
+          if (record) await db.projectFiles.delete(record.id);
+        }
+      }
+
+      // Reload files to sync state
+      await get().loadProjectFiles(projectId);
+    } catch (err) {
+      console.warn('Failed to delete files:', err);
+    }
+  },
+
+  /**
    * Delete a project and all its files
    */
   deleteProject: async (projectId) => {
@@ -504,10 +541,13 @@ export const useProjectStore = create((set, get) => ({
     const newProjectId = uuid();
     const newTitle = title || `${sourceProject.title} (${forkType === 'sandbox' ? 'Sandbox' : 'Fork'})`;
 
+    // Append short timestamp to slug to avoid uniqueness constraint collisions
+    const baseSlug = slugify(newTitle);
+    const uniqueSuffix = Date.now().toString(36).slice(-4);
     const forkedProject = {
       ...sourceProject,
       id: newProjectId,
-      slug: slugify(newTitle),
+      slug: `${baseSlug}-${uniqueSuffix}`,
       title: newTitle,
       createdAt: Date.now(),
       updatedAt: Date.now(),
