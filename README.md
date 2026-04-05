@@ -56,6 +56,7 @@ Already have a manuscript? Upload it and StoryWeaver reverse-engineers it throug
 ### Paradigm Shift
 
 <img width="758" height="315" alt="image" src="https://github.com/user-attachments/assets/a0b75cf7-c935-4188-94b6-3f4f134b2162" />
+<img width="758" height="390" alt="image" src="https://github.com/user-attachments/assets/753e6616-051c-4743-bf82-2cc12bb23b57" />
 
 Take any project and transform it. Blend genres, transpose mediums (novel to screenplay), shift the POV to a different character, change the narrator's tone. StoryWeaver forks the project, filters the cast to only characters relevant to the new perspective, and regenerates the structural files while preserving your original.
 
