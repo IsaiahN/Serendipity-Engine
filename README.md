@@ -27,6 +27,18 @@ The system is medium-agnostic. Novels, screenplays, stage plays, graphic novels,
 
 ---
 
+## Platforms
+
+StoryWeaver is available in three flavors depending on how you prefer to work.
+
+**Progressive Web App** — The primary experience. Clone the repo, run `npm install && npm run dev`, and open it in your browser. Install it as a standalone app from the browser's address bar for offline use. Everything runs locally — no server, no accounts, no data leaves your machine. See [Getting Started](#getting-started) below.
+
+**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. Install it from the Chrome Web Store or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch.
+
+**VS Code / Plain Markdown** — If you prefer working with plain text files in your own editor, the [`main`](https://github.com/IsaiahN/Serendipity-Engine/tree/main) branch contains the complete StoryWeaver reference system as markdown files: theory documents, character attribute templates, relationship frameworks, and story structure guides. Bring your own workflow.
+
+---
+
 ## Features
 
 ### How It Works
@@ -248,18 +260,6 @@ The principle: StoryWeaver is a creative partner, not a cheating tool. It's the 
 ### Your Data
 
 All project data is stored locally in your browser's IndexedDB. Your API keys are stored in localStorage and sent only to the AI provider you configured. Nothing is sent to any server controlled by StoryWeaver. If you clear your browser data, your projects are gone. Use the Export feature to back up your work.
-
----
-
-## Platforms
-
-StoryWeaver is available in three flavors depending on how you prefer to work.
-
-**Progressive Web App** — The primary experience. Clone the repo, run `npm install && npm run dev`, and open it in your browser. Install it as a standalone app from the browser's address bar for offline use. Everything runs locally — no server, no accounts, no data leaves your machine. See [Getting Started](#getting-started) below.
-
-**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. Install it from the Chrome Web Store or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch.
-
-**VS Code / Plain Markdown** — If you prefer working with plain text files in your own editor, the [`main`](https://github.com/IsaiahN/Serendipity-Engine/tree/main) branch contains the complete StoryWeaver reference system as markdown files: theory documents, character attribute templates, relationship frameworks, and story structure guides. Bring your own workflow.
 
 ---
 
