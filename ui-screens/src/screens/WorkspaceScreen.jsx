@@ -7778,12 +7778,18 @@ function ExportModal({ onClose }) {
         downloadFile(text, `${title}.fountain`, 'text/plain');
       } else if (fmt === 'json') {
         const { exportAsJSON } = await import('../services/exportEngine.js');
-        const json = exportAsJSON(activeProject, projectFiles);
-        downloadFile(json, `${title}.json`, 'application/json');
+        const projectData = {
+          project: activeProject,
+          files: Object.entries(projectFiles).map(([path, content]) => ({ path, content })),
+        };
+        exportAsJSON(projectData);
       } else if (fmt === 'zip') {
         const { exportAsZip } = await import('../services/exportEngine.js');
-        const blob = await exportAsZip(projectFiles, title);
-        downloadFile(blob, `${title}.zip`, 'application/zip');
+        const projectData = {
+          project: activeProject,
+          files: Object.entries(projectFiles).map(([path, content]) => ({ path, content })),
+        };
+        await exportAsZip(projectData);
       }
       onClose();
     } catch (err) {

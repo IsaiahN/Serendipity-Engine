@@ -145,13 +145,18 @@ export default function HubScreen() {
       if (file.name.endsWith('.json')) {
         // ── JSON backup: { project, files } format ──
         const text = await file.text();
+        if (!text || text.trim() === 'undefined' || text.trim() === 'null') {
+          throw new Error('The JSON file is empty or corrupted. Please re-export from the project.');
+        }
         projectData = JSON.parse(text);
         if (!projectData.project || !projectData.files) {
-          throw new Error('Invalid JSON backup — expected { project, files }');
+          throw new Error('Invalid JSON backup — expected { project, files } format');
         }
       } else if (file.name.endsWith('.zip')) {
         // ── ZIP backup: folder with files + _project-meta.json ──
-        const zip = await JSZip.loadAsync(file);
+        // Read as ArrayBuffer for reliable cross-browser JSZip parsing
+        const buf = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(buf);
         const entries = Object.entries(zip.files).filter(([, f]) => !f.dir);
 
         // Find _project-meta.json (could be at root or inside a subfolder)
