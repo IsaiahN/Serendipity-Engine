@@ -33,7 +33,13 @@ StoryWeaver is available in three flavors depending on how you prefer to work.
 
 **Progressive Web App** — The primary experience. Clone the repo, run `npm install && npm run dev`, and open it in your browser. Install it as a standalone app from the browser's address bar for offline use. Everything runs locally — no server, no accounts, no data leaves your machine. See [Getting Started](#getting-started) below.
 
-**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. Install it from the Chrome Web Store or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch.
+**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. Install it from the Chrome Web Store or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch. To install the pre-built extension directly, download [`storyweaver-extension.zip`](https://github.com/IsaiahN/Serendipity-Engine/raw/chrome-extension/storyweaver-extension.zip), then:
+
+1. Unzip the file to a folder on your computer
+2. Open `chrome://extensions` in Chrome
+3. Enable **Developer mode** (toggle in the top-right corner)
+4. Click **Load unpacked** and select the unzipped folder
+5. Click the StoryWeaver icon in your toolbar and hit **Open StoryWeaver**
 
 **VS Code / Plain Markdown** — If you prefer working with plain text files in your own editor, the [`main`](https://github.com/IsaiahN/Serendipity-Engine/tree/main) branch contains the complete StoryWeaver reference system as markdown files: theory documents, character attribute templates, relationship frameworks, and story structure guides. Bring your own workflow.
 
