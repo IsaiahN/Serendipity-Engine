@@ -1,148 +1,14 @@
 /**
- * Serendipity | StoryWeaver — Service Worker Registration & PWA Utilities
+ * Serendipity | StoryWeaver — Browser Utilities
  *
- * Handles:
- * - SW registration and lifecycle (install, update, activate)
- * - Install-to-home-screen (A2HS) prompt management
+ * Stripped-down version for Chrome Extension context.
+ * PWA-specific features (SW registration, A2HS, background sync) removed.
+ *
+ * Retains:
  * - Online/offline detection
- * - Background sync queue for failed writes
- * - Update notifications
+ * - Storage estimate
+ * - Persistent storage request
  */
-
-// ─── State ──────────────────────────────────────────────────────────────────
-
-let swRegistration = null;
-let deferredInstallPrompt = null;
-const listeners = new Set();
-
-// ─── Event Bus ──────────────────────────────────────────────────────────────
-
-function emit(event, data) {
-  listeners.forEach(fn => fn(event, data));
-}
-
-export function onSWEvent(callback) {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
-}
-
-// ─── Registration ───────────────────────────────────────────────────────────
-
-export async function registerServiceWorker() {
-  if (!('serviceWorker' in navigator)) {
-    console.log('[SW] Service workers not supported');
-    return null;
-  }
-
-  try {
-    // Append app version as query param to bust SW cache on version bumps
-    const appVersion = __APP_VERSION__ || '1.0.0';
-    swRegistration = await navigator.serviceWorker.register(`/sw.js?v=${appVersion}`, {
-      scope: '/',
-    });
-
-    console.log('[SW] Registered:', swRegistration.scope);
-
-    // Listen for updates
-    swRegistration.addEventListener('updatefound', () => {
-      const newWorker = swRegistration.installing;
-      if (!newWorker) return;
-
-      newWorker.addEventListener('statechange', () => {
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          // New version available
-          emit('update-available', { registration: swRegistration });
-        }
-      });
-    });
-
-    // Listen for messages from SW
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data?.type === 'SYNC_RETRY') {
-        emit('sync-retry', event.data.payload);
-      }
-    });
-
-    // Check for existing waiting worker (update already downloaded)
-    if (swRegistration.waiting) {
-      emit('update-available', { registration: swRegistration });
-    }
-
-    return swRegistration;
-  } catch (err) {
-    console.error('[SW] Registration failed:', err);
-    return null;
-  }
-}
-
-/**
- * Apply a pending SW update (forces reload)
- */
-export function applyUpdate() {
-  if (swRegistration?.waiting) {
-    swRegistration.waiting.postMessage('SKIP_WAITING');
-    window.location.reload();
-  }
-}
-
-/**
- * Cache additional URLs dynamically (e.g., after discovering lazy chunks)
- */
-export function cacheUrls(urls) {
-  if (navigator.serviceWorker.controller) {
-    navigator.serviceWorker.controller.postMessage({
-      type: 'CACHE_URLS',
-      urls,
-    });
-  }
-}
-
-// ─── Install Prompt (A2HS) ──────────────────────────────────────────────────
-
-// Capture the beforeinstallprompt event
-if (typeof window !== 'undefined') {
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    emit('install-available', {});
-  });
-
-  window.addEventListener('appinstalled', () => {
-    deferredInstallPrompt = null;
-    emit('installed', {});
-  });
-}
-
-/**
- * Check if the install prompt is available
- */
-export function canInstall() {
-  return deferredInstallPrompt !== null;
-}
-
-/**
- * Check if the app is already installed (standalone mode)
- */
-export function isInstalled() {
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true
-  );
-}
-
-/**
- * Show the install prompt
- * @returns {Promise<boolean>} true if user accepted
- */
-export async function promptInstall() {
-  if (!deferredInstallPrompt) return false;
-
-  deferredInstallPrompt.prompt();
-  const { outcome } = await deferredInstallPrompt.userChoice;
-  deferredInstallPrompt = null;
-
-  return outcome === 'accepted';
-}
 
 // ─── Online / Offline Detection ─────────────────────────────────────────────
 
@@ -166,83 +32,6 @@ export function onConnectivityChange(callback) {
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
   };
-}
-
-// ─── Background Sync Queue ──────────────────────────────────────────────────
-
-const SYNC_DB_NAME = 'serendipity-sync-queue';
-const SYNC_DB_VERSION = 1;
-
-function openSyncDb() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(SYNC_DB_NAME, SYNC_DB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pending')) {
-        db.createObjectStore('pending', { keyPath: 'id', autoIncrement: true });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-/**
- * Queue a write operation for background sync
- * Used when a save fails (e.g., offline, quota exceeded)
- */
-export async function queueSync(operation) {
-  try {
-    const db = await openSyncDb();
-    const tx = db.transaction('pending', 'readwrite');
-    tx.objectStore('pending').add({
-      ...operation,
-      timestamp: Date.now(),
-    });
-    await new Promise((resolve, reject) => {
-      tx.oncomplete = resolve;
-      tx.onerror = reject;
-    });
-
-    // Request background sync if available
-    if (swRegistration && 'sync' in swRegistration) {
-      await swRegistration.sync.register('sync-project-files');
-    }
-  } catch (err) {
-    console.warn('[Sync] Failed to queue operation:', err);
-  }
-}
-
-/**
- * Process any pending sync items (called on reconnect)
- */
-export async function processPendingSync() {
-  try {
-    const db = await openSyncDb();
-    const tx = db.transaction('pending', 'readwrite');
-    const store = tx.objectStore('pending');
-    const items = await new Promise((resolve, reject) => {
-      const req = store.getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-
-    if (items.length === 0) return [];
-
-    // Return items for processing by the app
-    // Clear the queue
-    const clearTx = db.transaction('pending', 'readwrite');
-    clearTx.objectStore('pending').clear();
-    await new Promise((resolve, reject) => {
-      clearTx.oncomplete = resolve;
-      clearTx.onerror = reject;
-    });
-
-    return items;
-  } catch (err) {
-    console.warn('[Sync] Failed to process pending items:', err);
-    return [];
-  }
 }
 
 // ─── Storage Estimate ───────────────────────────────────────────────────────
@@ -271,3 +60,16 @@ export async function requestPersistentStorage() {
   if (!navigator.storage?.persist) return false;
   return navigator.storage.persist();
 }
+
+// ─── Stubs for backward compatibility ───────────────────────────────────────
+// These are no-ops so any code that lazily imports them won't crash.
+
+export async function registerServiceWorker() { return null; }
+export function applyUpdate() {}
+export function cacheUrls() {}
+export function canInstall() { return false; }
+export function isInstalled() { return false; }
+export async function promptInstall() { return false; }
+export function onSWEvent() { return () => {}; }
+export async function queueSync() {}
+export async function processPendingSync() { return []; }

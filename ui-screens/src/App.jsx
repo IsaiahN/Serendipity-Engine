@@ -7,8 +7,7 @@ import CommandPalette from './components/CommandPalette'
 import { useSettingsStore } from './stores/settingsStore'
 import { useProjectStore } from './stores/projectStore'
 import { useLlmStore } from './stores/llmStore'
-import { InstallBanner, OfflineIndicator, UpdateNotification } from './components/PWAPrompts'
-import { registerServiceWorker, requestPersistentStorage } from './lib/serviceWorker'
+import { requestPersistentStorage } from './lib/serviceWorker'
 
 // Lazy load heavy components for code splitting
 const WizardScreen = lazy(() => import('./screens/WizardScreen'))
@@ -142,20 +141,12 @@ export default function App() {
     loadProjects();
     loadProviders();
 
-    // Register service worker for offline support
-    registerServiceWorker();
-
     // Request persistent storage so browser won't evict our IndexedDB data
     requestPersistentStorage();
   }, []);
 
   return (
     <ErrorBoundary>
-      {/* PWA overlays */}
-      <OfflineIndicator />
-      <UpdateNotification />
-      <InstallBanner />
-
       {/* Command palette (global) */}
       <CommandPalette />
 
