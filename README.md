@@ -14,6 +14,7 @@
 </p>
 
 ---
+
 <img width="1366" height="604" alt="image" src="https://github.com/user-attachments/assets/e639d970-0d8d-483c-ad4e-469770cb00f6" />
 
 ## What Is StoryWeaver?
@@ -65,11 +66,13 @@ Take any project and transform it. Blend genres, transpose mediums (novel to scr
 A chat-based collaborator that knows your entire project. Brainstorm plot twists, flesh out character backstories, workshop dialogue, or ask structural questions. The assistant has full context of your author profile, world, cast, and outline.
 
 ### Editor Mode
+
 <img width="757" height="284" alt="image" src="https://github.com/user-attachments/assets/07f42cf2-4efb-4bd5-91ad-a67f969a8cdf" />
 
 Developmental editing powered by AI. Get craft-level feedback on prose, pacing, voice consistency, and structural coherence. The editor reads your work against the same framework that built it.
 
 ### World Building, Relationships, and Timeline Views
+
 <img width="776" height="414" alt="image" src="https://github.com/user-attachments/assets/8b723711-2540-47ad-a4be-0ba58e65af5c" />
 
 Dedicated workspaces for exploring your world's rules and hallmarks, visualizing character relationship webs, and tracking your story's timeline and chapter progression.
@@ -266,4 +269,4 @@ The name describes the author's experience: the system surfaces a story you didn
 
 But it holds at every level. Every character arrives at their position the way real people arrive at theirs: through conditions they didn't choose. Their agency, what they do once they arrive, is real. The conditions themselves were serendipitous.
 
-The author finds the story. The characters find their fate. The reader finds the meaning. None of them went looking for it.               
+The author finds the story. The characters find their fate. The reader finds the meaning. None of them went looking for it.
