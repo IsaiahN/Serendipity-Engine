@@ -11,6 +11,7 @@
 import { buildChapterContext, buildPreFlightContext, getSeriesContextForProject } from './contextBuilder.js';
 import { removeEmdashes } from '../lib/randomEngine.js';
 import { PROMPTS } from '../lib/promptRegistry.js';
+import { getModelLimits } from '../lib/constants.js';
 
 // ─── Pre-Flight Checklist ───────────────────────────────────────────────────
 
@@ -140,7 +141,11 @@ export async function runPreFlight(sendMessage, files, chapterNum) {
  * @returns {{ success, content, usage, trimmed }}
  */
 export async function generateChapter(sendMessage, files, chapterNum, options = {}) {
-  const { maxTokens = 128000, userNotes = '', emotionalBeats = [], project = null } = options;
+  const { maxTokens, userNotes = '', emotionalBeats = [], project = null, modelName = '' } = options;
+
+  // Use model-aware context window for intelligent priority-based trimming
+  const limits = getModelLimits(modelName);
+  const contextBudget = maxTokens || limits.context;
 
   let seriesCtx = '';
   if (project) {
@@ -151,7 +156,7 @@ export async function generateChapter(sendMessage, files, chapterNum, options = 
     }
   }
 
-  const ctx = buildChapterContext(files, chapterNum, { maxTokens, seriesContext: seriesCtx });
+  const ctx = buildChapterContext(files, chapterNum, { maxTokens: contextBudget, model: modelName, seriesContext: seriesCtx });
 
   // Inject user notes if provided
   if (userNotes.trim()) {
@@ -269,6 +274,7 @@ export async function runChapterPipeline({
   userNotes = '',
   emotionalBeats = [],
   project = null,
+  modelName = '',
 }) {
   const startTime = Date.now();
 
@@ -289,7 +295,7 @@ export async function runChapterPipeline({
 
     // ── Stage 2: Generate chapter ──
     onProgress({ stage: 'generating', detail: `Generating Chapter ${chapterNum}...` });
-    const genResult = await generateChapter(sendMessage, files, chapterNum, { userNotes, emotionalBeats, project });
+    const genResult = await generateChapter(sendMessage, files, chapterNum, { userNotes, emotionalBeats, project, modelName });
 
     if (!genResult.success) {
       return { success: false, error: genResult.error, preflight, postflight: null };

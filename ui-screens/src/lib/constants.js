@@ -83,6 +83,44 @@ export const TONAL_TYPES = [
 // ── Content Ratings ─────────────────────────────────────
 export const CONTENT_RATINGS = ['G', 'PG', 'PG-13', 'R', '18+'];
 
+// ── Model Context-Window Limits ─────────────────────────
+// Maps model names → { context (input window), maxOutput (max generation tokens) }
+// Used by fitMessagesToContext() to auto-trim prompts before sending.
+export const MODEL_LIMITS = {
+  // Anthropic
+  'claude-sonnet-4-5-20250514':   { context: 200000, maxOutput: 8192 },
+  'claude-opus-4-5-20250414':     { context: 200000, maxOutput: 8192 },
+  'claude-haiku-3-5-20241022':    { context: 200000, maxOutput: 8192 },
+  // OpenAI
+  'gpt-4o':                       { context: 128000, maxOutput: 16384 },
+  'gpt-4-turbo':                  { context: 128000, maxOutput: 4096 },
+  'gpt-4':                        { context: 8192,   maxOutput: 4096 },
+  'gpt-3.5-turbo':                { context: 16385,  maxOutput: 4096 },
+  // DeepSeek
+  'deepseek-chat':                { context: 64000,  maxOutput: 8192 },
+  'deepseek-reasoner':            { context: 64000,  maxOutput: 8192 },
+  // Google Gemini
+  'gemini-2.0-flash':             { context: 1048576, maxOutput: 8192 },
+  'gemini-1.5-pro':               { context: 2097152, maxOutput: 8192 },
+  'gemini-1.5-flash':             { context: 1048576, maxOutput: 8192 },
+};
+
+// Conservative default for unknown models (OpenRouter free tiers, Ollama, custom)
+export const DEFAULT_MODEL_LIMITS = { context: 8000, maxOutput: 4096 };
+
+/**
+ * Look up a model's context window and max output tokens.
+ * Supports exact match and prefix match (e.g. "gpt-4o-2024-08-06" → "gpt-4o").
+ */
+export function getModelLimits(modelName) {
+  if (!modelName) return DEFAULT_MODEL_LIMITS;
+  if (MODEL_LIMITS[modelName]) return MODEL_LIMITS[modelName];
+  for (const [key, limits] of Object.entries(MODEL_LIMITS)) {
+    if (modelName.startsWith(key)) return limits;
+  }
+  return DEFAULT_MODEL_LIMITS;
+}
+
 // ── LLM Providers ───────────────────────────────────────
 export const LLM_PROVIDERS = [
   { key: 'anthropic', label: 'Anthropic (Claude)', models: ['claude-sonnet-4-5-20250514', 'claude-opus-4-5-20250414', 'claude-haiku-3-5-20241022'], apiKeyUrl: 'https://console.anthropic.com/settings/keys' },
