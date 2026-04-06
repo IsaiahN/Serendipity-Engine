@@ -316,5 +316,103 @@ export async function getSeriesContextForProject(project) {
   return buildSeriesContext(seriesData, project.id);
 }
 
+// ─── Universal Message Fitting ─────────────────────────────────────────────
+//
+// Called by sendMessage() BEFORE every API call to ensure prompts never exceed
+// the model's context window. Works on the final messages array regardless of
+// where it was built (chapter generation, chat, phase guide, analysis, etc.).
+
+/**
+ * Fit a messages array into a model's context window.
+ *
+ * Strategy (progressive, least-destructive first):
+ *  1. If it already fits → return as-is.
+ *  2. Trim long assistant turns (AI suggestions the user doesn't need verbatim).
+ *  3. Summarize older user/assistant chat history (keep last 2 turns intact).
+ *  4. Truncate the middle of the system message (keep start + end).
+ *  5. Hard-truncate from the end of the longest message as a last resort.
+ *
+ * @param {Array} messages - [{ role, content }]
+ * @param {number} contextWindow - model's max context tokens
+ * @param {number} outputTokens - tokens reserved for the model's response
+ * @returns {{ messages: Array, trimmed: boolean, strategy: string|null }}
+ */
+export function fitMessagesToContext(messages, contextWindow, outputTokens) {
+  const inputBudget = contextWindow - outputTokens;
+  const totalTokens = messages.reduce((s, m) => s + estimateTokens(m.content), 0);
+
+  // Already fits — fast path
+  if (totalTokens <= inputBudget) {
+    return { messages, trimmed: false, strategy: null };
+  }
+
+  // Clone so we don't mutate the originals
+  let fitted = messages.map(m => ({ ...m }));
+  let strategy = null;
+
+  // ── Strategy 1: Trim long assistant turns (they're AI output, expendable) ──
+  const assistantMsgs = fitted.filter(m => m.role === 'assistant');
+  for (const msg of assistantMsgs) {
+    const tokens = estimateTokens(msg.content);
+    if (tokens > 500) {
+      // Keep first ~200 tokens worth of content
+      const words = msg.content.split(/\s+/);
+      const keepWords = Math.min(Math.floor(200 / 1.3), words.length);
+      msg.content = words.slice(0, keepWords).join(' ') + '\n\n[...trimmed for context limits]';
+      strategy = 'trimmed-assistant';
+    }
+  }
+  if (fitted.reduce((s, m) => s + estimateTokens(m.content), 0) <= inputBudget) {
+    return { messages: fitted, trimmed: true, strategy };
+  }
+
+  // ── Strategy 2: Drop older chat history (keep system + last 2 user/assistant pairs) ──
+  const systemMsgs = fitted.filter(m => m.role === 'system');
+  const nonSystem = fitted.filter(m => m.role !== 'system');
+  if (nonSystem.length > 4) {
+    // Keep only last 4 non-system messages (2 user + 2 assistant turns)
+    fitted = [...systemMsgs, ...nonSystem.slice(-4)];
+    strategy = 'dropped-history';
+  }
+  if (fitted.reduce((s, m) => s + estimateTokens(m.content), 0) <= inputBudget) {
+    return { messages: fitted, trimmed: true, strategy };
+  }
+
+  // ── Strategy 3: Truncate the system message (keep first 40% + last 20%) ──
+  const sysMsg = fitted.find(m => m.role === 'system');
+  if (sysMsg) {
+    const sysTokens = estimateTokens(sysMsg.content);
+    const excess = fitted.reduce((s, m) => s + estimateTokens(m.content), 0) - inputBudget;
+    if (sysTokens > excess + 500) {
+      // We can trim enough from the system message
+      const words = sysMsg.content.split(/\s+/);
+      const keepStart = Math.floor(words.length * 0.4);
+      const keepEnd = Math.floor(words.length * 0.2);
+      sysMsg.content = words.slice(0, keepStart).join(' ')
+        + '\n\n[...context trimmed to fit model limits...]\n\n'
+        + words.slice(-keepEnd).join(' ');
+      strategy = 'truncated-system';
+    }
+  }
+  if (fitted.reduce((s, m) => s + estimateTokens(m.content), 0) <= inputBudget) {
+    return { messages: fitted, trimmed: true, strategy };
+  }
+
+  // ── Strategy 4: Hard truncation of the longest message ──
+  const current = fitted.reduce((s, m) => s + estimateTokens(m.content), 0);
+  const mustCut = current - inputBudget;
+  // Find the longest message
+  let longest = fitted.reduce((a, b) => estimateTokens(a.content) > estimateTokens(b.content) ? a : b);
+  const words = longest.content.split(/\s+/);
+  const cutWords = Math.ceil(mustCut / 1.3) + 50; // cut extra for safety margin
+  if (cutWords < words.length) {
+    longest.content = words.slice(0, words.length - cutWords).join(' ')
+      + '\n\n[...truncated to fit model context window]';
+  }
+  strategy = 'hard-truncated';
+
+  return { messages: fitted, trimmed: true, strategy };
+}
+
 // Export estimateTokens for use in token display components
 export { estimateTokens };

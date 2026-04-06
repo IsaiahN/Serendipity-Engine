@@ -5,12 +5,13 @@ import Card from '../components/Card';
 import HealthBar from '../components/HealthBar';
 import Badge from '../components/Badge';
 import SeriesOrderManager from '../components/SeriesOrderManager';
-import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pencil, Check, X, Trash2, Download, FileText } from 'lucide-react';
+import { Plus, Upload, Users, Globe, GitCompare, FolderOpen, Clock, BookOpen, Pencil, Check, X, Trash2, Download, FileText, UploadCloud } from 'lucide-react';
 import { useProjectStore } from '../stores/projectStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { PHASES } from '../lib/constants';
 import { activateDemoMode, isDemoActive, getDemoProjectId } from '../services/demoMode';
 import db from '../lib/db';
+import JSZip from 'jszip';
 
 const GRADIENTS = [
   'linear-gradient(135deg, #818cf8, #f97316)',
@@ -63,6 +64,8 @@ export default function HubScreen() {
   const [seriesValue, setSeriesValue] = useState('');
   const [managingSeries, setManagingSeries] = useState(null);
   const [sessionSummary, setSessionSummary] = useState(null);
+  const [importStatus, setImportStatus] = useState(null); // { type: 'loading'|'success'|'error', message }
+  const importInputRef = useRef(null);
   const renameInputRef = useRef(null);
 
   const selectedProject = projects[selectedIdx] || null;
@@ -125,6 +128,87 @@ export default function HubScreen() {
       await updateProject({ title: renameValue.trim() });
     }
     setRenamingId(null);
+  };
+
+  // ── Import Backup (.zip or .json) ──────────────────────────────────
+  const handleImportBackup = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+
+    setImportStatus({ type: 'loading', message: 'Importing...' });
+
+    try {
+      let projectData;
+
+      if (file.name.endsWith('.json')) {
+        // ── JSON backup: { project, files } format ──
+        const text = await file.text();
+        projectData = JSON.parse(text);
+        if (!projectData.project || !projectData.files) {
+          throw new Error('Invalid JSON backup — expected { project, files }');
+        }
+      } else if (file.name.endsWith('.zip')) {
+        // ── ZIP backup: folder with files + _project-meta.json ──
+        const zip = await JSZip.loadAsync(file);
+        const entries = Object.entries(zip.files).filter(([, f]) => !f.dir);
+
+        // Find _project-meta.json (could be at root or inside a subfolder)
+        const metaEntry = entries.find(([path]) => path.endsWith('_project-meta.json'));
+        let meta = {};
+        if (metaEntry) {
+          const metaText = await metaEntry[1].async('text');
+          meta = JSON.parse(metaText);
+        }
+
+        // Determine the folder prefix (everything before the first /)
+        const firstPath = entries[0]?.[0] || '';
+        const prefix = firstPath.includes('/') ? firstPath.split('/')[0] + '/' : '';
+
+        // Extract all files except the meta file
+        const files = [];
+        for (const [path, entry] of entries) {
+          if (path.endsWith('_project-meta.json')) continue;
+          const content = await entry.async('text');
+          // Strip the top-level folder prefix so paths match internal format
+          const relativePath = prefix && path.startsWith(prefix) ? path.slice(prefix.length) : path;
+          if (relativePath) {
+            files.push({ path: relativePath, content });
+          }
+        }
+
+        projectData = {
+          project: {
+            title: meta.title || file.name.replace(/\.zip$/, ''),
+            medium: meta.medium || 'Novel',
+            genre: meta.genre || '',
+            seed: meta.seed || '',
+          },
+          files,
+        };
+      } else {
+        throw new Error('Unsupported file type. Please use a .zip or .json backup.');
+      }
+
+      const imported = await useProjectStore.getState().importProject(projectData);
+      setImportStatus({ type: 'success', message: `"${imported.title}" imported!` });
+
+      // Auto-select the new project
+      const updatedProjects = useProjectStore.getState().projects;
+      const newIdx = updatedProjects.findIndex(p => p.id === imported.id);
+      if (newIdx >= 0) {
+        setSelectedIdx(newIdx);
+        await setActiveProject(imported.id);
+      }
+
+      // Clear success message after 3 seconds
+      setTimeout(() => setImportStatus(null), 3000);
+    } catch (err) {
+      console.error('[Hub] Import failed:', err);
+      setImportStatus({ type: 'error', message: err.message || 'Import failed' });
+      setTimeout(() => setImportStatus(null), 5000);
+    }
   };
 
   const handleSelectProject = async (idx) => {
@@ -266,15 +350,47 @@ export default function HubScreen() {
         </div>
 
         {/* New Story Button */}
-        <div style={{ padding: '12px 16px' }}>
+        <div style={{ padding: '12px 16px', display: 'flex', gap: 8 }}>
           <Button
             variant="primary"
-            style={{ width: '100%', justifyContent: 'center' }}
+            style={{ flex: 1, justifyContent: 'center' }}
             onClick={() => navigate('/wizard')}
           >
             <Plus size={16} /> New Story
           </Button>
+          <Button
+            variant="secondary"
+            title="Import backup (.zip or .json)"
+            style={{
+              padding: '8px 10px',
+              border: '1px solid var(--border)',
+              background: 'var(--bg-secondary)',
+            }}
+            onClick={() => importInputRef.current?.click()}
+          >
+            <UploadCloud size={16} />
+          </Button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".zip,.json"
+            style={{ display: 'none' }}
+            onChange={handleImportBackup}
+          />
         </div>
+
+        {/* Import status toast */}
+        {importStatus && (
+          <div style={{
+            padding: '6px 16px',
+            fontSize: '0.78rem',
+            color: importStatus.type === 'error' ? '#ef4444' : importStatus.type === 'success' ? '#22c55e' : 'var(--text-secondary)',
+            textAlign: 'center',
+          }}>
+            {importStatus.type === 'loading' ? '⏳ ' : importStatus.type === 'success' ? '✓ ' : '✗ '}
+            {importStatus.message}
+          </div>
+        )}
 
         {/* Demo Mode Button */}
         <div style={{ padding: '0 16px 12px' }}>

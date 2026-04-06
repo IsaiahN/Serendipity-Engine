@@ -7,7 +7,8 @@
  */
 import { create } from 'zustand';
 import { storeApiKey, getApiKey, removeApiKey, listProviders, getSetting, setSetting } from '../lib/db';
-import { LLM_PROVIDERS } from '../lib/constants';
+import { LLM_PROVIDERS, getModelLimits } from '../lib/constants';
+import { fitMessagesToContext } from '../services/contextBuilder';
 
 /**
  * Build the API endpoint URL for each provider
@@ -429,17 +430,31 @@ export const useLlmStore = create((set, get) => ({
     }
 
     try {
+      // ── Auto-fit messages to model's context window ──
+      // Prevents "prompt too long" errors for ANY model, including small
+      // free-tier OpenRouter models with 4k-8k context windows.
+      const modelName = provider.model || '';
+      const limits = getModelLimits(modelName);
+      const safeMaxTokens = Math.min(maxTokens, limits.maxOutput);
+      const fitResult = fitMessagesToContext(messages, limits.context, safeMaxTokens);
+      // Use fitted messages and capped output tokens for all API calls below
+      const msgs = fitResult.messages;
+      const outputTokens = safeMaxTokens;
+      if (fitResult.trimmed) {
+        console.info(`[LLM] Context trimmed (${fitResult.strategy}) to fit ${modelName || 'unknown'} (${limits.context} ctx)`);
+      }
+
       let response;
 
       switch (providerKey) {
         case 'anthropic': {
           // Extract system message if present
-          const systemMsg = messages.find(m => m.role === 'system');
-          const userMessages = messages.filter(m => m.role !== 'system');
+          const systemMsg = msgs.find(m => m.role === 'system');
+          const userMessages = msgs.filter(m => m.role !== 'system');
 
           const body = {
             model: provider.model || 'claude-sonnet-4-5-20250514',
-            max_tokens: maxTokens,
+            max_tokens: outputTokens,
             messages: userMessages,
             stream,
           };
@@ -511,8 +526,8 @@ export const useLlmStore = create((set, get) => ({
               },
               body: JSON.stringify({
                 model: provider.model || (providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
-                max_tokens: maxTokens,
-                messages,
+                max_tokens: outputTokens,
+                messages: msgs,
                 stream,
               }),
             })
@@ -560,18 +575,18 @@ export const useLlmStore = create((set, get) => ({
         case 'google': {
           const model = provider.model || 'gemini-2.0-flash';
           // Convert messages to Gemini format
-          const contents = messages
+          const contents = msgs
             .filter(m => m.role !== 'system')
             .map(m => ({
               role: m.role === 'assistant' ? 'model' : 'user',
               parts: [{ text: m.content }],
             }));
 
-          const systemInstruction = messages.find(m => m.role === 'system');
+          const systemInstruction = msgs.find(m => m.role === 'system');
 
           const body = {
             contents,
-            generationConfig: { maxOutputTokens: maxTokens },
+            generationConfig: { maxOutputTokens: outputTokens },
           };
           if (systemInstruction) {
             body.systemInstruction = { parts: [{ text: systemInstruction.content }] };
@@ -636,7 +651,7 @@ export const useLlmStore = create((set, get) => ({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 model: provider.model || 'llama3',
-                messages,
+                messages: msgs,
                 stream: false,
               }),
             })
@@ -706,17 +721,27 @@ export const useLlmStore = create((set, get) => ({
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
 
+    // ── Auto-fit for streaming too ──
+    const streamModelName = provider.model || '';
+    const streamLimits = getModelLimits(streamModelName);
+    const streamMaxTokens = Math.min(maxTokens, streamLimits.maxOutput);
+    const streamFit = fitMessagesToContext(messages, streamLimits.context, streamMaxTokens);
+    const streamMsgs = streamFit.messages;
+    if (streamFit.trimmed) {
+      console.info(`[LLM:stream] Context trimmed (${streamFit.strategy}) to fit ${streamModelName || 'unknown'}`);
+    }
+
     try {
       let response;
 
       switch (providerKey) {
         case 'anthropic': {
-          const systemMsg = messages.find(m => m.role === 'system');
-          const userMessages = messages.filter(m => m.role !== 'system');
+          const systemMsg = streamMsgs.find(m => m.role === 'system');
+          const userMessages = streamMsgs.filter(m => m.role !== 'system');
 
           const body = {
             model: provider.model || 'claude-sonnet-4-5-20250514',
-            max_tokens: maxTokens,
+            max_tokens: streamMaxTokens,
             messages: userMessages,
             stream: true,
           };
@@ -801,8 +826,8 @@ export const useLlmStore = create((set, get) => ({
               },
               body: JSON.stringify({
                 model: provider.model || (providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
-                max_tokens: maxTokens,
-                messages,
+                max_tokens: streamMaxTokens,
+                messages: streamMsgs,
                 stream: true,
               }),
               signal: abortController.signal,
@@ -866,7 +891,7 @@ export const useLlmStore = create((set, get) => ({
 
         case 'google': {
           // Google doesn't support streaming, fall back to non-streaming
-          const result = await get().sendMessage({ messages, role, maxTokens, task });
+          const result = await get().sendMessage({ messages: streamMsgs, role, maxTokens: streamMaxTokens, task });
           if (result.success) {
             yield result.content;
           } else {
@@ -882,7 +907,7 @@ export const useLlmStore = create((set, get) => ({
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 model: provider.model || 'llama3',
-                messages,
+                messages: streamMsgs,
                 stream: true,
               }),
               signal: abortController.signal,

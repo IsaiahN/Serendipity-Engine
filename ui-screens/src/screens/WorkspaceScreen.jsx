@@ -504,6 +504,10 @@ function ChapterExecutionMode() {
 
     try {
       const { runChapterPipeline } = await import('../services/chapterPipeline.js');
+      // Get the generator model name for smart context budgeting
+      const generatorKey = await useLlmStore.getState().selectProvider('generator');
+      const generatorModel = generatorKey ? useLlmStore.getState().providers[generatorKey]?.model || '' : '';
+
       const result = await runChapterPipeline({
         sendMessage,
         files,
@@ -512,6 +516,7 @@ function ChapterExecutionMode() {
         logSession,
         userNotes,
         emotionalBeats,
+        modelName: generatorModel,
         onProgress: ({ stage: s, detail }) => {
           setStage(s === 'complete' ? 'complete' : s === 'error' ? 'error' : s);
           setProgressDetail(detail);

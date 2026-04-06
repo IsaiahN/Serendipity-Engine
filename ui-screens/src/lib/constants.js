@@ -94,6 +94,45 @@ export const LLM_PROVIDERS = [
   { key: 'custom', label: 'Custom (OpenAI-compatible)', models: [] },
 ];
 
+// ── Model Context Windows (tokens) ─────────────────────
+// Maps model name → { context: max input tokens, maxOutput: max output tokens }
+// Used by sendMessage() to auto-fit prompts and cap output requests.
+// For OpenRouter/Ollama/custom models not listed here, falls back to a
+// conservative 8k default so the app never sends more than the model can handle.
+export const MODEL_LIMITS = {
+  // Anthropic
+  'claude-sonnet-4-5-20250514':   { context: 200000, maxOutput: 8192 },
+  'claude-opus-4-5-20250414':     { context: 200000, maxOutput: 8192 },
+  'claude-haiku-3-5-20241022':    { context: 200000, maxOutput: 8192 },
+  // OpenAI
+  'gpt-4o':                       { context: 128000, maxOutput: 16384 },
+  'gpt-4-turbo':                  { context: 128000, maxOutput: 4096 },
+  'gpt-4':                        { context: 8192,   maxOutput: 4096 },
+  'gpt-3.5-turbo':                { context: 16385,  maxOutput: 4096 },
+  // DeepSeek
+  'deepseek-chat':                { context: 64000,  maxOutput: 8192 },
+  'deepseek-reasoner':            { context: 64000,  maxOutput: 8192 },
+  // Google Gemini
+  'gemini-2.0-flash':             { context: 1048576, maxOutput: 8192 },
+  'gemini-1.5-pro':               { context: 2097152, maxOutput: 8192 },
+  'gemini-1.5-flash':             { context: 1048576, maxOutput: 8192 },
+};
+
+// Conservative fallback for unknown models (OpenRouter free tiers, Ollama, custom)
+export const DEFAULT_MODEL_LIMITS = { context: 8000, maxOutput: 4096 };
+
+// Helper: get limits for a model name (exact match or prefix match)
+export function getModelLimits(modelName) {
+  if (!modelName) return DEFAULT_MODEL_LIMITS;
+  // Exact match
+  if (MODEL_LIMITS[modelName]) return MODEL_LIMITS[modelName];
+  // Prefix match (handles dated variants like "gpt-4o-2024-11-20")
+  for (const [key, limits] of Object.entries(MODEL_LIMITS)) {
+    if (modelName.startsWith(key)) return limits;
+  }
+  return DEFAULT_MODEL_LIMITS;
+}
+
 // ── Role Assignment ─────────────────────────────────────
 export const ROLE_ASSIGNMENT_MODES = {
   simple: { label: 'Simple', description: 'One model handles everything' },
