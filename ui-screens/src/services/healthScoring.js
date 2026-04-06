@@ -1,5 +1,5 @@
 /**
- * Health Scoring Engine for Serendipity Engine StoryBuilder
+ * Health Scoring Engine for Serendipity | StoryWeaver StoryBuilder
  *
  * Computes 10 health dimensions from real project data:
  * 1. Narrative Arc - outline structure

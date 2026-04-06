@@ -1378,7 +1378,7 @@ function PrivacySettings({ navigate, onSettingChange }) {
           const usedMB = ((est.usage || 0) / (1024 * 1024)).toFixed(1);
           storageUsed = usedMB >= 1024 ? `${(usedMB / 1024).toFixed(1)} GB` : `${usedMB} MB`;
         }
-      } catch { /* storage API unavailable */ }
+      } catch (e) { console.warn('[Settings] Storage estimate unavailable:', e.message); }
 
       setProjectStats({ count: allProjects.length, totalWords, storageUsed });
     };

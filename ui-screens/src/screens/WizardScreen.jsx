@@ -102,6 +102,7 @@ export default function WizardScreen() {
   const createProject = useProjectStore(s => s.createProject);
   const updateFile = useProjectStore(s => s.updateFile);
   const setActiveProject = useProjectStore(s => s.setActiveProject);
+  const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
   const userMode = useSettingsStore(s => s.mode) || 'advanced';
   const sendMessage = useLlmStore(s => s.sendMessage);
   const activeProviders = useLlmStore(s => s.activeProviders);
@@ -353,15 +354,28 @@ export default function WizardScreen() {
     setIsProcessing(true);
     try {
       const seed = generateSeed();
-      await createProject({
+      const project = await createProject({
         title: formData.title || 'Spinoff',
         medium: formData.medium || 'novel',
         seed,
         metadata: {
           mode: 'spinoff',
+          sourceProjectId: formData.sourceProjectId || null,
           baseMaterial: formData.materialContent,
         },
       });
+
+      // Copy world/character data from source project if selected
+      if (formData.sourceProjectId) {
+        const sourceFiles = await loadProjectFiles(formData.sourceProjectId);
+        const storeUpdateFile = useProjectStore.getState().updateFile;
+        for (const [path, content] of Object.entries(sourceFiles)) {
+          if (path.startsWith('world/') || path.startsWith('characters/') || path.startsWith('relationships/') || path === 'author.md' || path === 'narrator.md') {
+            await storeUpdateFile(project.id, path, content);
+          }
+        }
+      }
+
       navigate('/workspace');
     } catch (err) {
       console.error('Spinoff project creation failed:', err);
@@ -374,15 +388,28 @@ export default function WizardScreen() {
     setIsProcessing(true);
     try {
       const seed = generateSeed();
-      await createProject({
+      const project = await createProject({
         title: formData.title || 'Sequel',
         medium: formData.medium || 'novel',
         seed,
         metadata: {
           mode: 'sequel',
+          sourceProjectId: formData.sourceProjectId || null,
           baseMaterial: formData.materialContent,
         },
       });
+
+      // Copy world/character data from source project if selected
+      if (formData.sourceProjectId) {
+        const sourceFiles = await loadProjectFiles(formData.sourceProjectId);
+        const storeUpdateFile = useProjectStore.getState().updateFile;
+        for (const [path, content] of Object.entries(sourceFiles)) {
+          if (path.startsWith('world/') || path.startsWith('characters/') || path.startsWith('relationships/') || path === 'author.md' || path === 'narrator.md') {
+            await storeUpdateFile(project.id, path, content);
+          }
+        }
+      }
+
       navigate('/workspace');
     } catch (err) {
       console.error('Sequel project creation failed:', err);
@@ -395,15 +422,28 @@ export default function WizardScreen() {
     setIsProcessing(true);
     try {
       const seed = generateSeed();
-      await createProject({
+      const project = await createProject({
         title: formData.title || 'Prequel',
         medium: formData.medium || 'novel',
         seed,
         metadata: {
           mode: 'prequel',
+          sourceProjectId: formData.sourceProjectId || null,
           baseMaterial: formData.materialContent,
         },
       });
+
+      // Copy world/character data from source project if selected
+      if (formData.sourceProjectId) {
+        const sourceFiles = await loadProjectFiles(formData.sourceProjectId);
+        const storeUpdateFile = useProjectStore.getState().updateFile;
+        for (const [path, content] of Object.entries(sourceFiles)) {
+          if (path.startsWith('world/') || path.startsWith('characters/') || path.startsWith('relationships/') || path === 'author.md' || path === 'narrator.md') {
+            await storeUpdateFile(project.id, path, content);
+          }
+        }
+      }
+
       navigate('/workspace');
     } catch (err) {
       console.error('Prequel project creation failed:', err);
@@ -2212,10 +2252,14 @@ function RetellMode({ formData, setFormData, onComplete }) {
 
 function SpinoffMode({ formData, setFormData, onComplete }) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sourceProjectId, setSourceProjectId] = useState(formData.sourceProjectId || null);
   const navigate = useNavigate();
+  const projects = useProjectStore(s => s.projects);
 
   const handleComplete = async () => {
     setIsProcessing(true);
+    setFormData(prev => ({ ...prev, sourceProjectId }));
+    await new Promise(r => setTimeout(r, 0));
     await onComplete();
   };
 
@@ -2235,6 +2279,32 @@ function SpinoffMode({ formData, setFormData, onComplete }) {
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 24 }}>
             Create a new story in the same world or with related characters.
           </p>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+              Source Project
+            </label>
+            <select
+              value={sourceProjectId || ''}
+              onChange={(e) => setSourceProjectId(e.target.value || null)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                fontFamily: 'var(--font-sans)',
+                outline: 'none',
+              }}
+            >
+              <option value="">— No source project (start fresh) —</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
@@ -2307,10 +2377,14 @@ function SpinoffMode({ formData, setFormData, onComplete }) {
 
 function SequelMode({ formData, setFormData, onComplete }) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sourceProjectId, setSourceProjectId] = useState(formData.sourceProjectId || null);
   const navigate = useNavigate();
+  const projects = useProjectStore(s => s.projects);
 
   const handleComplete = async () => {
     setIsProcessing(true);
+    setFormData(prev => ({ ...prev, sourceProjectId }));
+    await new Promise(r => setTimeout(r, 0));
     await onComplete();
   };
 
@@ -2330,6 +2404,32 @@ function SequelMode({ formData, setFormData, onComplete }) {
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 24 }}>
             Continue the story with what happens next.
           </p>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+              Source Project
+            </label>
+            <select
+              value={sourceProjectId || ''}
+              onChange={(e) => setSourceProjectId(e.target.value || null)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                fontFamily: 'var(--font-sans)',
+                outline: 'none',
+              }}
+            >
+              <option value="">— No source project (start fresh) —</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
@@ -2402,10 +2502,14 @@ function SequelMode({ formData, setFormData, onComplete }) {
 
 function PrequelMode({ formData, setFormData, onComplete }) {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [sourceProjectId, setSourceProjectId] = useState(formData.sourceProjectId || null);
   const navigate = useNavigate();
+  const projects = useProjectStore(s => s.projects);
 
   const handleComplete = async () => {
     setIsProcessing(true);
+    setFormData(prev => ({ ...prev, sourceProjectId }));
+    await new Promise(r => setTimeout(r, 0));
     await onComplete();
   };
 
@@ -2425,6 +2529,32 @@ function PrequelMode({ formData, setFormData, onComplete }) {
           <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: 24 }}>
             Tell the story of what came before.
           </p>
+
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>
+              Source Project
+            </label>
+            <select
+              value={sourceProjectId || ''}
+              onChange={(e) => setSourceProjectId(e.target.value || null)}
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                background: 'var(--bg-tertiary)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--text-primary)',
+                fontSize: '0.9rem',
+                fontFamily: 'var(--font-sans)',
+                outline: 'none',
+              }}
+            >
+              <option value="">— No source project (start fresh) —</option>
+              {projects.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          </div>
 
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 8 }}>

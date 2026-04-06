@@ -51,6 +51,10 @@ pnpm-debug.log*
 *.indexeddb-export
 *.idb-backup
 
+# ─── Backup files ───
+*.bak
+*.backup
+
 # ─── Coverage / testing ───
 coverage/
 .nyc_output/

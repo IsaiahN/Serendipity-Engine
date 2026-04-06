@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Undo/Redo Hook
+ * Serendipity | StoryWeaver — Undo/Redo Hook
  *
  * Generic undo/redo stack with debounced history tracking.
  * Use for file editing, phase answers, or any reversible state.

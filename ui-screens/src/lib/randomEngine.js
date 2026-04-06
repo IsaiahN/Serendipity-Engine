@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Deterministic Randomization Engine
+ * Serendipity | StoryWeaver — Deterministic Randomization Engine
  *
  * Uses datetime-based seeds for reproducible rolls.
  * Seed format: YYYYMMDDHHM (12-digit number)

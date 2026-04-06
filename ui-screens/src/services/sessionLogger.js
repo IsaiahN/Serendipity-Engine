@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Session Logger
+ * Serendipity | StoryWeaver — Session Logger
  *
  * Records all significant actions for audit trail, analytics, and crash recovery.
  * Logs are stored in IndexedDB via the project store.

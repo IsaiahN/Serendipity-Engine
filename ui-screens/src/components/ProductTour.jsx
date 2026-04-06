@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Product Tour Component
+ * Serendipity | StoryWeaver — Product Tour Component
  *
  * A step-by-step guided tour highlighting key UI areas with backdrop
  * highlights and positioned tooltips. Includes onboarding logic and

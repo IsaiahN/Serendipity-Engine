@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Auto-Save Hook
+ * Serendipity | StoryWeaver — Auto-Save Hook
  *
  * Automatically persists content at configurable intervals.
  * Used for file editing, drawing board, and chat history.

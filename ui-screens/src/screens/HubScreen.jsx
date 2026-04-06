@@ -105,7 +105,7 @@ export default function HubScreen() {
           count: sessionLogs.length,
           duration: sessionLogs.length > 1 ? sessionLogs[0].timestamp - sessionLogs[sessionLogs.length - 1].timestamp : 0,
         });
-      } catch (e) { setSessionSummary(null); }
+      } catch (e) { console.warn('[Hub] Failed to load session summary:', e.message); setSessionSummary(null); }
     })();
   }, [selectedProject?.id]);
 

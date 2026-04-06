@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Series Order Manager
+ * Serendipity | StoryWeaver — Series Order Manager
  *
  * Modal component for managing the chronological order of projects in a series.
  * Allows users to reorder books, assign story roles (mainline, prequel, etc.),

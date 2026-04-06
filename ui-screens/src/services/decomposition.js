@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Decomposition Engine
+ * Serendipity | StoryWeaver — Decomposition Engine
  *
  * Reverse-scaffolding: takes an existing story/manuscript and breaks it down
  * into the engine's 8-phase structure. This is used for:
@@ -43,7 +43,7 @@ export const DECOMPOSITION_STEPS = [
 ];
 
 /**
- * Decompose an entire story/manuscript into Serendipity Engine project structure
+ * Decompose an entire story/manuscript into Serendipity | StoryWeaver project structure
  *
  * @param {Function} sendMessage - LLM communication function (returns { success, content, error })
  * @param {string} sourceText - The full manuscript text to decompose

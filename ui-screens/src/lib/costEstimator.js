@@ -1,5 +1,5 @@
 /**
- * Cost Estimation Utility for Serendipity Engine
+ * Cost Estimation Utility for Serendipity | StoryWeaver
  *
  * Provides accurate token cost estimates for different AI models.
  * Supports Anthropic Claude, OpenAI GPT, DeepSeek, Google Gemini, and local models.

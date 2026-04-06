@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Demo Mode Service
+ * Serendipity | StoryWeaver — Demo Mode Service
  *
  * Provides a pre-populated "The Shunning Season" project for exploration
  * without requiring an API key. When activated, injects the complete project

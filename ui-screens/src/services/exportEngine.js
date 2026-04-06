@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Export Engine
+ * Serendipity | StoryWeaver — Export Engine
  *
  * Handles exporting projects in various formats:
  * - Markdown (.md)

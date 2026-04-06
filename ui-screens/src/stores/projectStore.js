@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Project Store (Zustand)
+ * Serendipity | StoryWeaver — Project Store (Zustand)
  *
  * Manages project CRUD, file operations, and phase progress.
  * Persists to IndexedDB via Dexie.

@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — LLM Provider Store (Zustand)
+ * Serendipity | StoryWeaver — LLM Provider Store (Zustand)
  *
  * Manages connected providers, model assignments, and API communication.
  * Provider Router: routes requests to the correct provider based on role assignment.

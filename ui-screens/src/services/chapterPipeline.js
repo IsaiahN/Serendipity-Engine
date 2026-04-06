@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Chapter Generation Pipeline
+ * Serendipity | StoryWeaver — Chapter Generation Pipeline
  *
  * Implements the Phase 8 execution flow:
  *   Pre-flight checklist → Chapter generation → Post-flight checklist → Summary generation

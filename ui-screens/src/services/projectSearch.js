@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Project Search Engine
+ * Serendipity | StoryWeaver — Project Search Engine
  *
  * Full-text search across all project files with relevance ranking,
  * context snippets, and fuzzy matching support.

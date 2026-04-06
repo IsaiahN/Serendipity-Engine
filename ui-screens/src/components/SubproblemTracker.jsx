@@ -37,7 +37,7 @@ export default function SubproblemTracker() {
         // Parse markdown table or structured content
         const parsed = parseThreadsFile(threadsContent, maxChapter);
         if (parsed.length > 0) setThreads(parsed);
-      } catch (e) { /* fallback */ }
+      } catch (e) { console.warn('[SubproblemTracker] Failed to parse threads:', e.message); }
     }
 
     if (!threadsContent && threads.length === 0) {

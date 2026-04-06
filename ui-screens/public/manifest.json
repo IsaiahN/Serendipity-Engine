@@ -59,7 +59,22 @@
       "purpose": "any"
     }
   ],
-  "screenshots": [],
+  "screenshots": [
+    {
+      "src": "/screenshots/screenshot-wide.png",
+      "sizes": "320x180",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Serendipity | StoryWeaver — Story Hub"
+    },
+    {
+      "src": "/screenshots/screenshot-narrow.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Serendipity | StoryWeaver — Mobile View"
+    }
+  ],
   "shortcuts": [
     {
       "name": "New Project",

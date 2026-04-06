@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — IndexedDB via Dexie.js
+ * Serendipity | StoryWeaver — IndexedDB via Dexie.js
  *
  * Database schema for project storage, settings, API keys,
  * and writing profile persistence.
@@ -34,6 +34,17 @@ db.version(1).stores({
 // v2: Switch projects and projectFiles to string UUIDs instead of auto-increment
 db.version(2).stores({
   projects: 'id, &slug, title, createdAt, updatedAt, medium, genre',
+  projectFiles: '++id, projectId, path, updatedAt, [projectId+path]',
+  settings: 'key',
+  apiKeys: 'provider',
+  writingProfile: 'id',
+  sessionLogs: '++id, projectId, timestamp',
+  fileHistory: '++id, projectId, filePath, timestamp',
+});
+
+// v3: Add forkParent index to projects for Sandbox fork queries
+db.version(3).stores({
+  projects: 'id, &slug, title, createdAt, updatedAt, medium, genre, forkParent',
   projectFiles: '++id, projectId, path, updatedAt, [projectId+path]',
   settings: 'key',
   apiKeys: 'provider',

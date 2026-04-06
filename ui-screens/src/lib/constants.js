@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Shared Constants
+ * Serendipity | StoryWeaver — Shared Constants
  */
 
 // ── Phases ──────────────────────────────────────────────

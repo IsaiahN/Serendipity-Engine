@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Version History Panel
+ * Serendipity | StoryWeaver — Version History Panel
  *
  * Shows a chronological list of file changes with diff preview
  * and one-click restore. Integrates with projectStore's file history.

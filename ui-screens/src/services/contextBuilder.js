@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Context Builder
+ * Serendipity | StoryWeaver — Context Builder
  *
  * Assembles the full prompt context for LLM calls.
  * Implements the token management strategy from ACTION-PLAN.md:

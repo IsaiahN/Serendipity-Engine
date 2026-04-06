@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Settings Store (Zustand)
+ * Serendipity | StoryWeaver — Settings Store (Zustand)
  *
  * Persists to IndexedDB via Dexie.
  * Changes take effect immediately (no save button).

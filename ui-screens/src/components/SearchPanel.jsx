@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Search Panel
+ * Serendipity | StoryWeaver — Search Panel
  *
  * Full-text search across project files with context snippets,
  * category filtering, and result navigation.

@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — PWA UI Components
+ * Serendipity | StoryWeaver — PWA UI Components
  *
  * - InstallBanner: prompts user to install the app
  * - OfflineIndicator: shows when offline

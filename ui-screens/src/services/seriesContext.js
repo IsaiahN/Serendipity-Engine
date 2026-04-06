@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Series Context Service
+ * Serendipity | StoryWeaver — Series Context Service
  *
  * Builds condensed context from related projects in a series,
  * suitable for injection into LLM prompts to maintain continuity

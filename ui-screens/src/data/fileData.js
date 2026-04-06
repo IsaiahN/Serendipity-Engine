@@ -844,7 +844,7 @@ Final image: Esther's hand, the pen, the paper. Not writing. Still.
   'dry-run-audit.md': {
     title: 'Dry Run Audit',
     content: [`# Dry Run Audit Log
-## *The Shunning Season* — Serendipity Engine v1.0
+## *The Shunning Season* — Serendipity | StoryWeaver v1.0
 
 **Session seed:** 202602221426
 **Run date:** February 22, 2026
@@ -1054,7 +1054,7 @@ The engine is functional. It produced a coherent, internally consistent story fr
 2. The lack of mid-process MetaFiles checkpoints (M-01) made Phase 7 a larger backfilling exercise than it needed to be
 3. The name files' lack of cultural sublists (A-01) is a latent risk in every run where cultural coherence matters
 
-**Verdict:** The Serendipity Engine v1.0 is a functional, high-yield creative system. The flagged issues are calibration improvements, not structural problems. The engine's fundamental design — seed derivation + "keep strange results" + layered questioning — produces stories that feel intentional and cohesive while being genuinely surprising. Recommend addressing W-01 as the highest-priority fix before broader use.
+**Verdict:** The Serendipity | StoryWeaver v1.0 is a functional, high-yield creative system. The flagged issues are calibration improvements, not structural problems. The engine's fundamental design — seed derivation + "keep strange results" + layered questioning — produces stories that feel intentional and cohesive while being genuinely surprising. Recommend addressing W-01 as the highest-priority fix before broader use.
 `],
     chapter: false,
   },
@@ -3221,7 +3221,7 @@ The graphic novel format plus the 1953 historical setting plus the gumshoe myste
     title: 'Master Story Checklist',
     content: [`# Master Story Checklist
 
-*The complete workflow for generating a story using the Serendipity Engine — from first roll to final chapter.*
+*The complete workflow for generating a story using the Serendipity | StoryWeaver — from first roll to final chapter.*
 
 ---
 
@@ -3235,7 +3235,7 @@ The graphic novel format plus the 1953 historical setting plus the gumshoe myste
 
 ### What Decomposition Is
 
-Decomposition is the process of reverse-engineering an existing work through the Serendipity Engine's vocabulary. Instead of rolling attributes to generate a story, you are reading a finished story and reconstructing the attribute set that produced it. The output is a forensic structural audit: what the author had (consciously or not), what the system would have generated, and where the work deviates from what the engine would have built.
+Decomposition is the process of reverse-engineering an existing work through the Serendipity | StoryWeaver's vocabulary. Instead of rolling attributes to generate a story, you are reading a finished story and reconstructing the attribute set that produced it. The output is a forensic structural audit: what the author had (consciously or not), what the system would have generated, and where the work deviates from what the engine would have built.
 
 The output folder mirrors the Creations folder exactly — same files, same structure — but every claim is annotated with an epistemic marker:
 
@@ -3351,7 +3351,7 @@ Decomposition is not about finding the closest match in the reference files and 
 It synthesizes everything. Before it exists, the decomposition is a collection of attributes. After it exists, the decomposition is an argument about what the work was trying to do — and whether it succeeded.
 
 **Decomposition is the foundation for adaptation.**
-Once the structural audit exists, every Serendipity Engine lever is available for derivative work: change the author profile, invert the POV, shift the tonal arc, modify the moral alignment of the antagonist, transpose the world to a different medium. The difference between *The Wizard of Oz* and *Wicked* is a decomposition plus a new author Enneagram, a POV inversion, and a tonal register shift from earnest-wonder to political-cynicism. See \`README.md\` — Decomposition section for the full treatment of this.
+Once the structural audit exists, every Serendipity | StoryWeaver lever is available for derivative work: change the author profile, invert the POV, shift the tonal arc, modify the moral alignment of the antagonist, transpose the world to a different medium. The difference between *The Wizard of Oz* and *Wicked* is a decomposition plus a new author Enneagram, a POV inversion, and a tonal register shift from earnest-wonder to political-cynicism. See \`README.md\` — Decomposition section for the full treatment of this.
 
 ---
 
@@ -4464,7 +4464,7 @@ The author is not absent from this framework. The author is a character too — 
 
 **The author's stream conflict** = the friction between the story they want to tell (Stream A) and the story they believe can be told (Stream B). The best books live in this friction. They are neither pure self-expression nor pure convention. They are synthesis.
 
-**Practical application:** Before rolling the author through the Serendipity Engine, identify:
+**Practical application:** Before rolling the author through the Serendipity | StoryWeaver, identify:
 - What Stream A wound will bleed into this book?
 - What Stream B tradition is the author writing from or against?
 - How do these two create a productive friction?
@@ -4597,7 +4597,7 @@ The reader doesn't just have beliefs about the characters — they arrive carryi
 
 ---
 
-## Part XI: Application to the Serendipity Engine
+## Part XI: Application to the Serendipity | StoryWeaver
 
 This framework maps directly to the existing file structure:
 
@@ -4894,7 +4894,7 @@ Don't editorialize. Don't explain the resonance. Trust that readers who have bee
 **Step 4: The climax is the resonance point**
 The best climaxes are when all the resonant domains collapse into a single moment. The protagonist must make a personal choice that simultaneously resolves the relational question, the social question, and contains the historical one. When this works, the story feels inevitable in retrospect — like it could not have ended any other way.
 
-### Cross-Domain Resonance in the Serendipity Engine
+### Cross-Domain Resonance in the Serendipity | StoryWeaver
 
 When building a story using this system, check that the following domains all carry the same theme question:
 
@@ -5064,7 +5064,7 @@ Not a twist for its own sake. A twist that reveals: *yes, the trope was pointing
 
 ---
 
-## Part XI: Application to the Serendipity Engine
+## Part XI: Application to the Serendipity | StoryWeaver
 
 **The world-as-organism applied to world-building:**
 - \`Story/World Building/questions.md\` — asks: what does this world *know*? What has it already resolved, and what is it still in the middle of? The protagonist enters a world mid-knowledge. What is the world still trying to figure out?
@@ -5095,7 +5095,7 @@ Not a twist for its own sake. A twist that reveals: *yes, the trope was pointing
 - The movement should be measured from their own start, not against other characters
 - The cast is complete when all four archetype functions are covered and all characters have genuine growth trajectories that don't require each other to fail
 
-**The resonance graph for Serendipity Engine stories:**
+**The resonance graph for Serendipity | StoryWeaver stories:**
 - Theme question (Story/themes-and-tropes.md)
 - ↓ echoes in ↓
 - Protagonist's wound (Characters/Development/flaws-virtues-wounds.md)

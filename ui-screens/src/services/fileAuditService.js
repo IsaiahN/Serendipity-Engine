@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine - File Audit Service
+ * Serendipity | StoryWeaver - File Audit Service
  *
  * Scans a project's file inventory after decomposition, paradigm shift,
  * or generation to verify all expected files are present and non-empty.

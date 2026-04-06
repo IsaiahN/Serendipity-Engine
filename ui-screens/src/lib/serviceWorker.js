@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Service Worker Registration & PWA Utilities
+ * Serendipity | StoryWeaver — Service Worker Registration & PWA Utilities
  *
  * Handles:
  * - SW registration and lifecycle (install, update, activate)
@@ -35,7 +35,9 @@ export async function registerServiceWorker() {
   }
 
   try {
-    swRegistration = await navigator.serviceWorker.register('/sw.js', {
+    // Append app version as query param to bust SW cache on version bumps
+    const appVersion = __APP_VERSION__ || '1.0.0';
+    swRegistration = await navigator.serviceWorker.register(`/sw.js?v=${appVersion}`, {
       scope: '/',
     });
 

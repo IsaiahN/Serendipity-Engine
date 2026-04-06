@@ -9423,6 +9423,9 @@ export default function WorkspaceScreen() {
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
+  // ── Per-project workspace state cache (survives project switches) ──
+  const workspaceStateCache = useRef({});
+
   // ── Project switching dirty-state detection ──
   const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
   const [pendingSwitchId, setPendingSwitchId] = useState(null);
@@ -9454,15 +9457,44 @@ export default function WorkspaceScreen() {
   };
 
   const performProjectSwitch = async (projectId) => {
-    // Reset local workspace state
-    setEditedFiles({});
-    setActiveFile(null);
-    setActiveMode('guided');
-    setActivePhase(null);
+    // Save current project's workspace state before switching
+    if (activeProject?.id) {
+      workspaceStateCache.current[activeProject.id] = {
+        activeMode,
+        activeFile,
+        activePhase,
+        editedFiles,
+        decomposedHealthRevealed,
+        selectedCharacter,
+      };
+    }
+
+    // Check if we have cached state for the target project
+    const cached = workspaceStateCache.current[projectId];
+
+    if (cached) {
+      // Restore cached workspace state
+      setEditedFiles(cached.editedFiles || {});
+      setActiveFile(cached.activeFile || null);
+      setActiveMode(cached.activeMode || 'guided');
+      setActivePhase(cached.activePhase || null);
+      setDecomposedHealthRevealed(cached.decomposedHealthRevealed || false);
+      setSelectedCharacter(cached.selectedCharacter || null);
+      phaseInitRef.current = projectId; // mark as initialized so useEffect doesn't override
+    } else {
+      // Fresh switch — reset to defaults
+      setEditedFiles({});
+      setActiveFile(null);
+      setActiveMode('guided');
+      setActivePhase(null);
+      setDecomposedHealthRevealed(false);
+      setSelectedCharacter(null);
+      phaseInitRef.current = false; // allow re-initialization for new project
+    }
+
     setNewChar({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
     setFileAuditReport(null);
     setAuditDismissed(false);
-    phaseInitRef.current = false; // allow re-initialization for new project
     setShowSwitchConfirm(false);
     setPendingSwitchId(null);
     // Switch to new project (automatically marks clean in setActiveProject)

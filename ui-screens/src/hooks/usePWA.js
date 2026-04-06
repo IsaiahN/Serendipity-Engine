@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — PWA Hooks
+ * Serendipity | StoryWeaver — PWA Hooks
  *
  * React hooks for service worker status, install prompts,
  * online/offline detection, and update notifications.

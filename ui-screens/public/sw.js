@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Service Worker
+ * Serendipity | StoryWeaver — Service Worker
  *
  * Offline-first caching strategy:
  * - App Shell (HTML, CSS, JS): Cache-first, update in background
@@ -11,7 +11,10 @@
  * - Queues failed file saves for retry when online
  */
 
-const CACHE_VERSION = 'serendipity-v1';
+// Version is passed as ?v= query param at registration time (see serviceWorker.js).
+// Bumping package.json version triggers SW update + cache bust automatically.
+const swUrl = new URL(self.registration?.active?.scriptURL || self.location.href);
+const CACHE_VERSION = `serendipity-${swUrl.searchParams.get('v') || '1.0.0'}`;
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
@@ -191,7 +194,7 @@ self.addEventListener('push', (event) => {
 
   const data = event.data.json();
   event.waitUntil(
-    self.registration.showNotification(data.title || 'Serendipity Engine', {
+    self.registration.showNotification(data.title || 'Serendipity | StoryWeaver', {
       body: data.body || '',
       icon: '/icons/icon-192.png',
       badge: '/icons/icon-72.png',

@@ -1,5 +1,5 @@
 /**
- * Serendipity Engine — Theme System
+ * Serendipity | StoryWeaver — Theme System
  *
  * 6 theme presets applied via CSS custom properties.
  * Each theme defines the full set of variables used in global.css.
