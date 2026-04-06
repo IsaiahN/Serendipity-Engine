@@ -125,7 +125,7 @@ You need Node.js 18+ and an API key from at least one supported AI provider:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/Serendipity-Engine.git
+git clone https://github.com/IsaiahN/Serendipity-Engine.git
 cd Serendipity-Engine/ui-screens
 
 # Install dependencies
@@ -248,17 +248,22 @@ All project data is stored locally in your browser's IndexedDB. Your API keys ar
 
 ---
 
+## Platforms
+
+StoryWeaver is available in three flavors depending on how you prefer to work.
+
+**Progressive Web App** — The primary experience. Clone the repo, run `npm install && npm run dev`, and open it in your browser. Install it as a standalone app from the browser's address bar for offline use. Everything runs locally — no server, no accounts, no data leaves your machine. See [Getting Started](#getting-started) below.
+
+**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. Install it from the Chrome Web Store or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch.
+
+**VS Code / Plain Markdown** — If you prefer working with plain text files in your own editor, the [`main`](https://github.com/IsaiahN/Serendipity-Engine/tree/main) branch contains the complete StoryWeaver reference system as markdown files: theory documents, character attribute templates, relationship frameworks, and story structure guides. Bring your own workflow.
+
+---
+
 ## Why "Serendipity"
 
 The name describes the author's experience: the system surfaces a story you didn't plan, full of specificity you couldn't have arrived at by deciding. You find something you weren't looking for.
 
 But it holds at every level. Every character arrives at their position the way real people arrive at theirs: through conditions they didn't choose. Their agency, what they do once they arrive, is real. The conditions themselves were serendipitous.
 
-The author finds the story. The characters find themselves in the plot. The reader finds themselves in the story. All of them chose what to do once they arrived.
-
----
-
-<p align="center">
-  <strong>Serendipity | StoryWeaver</strong><br>
-  Built by Isaiah Nwukor
-</p>
+The author finds the story. The characters find their fate. The reader finds the meaning. None of them went looking for it.               
