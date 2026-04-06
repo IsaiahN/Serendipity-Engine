@@ -7777,12 +7777,20 @@ function ExportModal({ onClose }) {
         downloadFile(text, `${title}.fountain`, 'text/plain');
       } else if (fmt === 'json') {
         const { exportAsJSON } = await import('../services/exportEngine.js');
-        const json = exportAsJSON(activeProject, projectFiles);
-        downloadFile(json, `${title}.json`, 'application/json');
+        // Build projectData in the format exportAsJSON expects: { project, files: [{ path, content }] }
+        const projectData = {
+          project: activeProject,
+          files: Object.entries(projectFiles).map(([path, content]) => ({ path, content })),
+        };
+        exportAsJSON(projectData); // handles its own download
       } else if (fmt === 'zip') {
         const { exportAsZip } = await import('../services/exportEngine.js');
-        const blob = await exportAsZip(projectFiles, title);
-        downloadFile(blob, `${title}.zip`, 'application/zip');
+        // Build projectData in the format exportAsZip expects: { project, files: [{ path, content }] }
+        const projectData = {
+          project: activeProject,
+          files: Object.entries(projectFiles).map(([path, content]) => ({ path, content })),
+        };
+        await exportAsZip(projectData); // handles its own download
       }
       onClose();
     } catch (err) {
