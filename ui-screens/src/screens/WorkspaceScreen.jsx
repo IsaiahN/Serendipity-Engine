@@ -233,8 +233,7 @@ const phaseQuestions = {
   ],
   7: [
     { id: 1, q: 'Story Structure Audit', desc: 'Review all your decisions across Author, Narrator, World, Characters, Relationships, and Story Foundation for internal consistency and completeness.', hint: 'This is where the system checks that your world rules don\'t contradict your character motivations, your narrator voice fits your genre, and your story death is properly guarded against.', placeholder: 'Notes on quality control findings...' },
-    { id: 2, q: 'Story Deaths Check', desc: 'Does your story avoid each of the seven story deaths? Review each death pattern against your current structure.', hint: 'The seven deaths are specific ways a story can fail at the structural level. If your foundation triggers any of them, now is the time to fix it.', placeholder: 'Which story deaths are you at risk for...' },
-    { id: 3, q: 'Consistency Review', desc: 'Are there any contradictions between your world rules, character motivations, and narrative voice?', hint: 'Example: If your world forbids electricity but your character texts someone, that\'s a contradiction to resolve.', placeholder: 'List any inconsistencies found...' },
+    { id: 2, q: 'Consistency Review', desc: 'Are there any contradictions between your world rules, character motivations, and narrative voice?', hint: 'Example: If your world forbids electricity but your character texts someone, that\'s a contradiction to resolve.', placeholder: 'List any inconsistencies found...' },
   ],
   '⟡': [
     { id: 1, q: 'Bridge Review', desc: 'Before generating content, review all phases and confirm your story foundation is solid. This is your last chance to make structural changes before content generation.', placeholder: 'Final notes before generation...' },
@@ -268,6 +267,9 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Quality Control', '⟡': 'Bridge', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
+
+  // Reset question index when phase changes so we start at Q1
+  useEffect(() => { setCurrentQ(0); }, [phase]);
 
   // Count how many questions are answered
   const answeredCount = Object.keys(phaseAnswerMap).filter(k => {
@@ -358,7 +360,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
               onClick={() => setCurrentQ(i)}
               style={{
                 width: isCurrent ? 24 : 8, height: 8, borderRadius: 100, cursor: 'pointer',
-                background: isCurrent ? 'var(--accent)' : isAnswered ? 'var(--health-exceptional)' : 'var(--bg-tertiary)',
+                background: isCurrent ? 'var(--accent)' : isAnswered ? '#22c55e' : '#ef4444',
                 transition: 'all 0.2s ease',
               }}
             />
@@ -9417,6 +9419,7 @@ export default function WorkspaceScreen() {
   const [activePhase, setActivePhase] = useState(null); // set dynamically after project loads
   const phaseInitRef = useRef(false); // tracks whether we've set initial phase for this project
   const [showGateWarning, setShowGateWarning] = useState(false); // modal for locked phases
+  const [gateTargetPhase, setGateTargetPhase] = useState(null);  // which locked phase user tried to access
   const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
   const [fileAuditReport, setFileAuditReport] = useState(null); // file integrity audit result
   const [auditDismissed, setAuditDismissed] = useState(false); // user dismissed audit banner
@@ -9925,6 +9928,7 @@ export default function WorkspaceScreen() {
                 const nextNum = phaseOrder[idx + 1];
                 const nextPhase = phases[idx + 1];
                 if (nextPhase.gated && !allPrereqsComplete(phasePcts)) {
+                  setGateTargetPhase(nextNum);
                   setShowGateWarning(true);
                 } else {
                   setActivePhase(nextNum);
@@ -10297,6 +10301,7 @@ export default function WorkspaceScreen() {
                 {leftTab === 'phases' && (
                   <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
                     if (isLocked) {
+                      setGateTargetPhase(num);
                       setShowGateWarning(true);
                       return;
                     }
@@ -10570,26 +10575,7 @@ export default function WorkspaceScreen() {
 
           {/* Content */}
           <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-primary)' }} data-tour="guide-area">
-            {/* File integrity audit banner */}
-            {fileAuditReport && fileAuditReport.status !== 'healthy' && !auditDismissed && (
-              <div style={{ padding: '12px 16px 0' }}>
-                <FileAuditBanner
-                  auditReport={fileAuditReport}
-                  onDismiss={() => setAuditDismissed(true)}
-                  onRedecompose={(steps) => {
-                    // Open the redecompose modal with steps pre-selected
-                    setShowRedecomposeModal(true);
-                  }}
-                  onAddMissingDetails={(groups) => {
-                    // Open the enrich modal
-                    setShowEnrichModal(true);
-                  }}
-                  onRegenerateAnalysis={() => {
-                    setShowRedecomposeModal(true);
-                  }}
-                />
-              </div>
-            )}
+            {/* File integrity audit banner — disabled (too noisy) */}
             {renderCenter()}
           </div>
         </div>
@@ -10986,7 +10972,7 @@ export default function WorkspaceScreen() {
                 );
               })}
             </div>
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <Button variant="secondary" onClick={() => setShowGateWarning(false)}>Got it</Button>
               <Button variant="primary" onClick={() => {
                 setShowGateWarning(false);
@@ -10997,6 +10983,13 @@ export default function WorkspaceScreen() {
                   setActiveMode('guided');
                 }
               }}>Go to first incomplete phase</Button>
+              <Button variant="ghost" onClick={() => {
+                setShowGateWarning(false);
+                if (gateTargetPhase != null) {
+                  setActivePhase(gateTargetPhase);
+                  setActiveMode('guided');
+                }
+              }} style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Unlock Anyway →</Button>
             </div>
           </div>
         </ModalOverlay>
