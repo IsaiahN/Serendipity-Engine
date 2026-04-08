@@ -85,7 +85,7 @@ export const CONTENT_RATINGS = ['G', 'PG', 'PG-13', 'R', '18+'];
 
 // ── LLM Providers ───────────────────────────────────────
 export const LLM_PROVIDERS = [
-  { key: 'anthropic', label: 'Anthropic (Claude)', models: ['claude-sonnet-4-5-20250514', 'claude-opus-4-5-20250414', 'claude-haiku-3-5-20241022'], apiKeyUrl: 'https://console.anthropic.com/settings/keys' },
+  { key: 'anthropic', label: 'Anthropic (Claude)', models: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001', 'claude-sonnet-4-5', 'claude-opus-4-5'], apiKeyUrl: 'https://console.anthropic.com/settings/keys' },
   { key: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'], apiKeyUrl: 'https://platform.openai.com/api-keys' },
   { key: 'deepseek', label: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'], apiKeyUrl: 'https://platform.deepseek.com/api_keys' },
   { key: 'google', label: 'Google (Gemini)', models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'], apiKeyUrl: 'https://aistudio.google.com/apikey' },
@@ -100,10 +100,15 @@ export const LLM_PROVIDERS = [
 // For OpenRouter/Ollama/custom models not listed here, falls back to a
 // conservative 8k default so the app never sends more than the model can handle.
 export const MODEL_LIMITS = {
-  // Anthropic
-  'claude-sonnet-4-5-20250514':   { context: 200000, maxOutput: 8192 },
-  'claude-opus-4-5-20250414':     { context: 200000, maxOutput: 8192 },
-  'claude-haiku-3-5-20241022':    { context: 200000, maxOutput: 8192 },
+  // Anthropic — current (Claude 4.6)
+  'claude-opus-4-6':              { context: 1000000, maxOutput: 128000 },
+  'claude-sonnet-4-6':            { context: 1000000, maxOutput: 64000 },
+  'claude-haiku-4-5':             { context: 200000,  maxOutput: 64000 },
+  // Anthropic — legacy
+  'claude-sonnet-4-5':            { context: 200000,  maxOutput: 64000 },
+  'claude-opus-4-5':              { context: 200000,  maxOutput: 64000 },
+  'claude-sonnet-4-0':            { context: 200000,  maxOutput: 64000 },
+  'claude-opus-4-0':              { context: 200000,  maxOutput: 32000 },
   // OpenAI
   'gpt-4o':                       { context: 128000, maxOutput: 16384 },
   'gpt-4-turbo':                  { context: 128000, maxOutput: 4096 },
@@ -136,8 +141,7 @@ export function getModelLimits(modelName) {
 // ── Role Assignment ─────────────────────────────────────
 export const ROLE_ASSIGNMENT_MODES = {
   simple: { label: 'Simple', description: 'One model handles everything' },
-  standard: { label: 'Standard', description: 'Four specialized roles' },
-  granular: { label: 'Granular', description: '15+ individually assignable tasks' },
+  advanced: { label: 'Advanced', description: 'Four specialized roles with individual model assignment' },
 };
 
 export const STANDARD_ROLES = [

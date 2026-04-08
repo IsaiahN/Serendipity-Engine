@@ -1,0 +1,1 @@
+import{n as e}from"./chunk-DseTPa7n.js";var t=e({queueSync:()=>r,requestPersistentStorage:()=>n});async function n(){return navigator.storage?.persist?navigator.storage.persist():!1}async function r(){}export{t as n,n as t};

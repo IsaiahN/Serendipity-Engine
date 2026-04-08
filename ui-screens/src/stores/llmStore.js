@@ -223,7 +223,7 @@ export const useLlmStore = create((set, get) => ({
               'anthropic-dangerous-direct-browser-access': 'true',
             },
             body: JSON.stringify({
-              model: get().providers[providerKey]?.model || 'claude-sonnet-4-5-20250514',
+              model: get().providers[providerKey]?.model || 'claude-sonnet-4-6',
               max_tokens: 10,
               messages: [{ role: 'user', content: 'Say "connected" and nothing else.' }],
             }),
@@ -369,16 +369,16 @@ export const useLlmStore = create((set, get) => ({
       return activeProviders[0];
     }
 
-    if (settings.roleAssignment === 'granular' && task && settings.taskOverrides?.[task]) {
-      // Granular mode: check task-specific overrides first
+    if (settings.roleAssignment === 'advanced' && task && settings.taskOverrides?.[task]) {
+      // Advanced mode: check task-specific overrides first
       const override = settings.taskOverrides[task];
       if (override && activeProviders.includes(override)) {
         return override;
       }
     }
 
-    if (settings.roleAssignment === 'standard' || settings.roleAssignment === 'granular') {
-      // Standard/Granular mode: look up role assignment
+    if (settings.roleAssignment === 'advanced') {
+      // Advanced mode: look up role assignment
       const assignedProvider = settings.roles?.[role];
       // Verify the assigned provider is actually connected/active
       if (assignedProvider && activeProviders.includes(assignedProvider)) {
@@ -453,7 +453,7 @@ export const useLlmStore = create((set, get) => ({
           const userMessages = msgs.filter(m => m.role !== 'system');
 
           const body = {
-            model: provider.model || 'claude-sonnet-4-5-20250514',
+            model: provider.model || 'claude-sonnet-4-6',
             max_tokens: outputTokens,
             messages: userMessages,
             stream,
@@ -740,7 +740,7 @@ export const useLlmStore = create((set, get) => ({
           const userMessages = streamMsgs.filter(m => m.role !== 'system');
 
           const body = {
-            model: provider.model || 'claude-sonnet-4-5-20250514',
+            model: provider.model || 'claude-sonnet-4-6',
             max_tokens: streamMaxTokens,
             messages: userMessages,
             stream: true,

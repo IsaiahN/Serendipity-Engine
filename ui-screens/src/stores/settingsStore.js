@@ -10,6 +10,7 @@ import { applyTheme, DEFAULT_THEME } from '../lib/themes';
 
 const defaultSettings = {
   // ── General ──────────────────────
+  authorName: '',               // user's display name
   mode: 'advanced',             // 'simple' | 'advanced'
   theme: DEFAULT_THEME,         // theme key
   fontSize: 'medium',           // 'small' | 'medium' | 'large'
@@ -18,7 +19,7 @@ const defaultSettings = {
   sidebarPosition: 'left',     // 'left' | 'right'
 
   // ── AI Models ────────────────────
-  roleAssignment: 'simple',     // 'simple' | 'standard' | 'granular'
+  roleAssignment: 'simple',     // 'simple' | 'advanced'
   auditTrail: true,
   costTracking: false,
   defaultModel: null,           // provider:model string

@@ -5,6 +5,7 @@ import ProductTour from '../components/ProductTour';
 import PhaseProgress, { phases, allPrereqsComplete, overallProgress, currentActivePhase } from '../components/PhaseProgress';
 import CastRoster from '../components/CastRoster';
 import fileContents from '../data/fileData';
+import { FIELD_OPTIONS_MAP, LABEL_TO_FIELD_MAP } from '../data/characterOptions';
 import HealthBar from '../components/HealthBar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import Button from '../components/Button';
@@ -1951,10 +1952,9 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter, isDecomposed }
     );
 
     try {
-      const { updateFile, loadProjectFiles } = useProjectStore.getState();
-      const projectId = useProjectStore.getState().activeProjectId;
-      await updateFile(projectId, filePath, updated);
-      await loadProjectFiles(projectId);
+      const { updateFile, loadProjectFiles, activeProjectId } = useProjectStore.getState();
+      await updateFile(filePath, updated);
+      await loadProjectFiles(activeProjectId);
     } catch (err) {
       console.error('Failed to update character tier:', err);
     }
@@ -2300,33 +2300,7 @@ function ChatMode({ phasePcts = {} }) {
         scope: 'full-project',
       });
 
-      // Check if characterGuideMode is enabled and a character is selected
-      const characterGuideModeEnabled = useSettingsStore.getState().characterGuideMode;
-      if (characterGuideModeEnabled && selectedCharacter) {
-        // Find the selected character's file content
-        const charSlug = selectedCharacter.toLowerCase().replace(/\s+/g, '-');
-        const characterPath = `characters/${charSlug}.md`;
-        let characterContent = files[characterPath];
-
-        // Try alternate path if first doesn't exist
-        if (!characterContent) {
-          const altPath = Object.keys(files || {}).find(
-            p => p.startsWith('characters/') && p.endsWith('.md') &&
-            p.replace('characters/', '').replace('.md', '').toLowerCase() === charSlug.toLowerCase()
-          );
-          if (altPath) characterContent = files[altPath];
-        }
-
-        if (characterContent) {
-          // Inject character instruction into the system message
-          const charInstruction = `You are ${selectedCharacter}, a character in a story. Respond in character, using their voice and perspective. Here is your character sheet:\n\n${characterContent}\n\nProvide guidance and responses as this character would, drawing from their personality, motivations, and knowledge. Keep responses focused and in-character.`;
-
-          // Insert character instruction as first system message if not already present
-          if (ctx.messages[0]?.role !== 'system' || !ctx.messages[0]?.content?.includes(selectedCharacter)) {
-            ctx.messages.unshift({ role: 'system', content: charInstruction });
-          }
-        }
-      }
+      // Character roleplay context is now fully handled by buildChatContext + CHARACTER_ROLEPLAY prompt
 
       // Add empty assistant message for streaming
       const assistantMsgId = Math.random();
@@ -2461,13 +2435,8 @@ function ChatMode({ phasePcts = {} }) {
                   <button
                     key={name}
                     onClick={() => {
-                      if (persona === 'character') {
-                        switchPersona('character', name);
-                      } else {
-                        // In assistant mode, just set the character
-                        setSelectedCharacter(name);
-                        setShowPersonaMenu(false);
-                      }
+                      // Always switch to character persona when selecting a character
+                      switchPersona('character', name);
                     }}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left',
@@ -6455,13 +6424,14 @@ function buildCharacterProfiles(files) {
       return match ? match[1].trim() : null;
     };
 
-    // Helper: extract bold field from ANY section
+    // Helper: extract bold field from ANY section, then fallback to full content
     const extractFieldFromAll = (fieldName) => {
       for (const sectionContent of Object.values(sections)) {
         const val = extractField(sectionContent, fieldName);
         if (val) return val;
       }
-      return null;
+      // Fallback: search full file content (catches fields before any ## heading)
+      return extractField(content, fieldName);
     };
 
     // Clean section text — strip markdown bold/italic markers
@@ -6496,9 +6466,11 @@ function buildCharacterProfiles(files) {
     const enneagramWing = enneaMatch ? `${enneaMatch[1]}w${enneaMatch[2]}` : null;
     const enneagram = enneagramField ? clean(enneagramField) : null;
 
-    // Extract Moral Alignment
+    // Extract Moral Alignment — normalize to one of the 9 canonical values
     const alignmentField = extractFieldFromAll('Moral Alignment');
-    const alignment = alignmentField ? alignmentField.replace(/\[.*?\]/g, '').trim() : null;
+    const ALIGNMENT_LABELS = ['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'True Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil'];
+    const alignmentRaw = alignmentField ? alignmentField.replace(/\[.*?\]/g, '').trim() : null;
+    const alignment = alignmentRaw ? (ALIGNMENT_LABELS.find(a => alignmentRaw.startsWith(a)) || alignmentRaw.split(/[.;,!]/)[0].trim()) : null;
 
     // Extract Emotional Register
     const emotionalRegister = extractFieldFromAll('Emotional Register') || clean(sections['emotional register']) || null;
@@ -6541,6 +6513,23 @@ function buildCharacterProfiles(files) {
     // Extract Life Philosophy
     const lifePhilosophy = extractFieldFromAll('Life Philosophy');
 
+    // Extract Identity fields
+    const gender = extractFieldFromAll('Gender');
+    const sexuality = extractFieldFromAll('Sexuality');
+    const religion = extractFieldFromAll('Religion') || extractFieldFromAll('Faith');
+    const relationshipStatus = extractFieldFromAll('Relationship Status');
+    const parentalStatus = extractFieldFromAll('Parental Status');
+    const livingStatus = extractFieldFromAll('Living Situation') || extractFieldFromAll('Living Status');
+    const financialUpbringing = extractFieldFromAll('Financial Upbringing');
+    const currentFinancial = extractFieldFromAll('Current Financial Status') || extractFieldFromAll('Current Financial');
+    const socialPositioning = extractFieldFromAll('Social Positioning');
+    const networkArchetype = extractFieldFromAll('Network Archetype');
+    const storyDeath = extractFieldFromAll('Story Death');
+    const zodiac = extractFieldFromAll('Zodiac');
+    const selfCareHealthy = extractFieldFromAll('Self-Care.*Healthy') || extractFieldFromAll('Healthy Self-Care');
+    const selfCareDestructive = extractFieldFromAll('Self-Care.*Destructive') || extractFieldFromAll('Destructive Self-Care');
+    const arcType = extractFieldFromAll('Arc Type') || extractFieldFromAll('Arc');
+
     // Extract Voice Fingerprint fields
     const voiceSection = sections['voice fingerprint'] || sections['voice'] || '';
     const voiceData = {
@@ -6582,6 +6571,21 @@ function buildCharacterProfiles(files) {
       color: profileColors[idx % profileColors.length],
       gradient: profileGradients[idx % profileGradients.length],
       // Identity
+      gender: gender || null,
+      sexuality: sexuality || null,
+      religion: religion || null,
+      relationshipStatus: relationshipStatus || null,
+      parentalStatus: parentalStatus || null,
+      livingStatus: livingStatus || null,
+      financialUpbringing: financialUpbringing || null,
+      currentFinancial: currentFinancial || null,
+      socialPositioning: socialPositioning || null,
+      networkArchetype: networkArchetype || null,
+      storyDeath: storyDeath || null,
+      zodiac: zodiac || null,
+      selfCareHealthy: selfCareHealthy || null,
+      selfCareDestructive: selfCareDestructive || null,
+      arcType: arcType || null,
       age: age || null,
       // Physical Description
       physicalDescription: profileSummary || null,
@@ -6643,6 +6647,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const characterProfiles = buildCharacterProfiles(cpProfileFiles);
   const [activeTab, setActiveTab] = useState('overview');
   const [zoomedChart, setZoomedChart] = useState(null); // { data, labels, colors, title }
+  const [editingField, setEditingField] = useState(null); // { label, value, options?, fieldName }
+  const [editValue, setEditValue] = useState('');
+  const [editSearch, setEditSearch] = useState('');
+  const editInputRef = useRef(null);
 
   // Build timeline data for arc intensity lookup
   const cpFiles = useProjectStore(s => s.files);
@@ -6656,8 +6664,57 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
     return () => window.removeEventListener('keydown', handleEsc);
   }, [zoomedChart]);
 
+  // Focus edit input when field changes
+  useEffect(() => {
+    if (editingField && editInputRef.current) editInputRef.current.focus();
+  }, [editingField]);
+
   const char = characterProfiles[characterName];
   if (!char) return <div style={{ padding: 40, textAlign: 'center' }}><p style={{ color: 'var(--text-muted)' }}>Character profile not found.</p></div>;
+
+  // ── Update a field in the character's markdown file ──
+  const charSlug = characterName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const updateCharacterField = async (uiLabel, newValue) => {
+    const filePath = `characters/${charSlug}.md`;
+    const content = cpProfileFiles[filePath];
+    if (!content || !newValue) {
+      setEditingField(null); setEditValue(''); setEditSearch('');
+      return;
+    }
+    const mdField = LABEL_TO_FIELD_MAP[uiLabel] || uiLabel;
+    let updated = content;
+    // Try replacing existing **Field**: value
+    const fieldRegex = new RegExp(`(\\*\\*${mdField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\*\\*\\s*:\\s*).+`, 'i');
+    if (fieldRegex.test(updated)) {
+      updated = updated.replace(fieldRegex, `$1${newValue}`);
+    } else {
+      // Insert after first heading or at end of first section
+      const insertPoint = updated.indexOf('\n');
+      if (insertPoint > -1) {
+        updated = updated.slice(0, insertPoint + 1) + `- **${mdField}**: ${newValue}\n` + updated.slice(insertPoint + 1);
+      }
+    }
+    if (updated !== content) {
+      try {
+        const { updateFile, loadProjectFiles, activeProjectId } = useProjectStore.getState();
+        await updateFile(filePath, updated);
+        await loadProjectFiles(activeProjectId);
+      } catch (err) {
+        console.error('Failed to update character field:', err);
+      }
+    }
+    setEditingField(null);
+    setEditValue('');
+    setEditSearch('');
+  };
+
+  // ── Open edit for a field ──
+  const openFieldEdit = (label, currentValue) => {
+    const options = FIELD_OPTIONS_MAP[label] || null;
+    setEditingField({ label, options });
+    setEditValue(currentValue || '');
+    setEditSearch('');
+  };
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -6761,9 +6818,21 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const valueStyle = { fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.6 };
   const gridRowStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 };
   const attrCard = (label, value, accent) => (
-    <div style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-      <div style={labelStyle}>{label}</div>
-      <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value}</div>
+    <div
+      onClick={() => openFieldEdit(label, typeof value === 'string' ? value : '')}
+      style={{
+        padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)',
+        border: '1px solid var(--border)', cursor: 'pointer', position: 'relative',
+        transition: 'border-color 0.15s',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={labelStyle}>{label}</div>
+        <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+      </div>
+      <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value || '—'}</div>
     </div>
   );
 
@@ -6855,11 +6924,11 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
           <div>
             <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{char.name}</h1>
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              <Badge variant="accent">{char.role}</Badge>
-              <Badge variant="muted">{char.type}</Badge>
-              <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>
-              <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>
-              <Badge style={{ background: '#a78bfa20', color: '#a78bfa' }}>{char.alignment}</Badge>
+              {char.role && <Badge variant="accent">{char.role}</Badge>}
+              {char.type && <Badge variant="muted">{char.type}</Badge>}
+              {char.mbti && <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>}
+              {char.enneagramWing && <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>}
+              {char.alignment && <Badge style={{ background: '#a78bfa20', color: '#a78bfa' }}>{char.alignment}</Badge>}
             </div>
           </div>
         </div>
@@ -6888,18 +6957,26 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Overview Tab ── */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: (char.strengths || char.temperament) ? '1fr 340px' : '1fr', gap: 20 }}>
           <div>
-            {/* Physical description */}
-            <Card style={{ padding: 16, marginBottom: 16 }}>
-              <h3 style={labelStyle}>Physical Description</h3>
-              <p style={{ ...valueStyle, fontStyle: 'italic', fontSize: '0.83rem' }}>{char.physicalDescription}</p>
+            {/* Physical description — editable */}
+            <Card
+              style={{ padding: 16, marginBottom: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Physical Description', char.physicalDescription || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Physical Description</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <p style={{ ...valueStyle, fontStyle: 'italic', fontSize: '0.83rem' }}>{char.physicalDescription || '—'}</p>
             </Card>
 
             {/* Quick stats grid */}
             <div style={gridRowStyle}>
               {attrCard('Age', char.age)}
-              {char.zodiac ? attrCard('Zodiac', char.zodiac) : attrCard('Tier', char.tier === 'minor' ? 'Minor Character' : 'Main Character')}
+              {attrCard('Zodiac', char.zodiac)}
             </div>
             <div style={gridRowStyle}>
               {attrCard('Build', char.build)}
@@ -6910,22 +6987,29 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               {attrCard('Eyes', char.eyeColor)}
             </div>
 
-            {/* Wound / Flaw / Virtue triangle */}
+            {/* Wound / Flaw / Virtue triangle — each cell editable */}
             <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(16,185,129,0.06) 100%)' }}>
               <h3 style={{ ...labelStyle, color: 'var(--accent)' }}>Wound → Flaw → Virtue</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>WOUND</div>
-                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.wound}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 600, marginBottom: 4 }}>FLAW</div>
-                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.flaw}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 600, marginBottom: 4 }}>VIRTUE</div>
-                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.virtue}</div>
-                </div>
+                {[
+                  { label: 'Wound', value: char.wound, color: '#ef4444' },
+                  { label: 'Flaw', value: char.flaw, color: '#fbbf24' },
+                  { label: 'Virtue', value: char.virtue, color: '#10b981' },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    onClick={() => openFieldEdit(item.label, item.value || '')}
+                    style={{ cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: item.color, fontWeight: 600, marginBottom: 4 }}>
+                      {item.label.toUpperCase()}
+                      <Pencil size={9} style={{ opacity: 0.4 }} />
+                    </div>
+                    <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{item.value || '—'}</div>
+                  </div>
+                ))}
               </div>
             </Card>
 
@@ -6954,14 +7038,17 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             )}
           </div>
 
-          {/* Right column: Radar charts */}
+          {/* Right column: Radar charts — only render when data exists */}
+          {(char.strengths || char.temperament) && (
           <div>
+            {char.strengths && (
             <Card style={{ padding: 16, marginBottom: 12 }}>
-              {char.strengths && renderRadar(char.strengths, {
+              {renderRadar(char.strengths, {
                 emotional: 'Emotional', analytical: 'Analytical', social: 'Social', physical: 'Physical',
                 creative: 'Creative', resilience: 'Resilience', intuition: 'Intuition', leadership: 'Leadership',
               }, null, 'Strengths Profile')}
             </Card>
+            )}
             {char.temperament && (
               <Card style={{ padding: 16 }}>
                 {renderRadar(char.temperament, {
@@ -6971,6 +7058,7 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               </Card>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -6978,78 +7066,109 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
       {activeTab === 'identity' && (
         <div style={{ width: '100%' }}>
           <div style={gridRowStyle}>
-            {attrCard('Gender', char.gender || '—')}
-            {char.sexuality ? attrCard('Sexuality', char.sexuality) : attrCard('Emotional Register', char.emotionalRegister, char.color)}
+            {attrCard('Gender', char.gender)}
+            {attrCard('Sexuality', char.sexuality)}
           </div>
           <div style={gridRowStyle}>
-            {attrCard('Religion / Faith', char.religion || '—')}
-            {attrCard('Life Philosophy', char.lifePhilosophy || '—')}
+            {attrCard('Religion / Faith', char.religion)}
+            {attrCard('Life Philosophy', char.lifePhilosophy)}
           </div>
-          {char.relationshipStatus && (
-            <div style={gridRowStyle}>
-              {attrCard('Relationship Status', char.relationshipStatus)}
-              {attrCard('Parental Status', char.parentalStatus || '—')}
-            </div>
-          )}
-          {char.livingStatus && (
-            <div style={gridRowStyle}>
-              {attrCard('Living Situation', char.livingStatus)}
-              {attrCard('Emotional Register', char.emotionalRegister, char.color)}
-            </div>
-          )}
-          {char.financialUpbringing && (
-            <div style={gridRowStyle}>
-              {attrCard('Financial Upbringing', char.financialUpbringing)}
-              {attrCard('Current Financial', char.currentFinancial || '—')}
-            </div>
-          )}
+          <div style={gridRowStyle}>
+            {attrCard('Relationship Status', char.relationshipStatus)}
+            {attrCard('Parental Status', char.parentalStatus)}
+          </div>
+          <div style={gridRowStyle}>
+            {attrCard('Living Situation', char.livingStatus)}
+            {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+          </div>
+          <div style={gridRowStyle}>
+            {attrCard('Financial Upbringing', char.financialUpbringing)}
+            {attrCard('Current Financial', char.currentFinancial)}
+          </div>
 
-          {/* Core Values & Personal Code — only for main characters */}
-          {char.coreValues && (
-            <Card style={{ padding: 16, marginTop: 8 }}>
+          {/* Core Values — editable */}
+          <Card
+            style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Core Values', char.coreValues || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={labelStyle}>Core Values</h3>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                {(Array.isArray(char.coreValues) ? char.coreValues : [char.coreValues]).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            {char.coreValues ? (
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {(Array.isArray(char.coreValues) ? char.coreValues : char.coreValues.split(/[,;]+/).map(s => s.trim()).filter(Boolean)).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
               </div>
-              {char.personalCode && (
-                <>
-                  <h3 style={labelStyle}>Personal Code</h3>
-                  {(Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
-                    <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
-                      "{c}"
-                    </div>
-                  ))}
-                </>
-              )}
-            </Card>
-          )}
+            ) : (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set core values</p>
+            )}
+          </Card>
 
-          {char.selfCareHealthy && (
-            <div style={{ ...gridRowStyle, marginTop: 12 }}>
-              <Card style={{ padding: 12 }}>
+          {/* Personal Code — editable */}
+          <Card
+            style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Personal Code', char.personalCode || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={labelStyle}>Personal Code</h3>
+              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            {char.personalCode ? (
+              (Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
+                <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
+                  "{c}"
+                </div>
+              ))
+            ) : (
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set personal code</p>
+            )}
+          </Card>
+
+          <div style={{ ...gridRowStyle, marginTop: 12 }}>
+            <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Self-Care (Healthy)', char.selfCareHealthy || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={labelStyle}>Self-Care (Healthy)</div>
-                <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy}</div>
-              </Card>
-              <Card style={{ padding: 12 }}>
-                <div style={labelStyle}>Self-Care (Destructive)</div>
-                <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive}</div>
-              </Card>
-            </div>
-          )}
-
-          {char.socialPositioning && (
-            <div style={gridRowStyle}>
-              {attrCard('Social Positioning', char.socialPositioning)}
-              {attrCard('Network Archetype', char.networkArchetype || '—')}
-            </div>
-          )}
-
-          {char.storyDeath && (
-            <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath}</div>
+                <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy || '—'}</div>
             </Card>
-          )}
+            <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Self-Care (Destructive)', char.selfCareDestructive || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={labelStyle}>Self-Care (Destructive)</div>
+                <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive || '—'}</div>
+            </Card>
+          </div>
+
+          <div style={gridRowStyle}>
+            {attrCard('Social Positioning', char.socialPositioning)}
+            {attrCard('Network Archetype', char.networkArchetype)}
+          </div>
+
+          <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Story Death', char.storyDeath || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
+              <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath || '—'}</div>
+          </Card>
 
           {/* Simplified identity card for minor characters */}
           {char.tier === 'minor' && (
@@ -7066,17 +7185,24 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
       {/* ── Personality Tab ── */}
       {activeTab === 'personality' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {/* MBTI Card */}
-          {char.mbti ? (
-          <Card style={{ padding: 20 }}>
+          {/* MBTI Card — editable */}
+          <Card
+            style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('MBTI', char.mbti || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            {char.mbti ? (
+            <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: `${char.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Brain size={22} color={char.color} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 700, color: char.color }}>{char.mbti}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{char.mbtiLabel}</div>
               </div>
+              <Pencil size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
             </div>
             {/* MBTI axes visualization */}
             {[
@@ -7097,25 +7223,33 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             <div style={{ marginTop: 12, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Variant: <span style={{ color: char.mbti.includes('-T') ? '#fbbf24' : '#10b981', fontWeight: 600 }}>{char.mbti.includes('-T') ? 'Turbulent' : 'Assertive'}</span>
             </div>
+            </>
+            ) : (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <Brain size={22} color="var(--text-muted)" />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>Click to set MBTI type</p>
+            </div>
+            )}
           </Card>
-          ) : (
-          <Card style={{ padding: 20, textAlign: 'center' }}>
-            <Brain size={22} color="var(--text-muted)" />
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>MBTI not defined for this character.</p>
-          </Card>
-          )}
 
-          {/* Enneagram Card */}
-          {char.enneagramWing ? (
-          <Card style={{ padding: 20 }}>
+          {/* Enneagram Card — editable */}
+          <Card
+            style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Enneagram', char.enneagramWing || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#fbbf24'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            {char.enneagramWing ? (
+            <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fbbf2420', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '1.3rem', fontWeight: 700, color: '#fbbf24' }}>{char.enneagramWing[0]}</span>
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fbbf24' }}>{char.enneagramWing}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{char.enneagram}</div>
               </div>
+              <Pencil size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
             </div>
             {/* Enneagram circle visualization */}
             <svg width="100%" viewBox="0 0 200 200" style={{ maxHeight: 180 }}>
@@ -7139,14 +7273,15 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 );
               })}
             </svg>
+            </>
+            ) : (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Click to set Enneagram type</p>
+            </div>
+            )}
           </Card>
-          ) : (
-          <Card style={{ padding: 20, textAlign: 'center' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Enneagram not defined for this character.</p>
-          </Card>
-          )}
 
-          {/* Alignment Card */}
+          {/* Alignment Card — clickable cells */}
           <Card style={{ padding: 16 }}>
             <h3 style={labelStyle}>Moral Alignment</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
@@ -7154,22 +7289,34 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 const isActive = a === char.alignment;
                 const row = a.includes('Good') ? '#10b981' : a.includes('Evil') ? '#ef4444' : '#fbbf24';
                 return (
-                  <div key={a} style={{
+                  <div key={a} onClick={() => updateCharacterField('Moral Alignment', a)} style={{
                     padding: '6px 4px', borderRadius: 'var(--radius-sm)', textAlign: 'center',
                     fontSize: '0.65rem', fontWeight: isActive ? 700 : 400,
                     background: isActive ? `${row}20` : 'var(--bg-tertiary)',
                     border: isActive ? `2px solid ${row}` : '1px solid var(--border)',
                     color: isActive ? row : 'var(--text-muted)',
-                  }}>{a}</div>
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.borderColor = row; e.currentTarget.style.color = row; }}}
+                  onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}}
+                  >{a}</div>
                 );
               })}
             </div>
           </Card>
 
-          {/* Emotional Register */}
-          <Card style={{ padding: 16 }}>
-            <h3 style={labelStyle}>Emotional Register (Baseline)</h3>
-            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: char.color, marginBottom: 8 }}>{char.emotionalRegister}</div>
+          {/* Emotional Register — clickable to edit */}
+          <Card
+            style={{ padding: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Emotional Register', char.emotionalRegister || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={labelStyle}>Emotional Register (Baseline)</h3>
+              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: char.color, marginBottom: 8 }}>{char.emotionalRegister || '—'}</div>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
               This is where {characterName} starts — not where they end. The arc is the phase shift away from and back toward this register.
             </p>
@@ -7193,23 +7340,42 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 { label: 'Dialogue Tic', value: char.voice?.dialogueTic },
                 { label: 'Metaphor Family', value: char.voice?.metaphorFamily },
                 { label: 'Defensive Speech', value: char.voice?.defensiveSpeech },
-              ].filter(v => v.value).map(v => (
-                <div key={v.label} style={{ padding: '10px 12px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: char.color, fontWeight: 600, marginBottom: 4 }}>{v.label}</div>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{v.value}</div>
+              ].map(v => (
+                <div
+                  key={v.label}
+                  onClick={() => openFieldEdit(v.label, v.value || '')}
+                  style={{
+                    padding: '10px 12px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)', cursor: 'pointer', transition: 'border-color 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: char.color, fontWeight: 600, marginBottom: 4 }}>{v.label}</div>
+                    <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: v.value ? 'var(--text-primary)' : 'var(--text-muted)', lineHeight: 1.5 }}>{v.value || '—'}</div>
                 </div>
               ))}
             </div>
           </Card>
 
-          {char.voice?.subtextDefault && (
-            <Card style={{ padding: 16, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
+          {/* Subtext Default — editable */}
+          <Card
+            style={{ padding: 16, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Subtext Default', char.voice?.subtextDefault || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ ...labelStyle, color: '#ef4444' }}>Subtext Default — What They Cannot Say</h3>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontStyle: 'italic' }}>
-                "{char.voice.subtextDefault}"
-              </div>
-            </Card>
-          )}
+              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontStyle: 'italic' }}>
+              {char.voice?.subtextDefault ? `"${char.voice.subtextDefault}"` : '—'}
+            </div>
+          </Card>
         </div>
       )}
 
@@ -7279,9 +7445,156 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
         </div>
       )}
 
+      {/* ── Field Edit Modal ── */}
+      {editingField && (
+        <div
+          onClick={() => { setEditingField(null); setEditSearch(''); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 0.15s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: 24,
+              width: '90vw', maxWidth: 420, maxHeight: '70vh',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0 }}>
+                Edit: {editingField.label}
+              </h3>
+              <button onClick={() => { setEditingField(null); setEditSearch(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            {editingField.options ? (
+              <>
+                {/* Searchable dropdown */}
+                <div style={{ position: 'relative', marginBottom: 12 }}>
+                  <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
+                  <input
+                    ref={editInputRef}
+                    value={editSearch}
+                    onChange={(e) => setEditSearch(e.target.value)}
+                    placeholder={`Search ${editingField.label.toLowerCase()}...`}
+                    style={{
+                      width: '100%', padding: '8px 12px 8px 32px', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                  />
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1, maxHeight: '45vh' }}>
+                  {editingField.options
+                    .filter(opt => !editSearch || opt.toLowerCase().includes(editSearch.toLowerCase()))
+                    .map(opt => {
+                      const isSelected = editValue === opt || (editValue && opt.toLowerCase().startsWith(editValue.toLowerCase()));
+                      return (
+                        <div
+                          key={opt}
+                          onClick={() => updateCharacterField(editingField.label, opt)}
+                          style={{
+                            padding: '8px 12px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.82rem', transition: 'background 0.1s',
+                            background: isSelected ? 'var(--accent-glow)' : 'transparent',
+                            color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
+                            fontWeight: isSelected ? 600 : 400,
+                            borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
+                          }}
+                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          {opt}
+                        </div>
+                      );
+                    })}
+                </div>
+                {/* Also allow free text input */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 8 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase' }}>Or enter custom value</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="Custom value..."
+                      style={{
+                        flex: 1, padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none',
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && editValue.trim()) updateCharacterField(editingField.label, editValue.trim()); }}
+                    />
+                    <button
+                      onClick={() => { if (editValue.trim()) updateCharacterField(editingField.label, editValue.trim()); }}
+                      style={{
+                        padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--accent)', background: 'var(--accent)',
+                        color: '#000', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >Save</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Free text input for non-dropdown fields */
+              <div>
+                <textarea
+                  ref={editInputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  placeholder={`Enter ${editingField.label.toLowerCase()}...`}
+                  rows={editValue.length > 100 ? 5 : 2}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none',
+                    resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+                    lineHeight: 1.5,
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && editValue.trim()) { e.preventDefault(); updateCharacterField(editingField.label, editValue.trim()); } }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                  <button
+                    onClick={() => { setEditingField(null); setEditSearch(''); }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)', background: 'transparent',
+                      color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer',
+                    }}
+                  >Cancel</button>
+                  <button
+                    onClick={() => { if (editValue.trim()) updateCharacterField(editingField.label, editValue.trim()); }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--accent)', background: 'var(--accent)',
+                      color: '#000', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >Save</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Analysis Tab (Radar Charts) ── */}
       {activeTab === 'radar' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {(char.strengths || char.temperament) ? (
+          <>
           {/* Attribute Scores — top */}
           {char.strengths && (
             <Card style={{ padding: 20 }}>
@@ -7319,6 +7632,38 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               </Card>
             )}
           </div>
+          </>
+          ) : (
+          /* Empty state — Generate Analysis button */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: `${char.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <BarChart3 size={28} color={char.color} style={{ opacity: 0.7 }} />
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>No Analysis Data Yet</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.6, maxWidth: 360, marginBottom: 24 }}>
+              Generate a character analysis to see strength profiles, Big Five temperament scores, and radar chart visualizations.
+            </p>
+            <button
+              onClick={() => {
+                // Navigate to the AI assistant panel with a pre-filled analysis prompt
+                const event = new CustomEvent('trigger-character-analysis', { detail: { characterName, charSlug } });
+                window.dispatchEvent(event);
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '12px 24px', borderRadius: 'var(--radius-md)',
+                background: `linear-gradient(135deg, ${char.color}, ${char.color}cc)`,
+                border: 'none', color: '#000', fontSize: '0.9rem', fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.2s',
+                boxShadow: `0 4px 16px ${char.color}40`,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 6px 24px ${char.color}60`; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 4px 16px ${char.color}40`; }}
+            >
+              <Sparkles size={16} /> Generate Analysis
+            </button>
+          </div>
+          )}
         </div>
       )}
     </div>
@@ -9421,6 +9766,12 @@ export default function WorkspaceScreen() {
   const [searchParams] = useSearchParams();
   const needsReconnect = useLlmStore(s => s.needsReconnect);
   const llmActiveProviders = useLlmStore(s => s.activeProviders);
+  const llmLoading = useLlmStore(s => s.loading);
+
+  // Re-sync providers from IndexedDB on workspace mount (covers navigation from setup/demo)
+  useEffect(() => {
+    useLlmStore.getState().loadProviders();
+  }, []);
   const initialMode = searchParams.get('mode') || 'guided';
   const initialAction = searchParams.get('action'); // e.g. 'add-character'
   const initialPanel = searchParams.get('panel');   // e.g. 'cast'
@@ -9435,7 +9786,7 @@ export default function WorkspaceScreen() {
   const [gateTargetPhase, setGateTargetPhase] = useState(null);  // which locked phase user tried to access
   const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
   const [fileAuditReport, setFileAuditReport] = useState(null); // file integrity audit result
-  const [auditDismissed, setAuditDismissed] = useState(false); // user dismissed audit banner
+  const [showAuditModal, setShowAuditModal] = useState(false); // contextual audit modal
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
@@ -9540,12 +9891,15 @@ export default function WorkspaceScreen() {
   const markClean = useProjectStore(s => s.markClean);
   const tourCompleted = useSettingsStore(s => s.tourCompleted);
 
-  // Redirect to hub if no active project is loaded
+  // Redirect to hub if no active project is loaded; re-sync files on mount
   useEffect(() => {
     if (!activeProject) {
       navigate('/hub', { replace: true });
+    } else {
+      // Re-load project files to ensure phase progress is computed with latest phaseAnswers
+      useProjectStore.getState().loadProjectFiles(activeProject.id);
     }
-  }, [activeProject, navigate]);
+  }, [activeProject?.id, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track changes in editedFiles as dirty state (for unsaved editor changes)
   useEffect(() => {
@@ -9780,7 +10134,6 @@ export default function WorkspaceScreen() {
     const timer = setTimeout(() => {
       const report = runFileAudit(projectFiles, activeProject);
       setFileAuditReport(report);
-      setAuditDismissed(false); // show banner again after new audit
     }, 800);
     return () => clearTimeout(timer);
   }, [projectFiles, activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -10025,7 +10378,7 @@ export default function WorkspaceScreen() {
       />
 
       {/* ── Provider reconnection banner ── */}
-      {(needsReconnect || llmActiveProviders.length === 0) && (
+      {!llmLoading && (needsReconnect || llmActiveProviders.length === 0) && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           padding: '8px 16px', background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.2)',
@@ -10050,6 +10403,8 @@ export default function WorkspaceScreen() {
           </button>
         </div>
       )}
+
+      {/* File audit banner removed — audit info now surfaced contextually via showAuditModal */}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* ─── Thread List (far left) — expandable ─── */}
@@ -10277,24 +10632,6 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 12 }} data-tour="phase-sidebar">
-                {/* Regenerate button — shown at top of every sidebar tab for decomposed projects */}
-                {isDecomposed && (
-                  <button
-                    onClick={() => setShowRedecomposeModal(true)}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      width: '100%', padding: '7px 12px', marginBottom: 10,
-                      background: 'none', border: '1px dashed var(--border)',
-                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      fontSize: '0.73rem', color: 'var(--text-muted)',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                  >
-                    <Sparkles size={12} /> Regenerate Analysis
-                  </button>
-                )}
                 {/* Add Missing Details button — available for all projects that have some content */}
                 <button
                   onClick={() => setShowEnrichModal(true)}
@@ -10310,6 +10647,22 @@ export default function WorkspaceScreen() {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                 >
                   <Brain size={12} /> Add Missing Details
+                </button>
+                {/* Regenerate Analysis button — always available */}
+                <button
+                  onClick={() => setShowRedecomposeModal(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    width: '100%', padding: '7px 12px', marginBottom: 10,
+                    background: 'none', border: '1px dashed var(--border)',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    fontSize: '0.73rem', color: 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                >
+                  <Sparkles size={12} /> Regenerate Analysis
                 </button>
                 {leftTab === 'phases' && (
                   <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
@@ -10773,6 +11126,17 @@ export default function WorkspaceScreen() {
                         action: () => { setActivePhase(7); setActiveMode('guided'); setLeftTab('phases'); },
                       });
                     });
+                    // Missing files — show contextual link to audit modal
+                    if (fileAuditReport && fileAuditReport.status !== 'healthy' && fileAuditReport.findings?.length > 0) {
+                      const ct = fileAuditReport.summary?.critical || 0;
+                      const label = ct > 0
+                        ? `${ct} critical file${ct > 1 ? 's' : ''} missing — view details`
+                        : 'Some optional files missing — view details';
+                      steps.push({
+                        label,
+                        action: () => setShowAuditModal(true),
+                      });
+                    }
                     // If all non-gated phases done, suggest content generation
                     if (allPrereqsComplete(phasePcts)) {
                       steps.push({
@@ -11003,6 +11367,45 @@ export default function WorkspaceScreen() {
                   setActiveMode('guided');
                 }
               }} style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Unlock Anyway →</Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Contextual File Audit Modal ── */}
+      {showAuditModal && fileAuditReport && fileAuditReport.status !== 'healthy' && (
+        <ModalOverlay onClose={() => setShowAuditModal(false)}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <AlertTriangle size={18} style={{ color: 'var(--accent)' }} />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Missing Project Files</h3>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 16 }}>
+              Some sections may be incomplete because the following files are missing or empty. This can affect timelines, health scores, and other analyses.
+            </p>
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, marginBottom: 16, maxHeight: 240, overflowY: 'auto' }}>
+              {(() => {
+                const grouped = {};
+                for (const f of fileAuditReport.findings || []) {
+                  const key = f.phase || 'Other';
+                  if (!grouped[key]) grouped[key] = [];
+                  grouped[key].push(f);
+                }
+                return Object.entries(grouped).map(([phase, items]) => (
+                  <div key={phase} style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>{phase}</div>
+                    {items.map((item, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: '0.8rem' }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: item.severity === 'critical' ? '#ef4444' : item.severity === 'high' ? '#f97316' : '#eab308' }} />
+                        <code style={{ fontSize: '0.75rem', color: 'var(--text-primary)', background: 'var(--bg-surface)', padding: '1px 5px', borderRadius: 3 }}>{item.file}</code>
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setShowAuditModal(false)}>Dismiss</Button>
             </div>
           </div>
         </ModalOverlay>

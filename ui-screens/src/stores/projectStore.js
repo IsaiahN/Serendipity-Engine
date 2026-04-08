@@ -405,12 +405,20 @@ export const useProjectStore = create((set, get) => ({
 
     try {
       await db.projects.update(projectId, timestamped);
-      set(state => ({
-        activeProject: { ...state.activeProject, ...timestamped },
-        projects: state.projects.map(p =>
-          p.id === projectId ? { ...p, ...timestamped } : p
-        ),
-      }));
+      set(state => {
+        const updatedProject = { ...state.activeProject, ...timestamped };
+        const result = {
+          activeProject: updatedProject,
+          projects: state.projects.map(p =>
+            p.id === projectId ? { ...p, ...timestamped } : p
+          ),
+        };
+        // Recompute phase progress when phaseAnswers change
+        if (updates.phaseAnswers) {
+          result.phaseProgress = computePhaseProgress(state.files, updatedProject.phaseAnswers);
+        }
+        return result;
+      });
     } catch (err) {
       console.warn('Failed to update project:', err);
     }
