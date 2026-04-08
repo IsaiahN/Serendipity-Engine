@@ -6563,11 +6563,13 @@ function buildCharacterProfiles(files) {
     // Build the key name — use slug-derived name to match CastRoster
     const shortName = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
+    const isGroup = tier === 'societal' || tier === 'collective';
     profiles[shortName] = {
       name: fullName,
       role,
       type: type || role,
       tier,
+      isGroup,
       color: profileColors[idx % profileColors.length],
       gradient: profileGradients[idx % profileGradients.length],
       // Identity
@@ -6716,7 +6718,13 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
     setEditSearch('');
   };
 
-  const tabs = [
+  const tabs = char.isGroup ? [
+    { key: 'overview', label: 'Overview' },
+    { key: 'identity', label: 'Structure' },
+    { key: 'personality', label: 'Culture' },
+    { key: 'arc', label: 'Arc & Role' },
+    { key: 'radar', label: 'Analysis' },
+  ] : [
     { key: 'overview', label: 'Overview' },
     { key: 'identity', label: 'Identity' },
     { key: 'personality', label: 'Personality' },
@@ -6924,10 +6932,15 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
           <div>
             <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{char.name}</h1>
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+              {char.isGroup && (
+                <Badge style={{ background: char.tier === 'societal' ? '#f9731620' : '#60a5fa20', color: char.tier === 'societal' ? '#f97316' : '#60a5fa', fontWeight: 700 }}>
+                  {char.tier === 'societal' ? 'Society' : 'Collective'}
+                </Badge>
+              )}
               {char.role && <Badge variant="accent">{char.role}</Badge>}
-              {char.type && <Badge variant="muted">{char.type}</Badge>}
-              {char.mbti && <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>}
-              {char.enneagramWing && <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>}
+              {char.type && char.type !== char.role && <Badge variant="muted">{char.type}</Badge>}
+              {!char.isGroup && char.mbti && <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>}
+              {!char.isGroup && char.enneagramWing && <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>}
               {char.alignment && <Badge style={{ background: '#a78bfa20', color: '#a78bfa' }}>{char.alignment}</Badge>}
             </div>
           </div>
@@ -6973,19 +6986,60 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               <p style={{ ...valueStyle, fontStyle: 'italic', fontSize: '0.83rem' }}>{char.physicalDescription || '—'}</p>
             </Card>
 
-            {/* Quick stats grid */}
-            <div style={gridRowStyle}>
-              {attrCard('Age', char.age)}
-              {attrCard('Zodiac', char.zodiac)}
-            </div>
-            <div style={gridRowStyle}>
-              {attrCard('Build', char.build)}
-              {attrCard('Height', char.height)}
-            </div>
-            <div style={gridRowStyle}>
-              {attrCard('Hair', char.hairColor)}
-              {attrCard('Eyes', char.eyeColor)}
-            </div>
+            {/* Quick stats grid — different for groups vs individuals */}
+            {char.isGroup ? (
+            <>
+              <div style={gridRowStyle}>
+                {attrCard('Composition', char.composition)}
+                {attrCard('Power Dynamic', char.powerDynamic)}
+              </div>
+              <div style={gridRowStyle}>
+                {attrCard('Collective Voice', char.collectiveVoice)}
+                {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+              </div>
+              {(char.societyCost || char.societyEnforcement || char.societyBlindSpot) && (
+              <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(96,165,250,0.06) 100%)' }}>
+                <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Structural Forces</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  {[
+                    { label: 'Cost', value: char.societyCost, color: '#ef4444' },
+                    { label: 'Enforcement', value: char.societyEnforcement, color: '#fbbf24' },
+                    { label: 'Blind Spot', value: char.societyBlindSpot, color: '#a78bfa' },
+                  ].map(item => (
+                    <div
+                      key={item.label}
+                      onClick={() => openFieldEdit(item.label, item.value || '')}
+                      style={{ cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)', transition: 'background 0.15s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: item.color, fontWeight: 600, marginBottom: 4 }}>
+                        {item.label.toUpperCase()}
+                        <Pencil size={9} style={{ opacity: 0.4 }} />
+                      </div>
+                      <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{item.value || '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+              )}
+            </>
+            ) : (
+            <>
+              <div style={gridRowStyle}>
+                {attrCard('Age', char.age)}
+                {attrCard('Zodiac', char.zodiac)}
+              </div>
+              <div style={gridRowStyle}>
+                {attrCard('Build', char.build)}
+                {attrCard('Height', char.height)}
+              </div>
+              <div style={gridRowStyle}>
+                {attrCard('Hair', char.hairColor)}
+                {attrCard('Eyes', char.eyeColor)}
+              </div>
+            </>
+            )}
 
             {/* Wound / Flaw / Virtue triangle — each cell editable */}
             <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(16,185,129,0.06) 100%)' }}>
@@ -7062,131 +7116,203 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
         </div>
       )}
 
-      {/* ── Identity Tab ── */}
+      {/* ── Identity / Structure Tab ── */}
       {activeTab === 'identity' && (
         <div style={{ width: '100%' }}>
-          <div style={gridRowStyle}>
-            {attrCard('Gender', char.gender)}
-            {attrCard('Sexuality', char.sexuality)}
-          </div>
-          <div style={gridRowStyle}>
-            {attrCard('Religion / Faith', char.religion)}
-            {attrCard('Life Philosophy', char.lifePhilosophy)}
-          </div>
-          <div style={gridRowStyle}>
-            {attrCard('Relationship Status', char.relationshipStatus)}
-            {attrCard('Parental Status', char.parentalStatus)}
-          </div>
-          <div style={gridRowStyle}>
-            {attrCard('Living Situation', char.livingStatus)}
-            {attrCard('Emotional Register', char.emotionalRegister, char.color)}
-          </div>
-          <div style={gridRowStyle}>
-            {attrCard('Financial Upbringing', char.financialUpbringing)}
-            {attrCard('Current Financial', char.currentFinancial)}
-          </div>
-
-          {/* Core Values — editable */}
-          <Card
-            style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onClick={() => openFieldEdit('Core Values', char.coreValues || '')}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={labelStyle}>Core Values</h3>
-              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+          {char.isGroup ? (
+          <>
+            {/* Group Structure view */}
+            <div style={gridRowStyle}>
+              {attrCard('Composition', char.composition)}
+              {attrCard('Power Dynamic', char.powerDynamic)}
             </div>
-            {char.coreValues ? (
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {(Array.isArray(char.coreValues) ? char.coreValues : char.coreValues.split(/[,;]+/).map(s => s.trim()).filter(Boolean)).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+            <div style={gridRowStyle}>
+              {attrCard('Collective Voice', char.collectiveVoice)}
+              {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Religion / Faith', char.religion)}
+              {attrCard('Life Philosophy', char.lifePhilosophy)}
+            </div>
+
+            {/* Structural Forces */}
+            <Card style={{ padding: 16, marginTop: 8, background: 'linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(96,165,250,0.06) 100%)' }}>
+              <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Structural Forces</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                {[
+                  { label: 'Cost', value: char.societyCost, color: '#ef4444' },
+                  { label: 'Enforcement', value: char.societyEnforcement, color: '#fbbf24' },
+                  { label: 'Blind Spot', value: char.societyBlindSpot, color: '#a78bfa' },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    onClick={() => openFieldEdit(item.label, item.value || '')}
+                    style={{ cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: item.color, fontWeight: 600, marginBottom: 4 }}>
+                      {item.label.toUpperCase()}
+                      <Pencil size={9} style={{ opacity: 0.4 }} />
+                    </div>
+                    <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{item.value || '—'}</div>
+                  </div>
+                ))}
               </div>
-            ) : (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set core values</p>
-            )}
-          </Card>
+            </Card>
 
-          {/* Personal Code — editable */}
-          <Card
-            style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onClick={() => openFieldEdit('Personal Code', char.personalCode || '')}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={labelStyle}>Personal Code</h3>
-              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-            </div>
-            {char.personalCode ? (
-              (Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
-                <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
-                  "{c}"
+            {/* Core Values for groups */}
+            <Card
+              style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Core Values', char.coreValues || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Core Values</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              {char.coreValues ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(Array.isArray(char.coreValues) ? char.coreValues : char.coreValues.split(/[,;]+/).map(s => s.trim()).filter(Boolean)).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
                 </div>
-              ))
-            ) : (
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set personal code</p>
-            )}
-          </Card>
-
-          <div style={{ ...gridRowStyle, marginTop: 12 }}>
-            <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onClick={() => openFieldEdit('Self-Care (Healthy)', char.selfCareHealthy || '')}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={labelStyle}>Self-Care (Healthy)</div>
-                <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy || '—'}</div>
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set core values</p>
+              )}
             </Card>
-            <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onClick={() => openFieldEdit('Self-Care (Destructive)', char.selfCareDestructive || '')}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={labelStyle}>Self-Care (Destructive)</div>
-                <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive || '—'}</div>
-            </Card>
-          </div>
 
-          <div style={gridRowStyle}>
-            {attrCard('Social Positioning', char.socialPositioning)}
-            {attrCard('Network Archetype', char.networkArchetype)}
-          </div>
-
-          <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer', transition: 'border-color 0.15s' }}
-            onClick={() => openFieldEdit('Story Death', char.storyDeath || '')}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
-              <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            <div style={gridRowStyle}>
+              {attrCard('Social Positioning', char.socialPositioning)}
+              {attrCard('Network Archetype', char.networkArchetype)}
             </div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath || '—'}</div>
-          </Card>
+          </>
+          ) : (
+          <>
+            {/* Individual Identity view */}
+            <div style={gridRowStyle}>
+              {attrCard('Gender', char.gender)}
+              {attrCard('Sexuality', char.sexuality)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Religion / Faith', char.religion)}
+              {attrCard('Life Philosophy', char.lifePhilosophy)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Relationship Status', char.relationshipStatus)}
+              {attrCard('Parental Status', char.parentalStatus)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Living Situation', char.livingStatus)}
+              {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Financial Upbringing', char.financialUpbringing)}
+              {attrCard('Current Financial', char.currentFinancial)}
+            </div>
 
-          {/* Simplified identity card for minor characters */}
-          {char.tier === 'minor' && (
-            <Card style={{ padding: 16, marginTop: 12, background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginBottom: 8 }}>Minor Character</div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                This is a minor character with a simplified profile. Key identity details are shown above. For deeper analysis, see the Personality and Arc tabs.
-              </p>
+            {/* Core Values — editable */}
+            <Card
+              style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Core Values', char.coreValues || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Core Values</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              {char.coreValues ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(Array.isArray(char.coreValues) ? char.coreValues : char.coreValues.split(/[,;]+/).map(s => s.trim()).filter(Boolean)).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set core values</p>
+              )}
             </Card>
+
+            {/* Personal Code — editable */}
+            <Card
+              style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Personal Code', char.personalCode || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Personal Code</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              {char.personalCode ? (
+                (Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
+                  <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
+                    "{c}"
+                  </div>
+                ))
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set personal code</p>
+              )}
+            </Card>
+
+            <div style={{ ...gridRowStyle, marginTop: 12 }}>
+              <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onClick={() => openFieldEdit('Self-Care (Healthy)', char.selfCareHealthy || '')}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={labelStyle}>Self-Care (Healthy)</div>
+                  <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy || '—'}</div>
+              </Card>
+              <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onClick={() => openFieldEdit('Self-Care (Destructive)', char.selfCareDestructive || '')}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={labelStyle}>Self-Care (Destructive)</div>
+                  <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive || '—'}</div>
+              </Card>
+            </div>
+
+            <div style={gridRowStyle}>
+              {attrCard('Social Positioning', char.socialPositioning)}
+              {attrCard('Network Archetype', char.networkArchetype)}
+            </div>
+
+            <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Story Death', char.storyDeath || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
+                <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath || '—'}</div>
+            </Card>
+
+            {/* Simplified identity card for minor characters */}
+            {char.tier === 'minor' && (
+              <Card style={{ padding: 16, marginTop: 12, background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginBottom: 8 }}>Minor Character</div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  This is a minor character with a simplified profile. Key identity details are shown above. For deeper analysis, see the Personality and Arc tabs.
+                </p>
+              </Card>
+            )}
+          </>
           )}
         </div>
       )}
 
-      {/* ── Personality Tab ── */}
+      {/* ── Personality / Culture Tab ── */}
       {activeTab === 'personality' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {/* MBTI Card — editable */}
-          <Card
+          {/* MBTI Card — editable (hidden for groups) */}
+          {!char.isGroup && <Card
             style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s' }}
             onClick={() => openFieldEdit('MBTI', char.mbti || '')}
             onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
@@ -7230,10 +7356,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>Click to set MBTI type</p>
             </div>
             )}
-          </Card>
+          </Card>}
 
-          {/* Enneagram Card — editable */}
-          <Card
+          {/* Enneagram Card — editable (hidden for groups) */}
+          {!char.isGroup && <Card
             style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s' }}
             onClick={() => openFieldEdit('Enneagram', char.enneagramWing || '')}
             onMouseEnter={(e) => e.currentTarget.style.borderColor = '#fbbf24'}
@@ -7279,7 +7405,25 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Click to set Enneagram type</p>
             </div>
             )}
-          </Card>
+          </Card>}
+
+          {/* Group-specific culture description */}
+          {char.isGroup && (
+            <Card
+              style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s', gridColumn: 'span 2' }}
+              onClick={() => openFieldEdit('Physical Description', char.physicalDescription || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = char.tier === 'societal' ? '#f97316' : '#60a5fa'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Group Description & Culture</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                {char.physicalDescription || char.backstory || 'Click to describe this group\'s culture, appearance, and defining characteristics.'}
+              </p>
+            </Card>
+          )}
 
           {/* Alignment Card — clickable cells */}
           <Card style={{ padding: 16 }}>

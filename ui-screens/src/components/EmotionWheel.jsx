@@ -125,16 +125,18 @@ export default function EmotionWheel({
   }));
 
   // Get secondaries for current primary
-  const secondaries = selectedPrimary
-    ? Object.entries(EMOTION_TAXONOMY[selectedPrimary].children).map(([key, data]) => ({
+  const primaryData = selectedPrimary ? EMOTION_TAXONOMY[selectedPrimary] : null;
+  const secondaries = primaryData
+    ? Object.entries(primaryData.children || {}).map(([key, data]) => ({
         key,
         ...data,
       }))
     : [];
 
   // Get tertiaries for current secondary
-  const tertiaries = selectedSecondary
-    ? EMOTION_TAXONOMY[selectedPrimary].children[selectedSecondary].children.map(e => e)
+  const secondaryData = (primaryData && selectedSecondary) ? primaryData.children?.[selectedSecondary] : null;
+  const tertiaries = secondaryData
+    ? (secondaryData.children || []).map(e => e)
     : [];
 
   const handleSelectTertiary = (emotion) => {
@@ -497,7 +499,7 @@ export default function EmotionWheel({
               fontWeight: 600,
               color: EMOTION_TAXONOMY[selectedPrimary]?.color,
             }}>
-              {EMOTION_TAXONOMY[selectedPrimary]?.children[selectedSecondary]?.label}
+              {EMOTION_TAXONOMY[selectedPrimary]?.children?.[selectedSecondary]?.label}
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>
