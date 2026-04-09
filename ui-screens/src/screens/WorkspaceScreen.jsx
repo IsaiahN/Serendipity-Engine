@@ -1,11 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import ProductTour from '../components/ProductTour';
 import PhaseProgress, { phases, allPrereqsComplete, overallProgress, currentActivePhase } from '../components/PhaseProgress';
 import CastRoster from '../components/CastRoster';
 import fileContents from '../data/fileData';
-import { FIELD_OPTIONS_MAP, LABEL_TO_FIELD_MAP } from '../data/characterOptions';
+import { FIELD_OPTIONS_MAP, LABEL_TO_FIELD_MAP, FIELD_DESCRIPTIONS } from '../data/characterOptions';
 import HealthBar from '../components/HealthBar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import Button from '../components/Button';
@@ -6554,6 +6554,12 @@ function buildCharacterProfiles(files) {
     const composition = extractFieldFromAll('Composition');
     const powerDynamic = extractFieldFromAll('Power Dynamic');
 
+    // Extract Group-shared fields (used by both societal and collective)
+    const cultureField = extractFieldFromAll('Culture');
+    const groupIdentity = extractFieldFromAll('Group Identity');
+    const internalTensions = extractFieldFromAll('Internal Tensions');
+    const externalPressures = extractFieldFromAll('External Pressures');
+
     // Get physical description summary
     const profileText = clean(sections['profile'] || sections['physical description'] || physSection || '');
     const profileLines = profileText.split('\n').filter(l => !l.match(/^(Role|Tier|Type):/i) && l.trim());
@@ -6629,6 +6635,10 @@ function buildCharacterProfiles(files) {
       collectiveVoice: collectiveVoice || null,
       composition: composition || null,
       powerDynamic: powerDynamic || null,
+      cultureField: cultureField || null,
+      groupIdentity: groupIdentity || null,
+      internalTensions: internalTensions || null,
+      externalPressures: externalPressures || null,
       // Legacy fields
       somaticSignature: clean(sections['somatic signature']) || null,
       complexity: clean(sections['complexity']) || null,
@@ -6825,24 +6835,30 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const labelStyle = { fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 };
   const valueStyle = { fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.6 };
   const gridRowStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 };
-  const attrCard = (label, value, accent) => (
-    <div
-      onClick={() => openFieldEdit(label, typeof value === 'string' ? value : '')}
-      style={{
-        padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)',
-        border: '1px solid var(--border)', cursor: 'pointer', position: 'relative',
-        transition: 'border-color 0.15s',
-      }}
-      onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
-      onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={labelStyle}>{label}</div>
-        <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+  const attrCard = (label, value, accent) => {
+    const fieldDesc = FIELD_DESCRIPTIONS[label];
+    return (
+      <div
+        onClick={() => openFieldEdit(label, typeof value === 'string' ? value : '')}
+        style={{
+          padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border)', cursor: 'pointer', position: 'relative',
+          transition: 'border-color 0.15s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={labelStyle}>{label}</div>
+          <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+        </div>
+        {fieldDesc && !value && (
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: 4, opacity: 0.7 }}>{fieldDesc}</div>
+        )}
+        <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value || '—'}</div>
       </div>
-      <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value || '—'}</div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
@@ -6997,7 +7013,6 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 {attrCard('Collective Voice', char.collectiveVoice)}
                 {attrCard('Emotional Register', char.emotionalRegister, char.color)}
               </div>
-              {(char.societyCost || char.societyEnforcement || char.societyBlindSpot) && (
               <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(96,165,250,0.06) 100%)' }}>
                 <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Structural Forces</h3>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
@@ -7022,7 +7037,6 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                   ))}
                 </div>
               </Card>
-              )}
             </>
             ) : (
             <>
@@ -7181,6 +7195,18 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               )}
             </Card>
 
+            {/* Group Identity & Culture */}
+            <div style={gridRowStyle}>
+              {attrCard('Group Identity', char.groupIdentity)}
+              {attrCard('Culture Rules', char.cultureField)}
+            </div>
+
+            {/* Tensions & Pressures */}
+            <div style={gridRowStyle}>
+              {attrCard('Internal Tensions', char.internalTensions)}
+              {attrCard('External Pressures', char.externalPressures)}
+            </div>
+
             <div style={gridRowStyle}>
               {attrCard('Social Positioning', char.socialPositioning)}
               {attrCard('Network Archetype', char.networkArchetype)}
@@ -7281,18 +7307,6 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               {attrCard('Social Positioning', char.socialPositioning)}
               {attrCard('Network Archetype', char.networkArchetype)}
             </div>
-
-            <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer', transition: 'border-color 0.15s' }}
-              onClick={() => openFieldEdit('Story Death', char.storyDeath || '')}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
-                <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
-              </div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath || '—'}</div>
-            </Card>
 
             {/* Simplified identity card for minor characters */}
             {char.tier === 'minor' && (
@@ -7639,17 +7653,29 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                     onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                   />
                 </div>
+                {/* Field description hint */}
+                {FIELD_DESCRIPTIONS[editingField.label] && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 12, padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', lineHeight: 1.5, borderLeft: '3px solid var(--accent)' }}>
+                    {FIELD_DESCRIPTIONS[editingField.label]}
+                  </div>
+                )}
                 <div style={{ overflowY: 'auto', flex: 1, maxHeight: '45vh' }}>
                   {editingField.options
-                    .filter(opt => !editSearch || opt.toLowerCase().includes(editSearch.toLowerCase()))
+                    .filter(opt => {
+                      const label = typeof opt === 'object' ? opt.value : opt;
+                      const desc = typeof opt === 'object' ? (opt.desc || '') : '';
+                      return !editSearch || label.toLowerCase().includes(editSearch.toLowerCase()) || desc.toLowerCase().includes(editSearch.toLowerCase());
+                    })
                     .map(opt => {
-                      const isSelected = editValue === opt || (editValue && opt.toLowerCase().startsWith(editValue.toLowerCase()));
+                      const label = typeof opt === 'object' ? opt.value : opt;
+                      const desc = typeof opt === 'object' ? opt.desc : null;
+                      const isSelected = editValue === label || (editValue && label.toLowerCase().startsWith(editValue.toLowerCase()));
                       return (
                         <div
-                          key={opt}
-                          onClick={() => updateCharacterField(editingField.label, opt)}
+                          key={label}
+                          onClick={() => updateCharacterField(editingField.label, label)}
                           style={{
-                            padding: '8px 12px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
+                            padding: desc ? '10px 12px' : '8px 12px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
                             fontSize: '0.82rem', transition: 'background 0.1s',
                             background: isSelected ? 'var(--accent-glow)' : 'transparent',
                             color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
@@ -7659,7 +7685,8 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                           onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
                           onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                         >
-                          {opt}
+                          {label}
+                          {desc && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, fontWeight: 400, lineHeight: 1.4 }}>{desc}</div>}
                         </div>
                       );
                     })}
@@ -8391,7 +8418,7 @@ const ENRICH_GROUPS = [
   {
     key: 'characters',
     label: 'Fill In Characters',
-    description: 'Fill missing fields on existing characters (tier, voice notes, stream A/B, network role, etc.). Preserves everything you wrote.',
+    description: 'Fill missing fields on existing characters: Voice Fingerprint (7 fields), MBTI, Enneagram, Zodiac, Sexuality, Religion, Relationship Status, Living Situation, Financial Context, Self-Care patterns, Social Positioning, and more. Preserves everything you wrote.',
     icon: '🎭',
     outputs: ['characters/*.md (updated in-place)'],
   },
@@ -8418,6 +8445,60 @@ const ENRICH_GROUPS = [
   },
 ];
 
+/* ─── Character format detection: which fields are missing from character files? ─── */
+const CHARACTER_EXPECTED_FIELDS = {
+  individual: [
+    'Tier', 'Role', 'Age Range', 'Gender', 'Sexuality', 'Religion', 'Zodiac',
+    'Build', 'Height', 'Hair', 'Eyes',
+    'MBTI Type', 'Enneagram', 'Moral Alignment', 'Emotional Register', 'Life Philosophy',
+    'Core Wound', 'Core Flaw', 'Core Virtue',
+    'Want', 'Need', 'Arc',
+    'Attachment Style', 'Relationship Status', 'Parental Status', 'Living Situation',
+    'Financial Upbringing', 'Current Financial', 'Social Positioning', 'Network',
+    'Core Values', 'Personal Code', 'Healthy Self-Care', 'Destructive Self-Care',
+    'Speech Rhythm', 'Vocabulary Register', 'Volume', 'Dialogue Tic', 'Metaphor Family',
+    'Defensive Speech', 'Subtext Default',
+  ],
+  group: [
+    'Tier', 'Role', 'Composition', 'Power Dynamic', 'Collective Voice',
+    'Emotional Register', 'Core Values', 'Want', 'Wound',
+    'Cost', 'Enforcement', 'What It Cannot See',
+    'Culture', 'Group Identity', 'Internal Tensions', 'External Pressures',
+  ],
+};
+
+function detectMissingCharacterFields(projectFiles) {
+  const charFiles = Object.entries(projectFiles)
+    .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered'));
+  if (charFiles.length === 0) return { totalChars: 0, missingByChar: {}, avgCompletion: 0 };
+
+  const missingByChar = {};
+  let totalFields = 0;
+  let totalFound = 0;
+
+  charFiles.forEach(([path, content]) => {
+    const name = path.replace('characters/', '').replace('.md', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const contentLower = content.toLowerCase();
+    const isGroup = /tier.*?:\s*(societal|collective)/i.test(content);
+    const fields = isGroup ? CHARACTER_EXPECTED_FIELDS.group : CHARACTER_EXPECTED_FIELDS.individual;
+    const missing = fields.filter(f => !contentLower.includes(f.toLowerCase().replace(/\s/g, '').length > 4 ? f.toLowerCase() : `**${f.toLowerCase()}`));
+    // More precise check: look for **FieldName**: pattern
+    const trulyMissing = fields.filter(f => {
+      const pattern = new RegExp(`\\*\\*${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+      return !pattern.test(content);
+    });
+    missingByChar[name] = trulyMissing;
+    totalFields += fields.length;
+    totalFound += fields.length - trulyMissing.length;
+  });
+
+  return {
+    totalChars: charFiles.length,
+    missingByChar,
+    avgCompletion: totalFields > 0 ? Math.round((totalFound / totalFields) * 100) : 0,
+  };
+}
+
 /* ─── Add Missing Details Modal ─── */
 function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
   const [selectedGroups, setSelectedGroups] = useState([]);
@@ -8429,6 +8510,9 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
   const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
   const navigate = useNavigate();
+
+  // Detect missing fields on mount
+  const charAnalysis = useMemo(() => detectMissingCharacterFields(projectFiles), [projectFiles]);
 
   // ── Quick-add state ──
   const [quickAction, setQuickAction] = useState(null); // null | 'person' | 'relationship'
@@ -8665,7 +8749,7 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
           const resp = await sendMessage({
             messages: [{ role: 'user', content: prompt }],
             role: 'system',
-            maxTokens: 6000,
+            maxTokens: 12000, // Increased from 6000 — expanded character template with Voice Fingerprint, Social Context, etc.
           });
           if (resp.success && resp.content) {
             // The prompt returns individual character blocks separated by ## headings.
@@ -9159,6 +9243,26 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
 
         {/* Body */}
         <div style={{ padding: '12px 24px' }}>
+          {/* Character completeness banner */}
+          {charAnalysis.totalChars > 0 && charAnalysis.avgCompletion < 85 && (
+            <div style={{
+              padding: '10px 14px', marginBottom: 12, borderRadius: 'var(--radius-sm)',
+              background: charAnalysis.avgCompletion < 50 ? 'rgba(239,68,68,0.08)' : 'rgba(251,191,36,0.08)',
+              border: `1px solid ${charAnalysis.avgCompletion < 50 ? 'rgba(239,68,68,0.2)' : 'rgba(251,191,36,0.2)'}`,
+            }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: charAnalysis.avgCompletion < 50 ? '#ef4444' : '#fbbf24', marginBottom: 4 }}>
+                Character profiles are {charAnalysis.avgCompletion}% complete
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                {charAnalysis.totalChars} character{charAnalysis.totalChars !== 1 ? 's' : ''} found.
+                {charAnalysis.avgCompletion < 50
+                  ? ' Many fields are missing — run "Fill In Characters" to add Voice Fingerprint, MBTI, Enneagram, Social Context, and more.'
+                  : ' Some fields could be filled in — select "Fill In Characters" below to complete them.'}
+                {' '}Existing content is always preserved.
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <button onClick={selectAll} style={{
               background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,

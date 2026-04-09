@@ -491,7 +491,8 @@ export const useProjectStore = create((set, get) => ({
     const files = await db.projectFiles.where('projectId').equals(pid).toArray();
 
     return {
-      version: '1.0',
+      version: '1.1',
+      characterFormat: '2.0', // v2.0: structured sections (Core Identity, Physical Description, Personality, Voice Fingerprint, Social & Living Context, etc.)
       exportedAt: new Date().toISOString(),
       project,
       files: files.map(f => ({ path: f.path, content: f.content })),
@@ -502,8 +503,14 @@ export const useProjectStore = create((set, get) => ({
    * Import a project from exported JSON
    */
   importProject: async (data) => {
-    const { project, files } = data;
+    const { project, files, version, characterFormat } = data;
     const newId = uuid();
+
+    // Detect legacy character format (v1.0 projects or missing characterFormat)
+    // Legacy files use flat format (no ### subsections like Core Identity, Voice Fingerprint)
+    // We flag this so the UI can suggest running enrichment to fill missing fields
+    const isLegacyCharacterFormat = !characterFormat || parseFloat(characterFormat) < 2.0;
+    const importVersion = version || '1.0';
 
     const newProject = {
       ...project,
@@ -511,6 +518,8 @@ export const useProjectStore = create((set, get) => ({
       slug: slugify(project.title + '-import'),
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      importedFrom: importVersion,
+      needsCharacterEnrichment: isLegacyCharacterFormat,
     };
 
     const newFiles = files.map(f => ({

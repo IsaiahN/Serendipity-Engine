@@ -218,6 +218,144 @@ export const CHARACTER_TYPE_OPTIONS = [
   'Threshold guardian', 'Herald', 'Shapeshifter', 'Trickster',
 ];
 
+// ── Group Character Options (with descriptions) ──
+
+export const COMPOSITION_OPTIONS = [
+  // ── Demographic Makeup ──
+  { value: 'Homogeneous community', desc: 'Members share ethnicity, religion, class, or culture — sameness is the glue' },
+  { value: 'Multi-ethnic enclave', desc: 'Diverse ethnic backgrounds united by geography or shared circumstance' },
+  { value: 'Multi-generational family', desc: 'Three or more generations living, working, or operating as a unit' },
+  { value: 'Nuclear family unit', desc: 'Parents and children; the smallest family structure' },
+  { value: 'Extended kinship network', desc: 'Cousins, in-laws, elders — family defined broadly, not just by blood' },
+  { value: 'Chosen family / Found family', desc: 'Non-biological bonds that function as family — forged by loyalty, not lineage' },
+  // ── Organizational Structure ──
+  { value: 'Religious order / Congregation', desc: 'Bound by shared faith, ritual, and doctrine' },
+  { value: 'Monastic community', desc: 'Cloistered or semi-cloistered; daily life organized around spiritual discipline' },
+  { value: 'Cult or high-control group', desc: 'Tightly controlled by charismatic leadership; exit is punished or forbidden' },
+  { value: 'Military unit / Regiment', desc: 'Rank-structured, mission-driven; identity defined by service' },
+  { value: 'Paramilitary or militia', desc: 'Armed group outside official military — ideological, territorial, or defensive' },
+  { value: 'Criminal organization / Gang', desc: 'Hierarchy built on loyalty, fear, territory, and illegal enterprise' },
+  { value: 'Secret society', desc: 'Hidden membership, ritualized entry, shared forbidden knowledge' },
+  { value: 'Corporate entity / Company', desc: 'Bound by employment; power follows org chart, money, and politics' },
+  { value: 'Labor union / Workers\' collective', desc: 'Organized around shared labor interests and collective bargaining' },
+  { value: 'Political faction / Party', desc: 'United by ideology, platform, or pursuit of political power' },
+  { value: 'Activist cell / Resistance movement', desc: 'Small, mission-driven group working toward systemic change or revolution' },
+  // ── Community Types ──
+  { value: 'Neighborhood / Block', desc: 'Geographic proximity is the bond — shared streets, noise, and gossip' },
+  { value: 'Small town / Village', desc: 'Everyone knows everyone; reputation travels fast' },
+  { value: 'Nomadic tribe / Traveling group', desc: 'Movement defines them — caravan, migration, or rootless wandering' },
+  { value: 'Diaspora community', desc: 'Scattered from homeland; identity preserved through memory, language, food' },
+  { value: 'Refugee population', desc: 'Displaced by force — survival and impermanence shape every decision' },
+  { value: 'Commune / Intentional community', desc: 'Voluntarily formed around shared values; may share resources, labor, land' },
+  { value: 'Online community / Digital collective', desc: 'Connected by platform and interest, not geography' },
+  // ── Social Groups ──
+  { value: 'Friend group / Social circle', desc: 'Informal bond — shared history, inside jokes, unspoken rules' },
+  { value: 'School / University cohort', desc: 'Same institution, same pressures — grades, cliques, coming-of-age' },
+  { value: 'Professional guild / Trade group', desc: 'United by craft or profession — shared skills, standards, rivalries' },
+  { value: 'Athletic team / Sports club', desc: 'Bonded by competition, training, and collective performance' },
+  { value: 'Artistic collective / Band', desc: 'Creative collaboration as identity — shared aesthetic or mission' },
+  // ── Mixed / Complex ──
+  { value: 'Mixed demographics — unified by cause', desc: 'Diverse members, single shared mission that overrides differences' },
+  { value: 'Mixed demographics — fractured', desc: 'Diverse members with internal fault lines — class, race, belief, or power' },
+  { value: 'Stratified society', desc: 'Rigid internal hierarchy — caste, class, rank, or birthright' },
+  { value: 'Loose confederation', desc: 'Autonomous subgroups cooperating loosely — fragile unity' },
+  { value: 'Symbiotic pair / Dyad', desc: 'Two entities or factions that depend on each other, willingly or not' },
+];
+
+export const POWER_DYNAMIC_OPTIONS = [
+  // ── Hierarchical ──
+  { value: 'Patriarchal hierarchy', desc: 'Men hold formal authority; women\'s power is informal or suppressed' },
+  { value: 'Matriarchal hierarchy', desc: 'Women hold formal authority; lineage and property pass through mothers' },
+  { value: 'Elder-led council', desc: 'Authority rests with the oldest members — wisdom over strength' },
+  { value: 'Theocratic rule', desc: 'Religious leaders hold temporal power; God\'s will is law' },
+  { value: 'Autocratic / Single leader', desc: 'One person holds absolute or near-absolute power' },
+  { value: 'Oligarchy / Inner circle', desc: 'A small elite makes decisions for everyone' },
+  { value: 'Feudal / Lord-vassal', desc: 'Layered loyalty — protection exchanged for service and obedience' },
+  { value: 'Military chain of command', desc: 'Strict rank structure; orders flow down, obedience flows up' },
+  { value: 'Caste-based', desc: 'Birth determines rank permanently; mobility is forbidden or nearly impossible' },
+  { value: 'Meritocratic hierarchy', desc: 'Power earned through achievement — but "merit" is defined by those on top' },
+  // ── Distributed / Shared ──
+  { value: 'Egalitarian / Flat', desc: 'No formal hierarchy; decisions made collectively or by consensus' },
+  { value: 'Democratic — majority rule', desc: 'Members vote; the majority decides; minorities may be overridden' },
+  { value: 'Consensus-based', desc: 'No action without agreement from all — slow but deeply cohesive' },
+  { value: 'Rotating leadership', desc: 'Authority passes between members on a schedule or by situation' },
+  { value: 'Council of equals', desc: 'Multiple leaders share power formally — balance maintained by negotiation' },
+  { value: 'Anarchic / Self-governing', desc: 'No centralized authority; individuals or small units govern themselves' },
+  // ── Informal / Hidden ──
+  { value: 'Shadow power / Puppet master', desc: 'Formal leaders are figureheads; real power is held behind the scenes' },
+  { value: 'Charismatic authority', desc: 'Power flows from one person\'s personality, vision, or magnetism — not title' },
+  { value: 'Wealth-based influence', desc: 'Money talks — the richest members steer decisions regardless of title' },
+  { value: 'Knowledge-gatekeeper', desc: 'Power belongs to whoever controls information, secrets, or expertise' },
+  { value: 'Fear-based control', desc: 'Compliance through intimidation, punishment, or threat of violence' },
+  { value: 'Shame / Honor-based', desc: 'Social pressure and reputation enforce behavior — exile is the ultimate weapon' },
+  // ── Contested / Unstable ──
+  { value: 'Power vacuum', desc: 'No clear leader — factions jockeying, alliances shifting, instability rising' },
+  { value: 'Succession crisis', desc: 'Old leader gone or dying; multiple claimants, no smooth transition' },
+  { value: 'Dual authority / Power split', desc: 'Two leaders or factions share power uneasily — collision is inevitable' },
+  { value: 'Occupied / Externally controlled', desc: 'True authority is held by an outside force; internal leaders have limited agency' },
+  { value: 'Revolution in progress', desc: 'The old order is being actively overthrown — nothing is settled' },
+  { value: 'Collapsing hierarchy', desc: 'The structure still exists on paper but nobody obeys it anymore' },
+];
+
+export const COLLECTIVE_VOICE_OPTIONS = [
+  // ── Unified / Harmonious ──
+  { value: 'Unified — monolithic', desc: 'One voice, one message; dissent is invisible or nonexistent' },
+  { value: 'Unified — genuine consensus', desc: 'Agreement is real, earned through dialogue; members feel heard' },
+  { value: 'Harmonized — rehearsed', desc: 'Unity is performed; everyone knows the script even if they don\'t believe it' },
+  { value: 'Ritualized / Liturgical', desc: 'The group speaks through ceremony, chant, prayer, or tradition' },
+  { value: 'Proudly defiant', desc: 'The group speaks with collective fury or resistance — "we will not be silenced"' },
+  // ── Polyphonic / Many Voices ──
+  { value: 'Polyphonic — productive', desc: 'Multiple voices in constructive tension; debate strengthens the group' },
+  { value: 'Polyphonic — chaotic', desc: 'Everyone talks, nobody listens; the group can\'t agree on what it stands for' },
+  { value: 'Chorus of dissent', desc: 'The dominant voice is complaint, grievance, or opposition' },
+  { value: 'Whisper network', desc: 'The real communication happens in private — gossip, warnings, back-channels' },
+  { value: 'Generational split', desc: 'Elders and youth speak different languages (literally or figuratively)' },
+  // ── Controlled / Suppressed ──
+  { value: 'Spokesperson-filtered', desc: 'One person or small group speaks for everyone; individual voices are hidden' },
+  { value: 'Propaganda / Party line', desc: 'Official messaging is curated, repeated, enforced — deviation is punished' },
+  { value: 'Silent compliance', desc: 'The group goes along but says nothing; obedience without belief' },
+  { value: 'Silenced — externally', desc: 'The group\'s voice has been suppressed by outside force — censored, banned, erased' },
+  { value: 'Silenced — internally', desc: 'Members self-censor out of fear, shame, or learned helplessness' },
+  { value: 'Code-switching', desc: 'The group has a public voice and a private one — what outsiders hear isn\'t the truth' },
+  // ── Emerging / Shifting ──
+  { value: 'Finding its voice', desc: 'The group is newly formed or recently empowered — still figuring out what it believes' },
+  { value: 'Fracturing', desc: 'Once unified, now splintering — competing narratives pulling the group apart' },
+  { value: 'Mourning / Elegiac', desc: 'The group voice is defined by collective grief, loss, or remembrance' },
+  { value: 'Mythologizing', desc: 'The group narrates its own legend — origin stories, heroes, founding myths' },
+  { value: 'Radicalized', desc: 'The voice has hardened — moderate positions abandoned, extremes amplified' },
+  // ── Absent / Ambiguous ──
+  { value: 'No collective voice', desc: 'Members don\'t identify as a group or refuse to speak as one' },
+  { value: 'Contradictory', desc: 'The group says one thing and does another; its voice undermines its actions' },
+  { value: 'Evolving / In flux', desc: 'The voice changes depending on circumstances — adaptive but unpredictable' },
+];
+
+/** Descriptions shown under field labels on group character cards to explain what each attribute means */
+export const FIELD_DESCRIPTIONS = {
+  'Composition': 'What is this group made of? Its demographic makeup, organizational structure, and who belongs.',
+  'Power Dynamic': 'How power is distributed and exercised within the group — who leads, who obeys, and how.',
+  'Collective Voice': 'How the group communicates as a unit — its shared tone, messaging style, and who gets to speak.',
+  'Emotional Register': 'The dominant emotional wavelength the group radiates — its collective mood and temperament.',
+  'Cost': 'What does belonging to this group cost its members — what they give up, sacrifice, or endure.',
+  'Enforcement': 'How the group keeps its members in line — the mechanisms of compliance and punishment.',
+  'Blind Spot': 'What this group cannot or refuses to see about itself — its collective denial or ignorance.',
+  'Culture Rules': 'The unwritten (or written) rules that govern daily behavior and social expectations.',
+  'Group Identity': 'How the group defines itself — its shared symbols, stories, boundaries, and sense of "us."',
+  'Internal Tensions': 'The fault lines within the group — suppressed conflicts, rivalries, and contradictions.',
+  'External Pressures': 'Forces from outside the group that threaten, shape, or constrain it.',
+};
+
+export const ZODIAC_OPTIONS = [
+  // ── Western Zodiac ──
+  'Aries (Mar 21 – Apr 19)', 'Taurus (Apr 20 – May 20)', 'Gemini (May 21 – Jun 20)',
+  'Cancer (Jun 21 – Jul 22)', 'Leo (Jul 23 – Aug 22)', 'Virgo (Aug 23 – Sep 22)',
+  'Libra (Sep 23 – Oct 22)', 'Scorpio (Oct 23 – Nov 21)', 'Sagittarius (Nov 22 – Dec 21)',
+  'Capricorn (Dec 22 – Jan 19)', 'Aquarius (Jan 20 – Feb 18)', 'Pisces (Feb 19 – Mar 20)',
+  // ── Chinese Zodiac ──
+  'Rat (Lunar Calendar)', 'Ox (Lunar Calendar)', 'Tiger (Lunar Calendar)', 'Rabbit (Lunar Calendar)',
+  'Dragon (Lunar Calendar)', 'Snake (Lunar Calendar)', 'Horse (Lunar Calendar)', 'Goat (Lunar Calendar)',
+  'Monkey (Lunar Calendar)', 'Rooster (Lunar Calendar)', 'Dog (Lunar Calendar)', 'Pig (Lunar Calendar)',
+];
+
 // Map field labels to their option arrays for dropdown resolution
 export const FIELD_OPTIONS_MAP = {
   'Gender': GENDER_OPTIONS,
@@ -238,6 +376,10 @@ export const FIELD_OPTIONS_MAP = {
   'Height': HEIGHT_OPTIONS,
   'Hair': HAIR_COLOR_OPTIONS,
   'Eyes': EYE_COLOR_OPTIONS,
+  'Zodiac': ZODIAC_OPTIONS,
+  'Composition': COMPOSITION_OPTIONS,
+  'Power Dynamic': POWER_DYNAMIC_OPTIONS,
+  'Collective Voice': COLLECTIVE_VOICE_OPTIONS,
 };
 
 // Map UI label to the markdown field name for updating files
@@ -286,6 +428,10 @@ export const LABEL_TO_FIELD_MAP = {
   'Metaphor Family': 'Metaphor Family',
   'Defensive Speech': 'Defensive Speech',
   'Subtext Default': 'Subtext Default',
+  'Skin': 'Skin',
+  'Distinguishing Features': 'Distinguishing Features',
+  'Posture & Movement': 'Posture & Movement',
+  'Style / Presentation': 'Style / Presentation',
   'Composition': 'Composition',
   'Power Dynamic': 'Power Dynamic',
   'Collective Voice': 'Collective Voice',

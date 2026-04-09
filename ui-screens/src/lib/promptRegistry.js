@@ -174,6 +174,19 @@ When reviewing a passage, structure your response as:
 4. **Be honest about gaps.** If the author asks about something not established in your character file, say so naturally: "I don't think I've told you about that yet" or "That's not something I've thought about before, what do you think?"
 5. **Stay in character.** Do not break character to give writing advice, story suggestions, or meta-commentary. You are not a writing assistant right now, you are a person.
 
+## How to use your profile:
+Your character file contains structured attributes that define who you are. Use ALL of them:
+- **Voice Fingerprint** (Speech Rhythm, Vocabulary Register, Dialogue Tic, Metaphor Family, Defensive Speech, Subtext Default) — These define HOW you talk. Match your speech patterns, tics, vocabulary level, and metaphors to these fields exactly. If your Dialogue Tic says "deflects with humor", you deflect with humor. If your Vocabulary Register says "formal/elevated", you speak formally.
+- **Emotional Register** — This is your default emotional frequency. Let it color everything you say.
+- **Core Wound / Flaw / Virtue** — These drive your reactions. The wound is the thing you protect. The flaw is the pattern you fall into. The virtue is the counterweight.
+- **Want vs. Need** — Your Want is what you think you're after. Your Need is what you actually require but may not see.
+- **Subtext Default** — The thing you CANNOT say directly. Route around it the way your profile describes.
+- **Personal Code** — The rules you live by, even unconsciously. Don't violate them without a very good reason.
+- **Attachment Style** — This shapes how you relate to the author during conversation (are you warm? guarded? clingy? dismissive?).
+- **MBTI / Enneagram** — Let these inform your cognitive style and stress responses.
+- **Healthy & Destructive Self-Care** — If the conversation touches on stress, exhaustion, or coping, reach for the right mechanism.
+- **Religion, Life Philosophy, Core Values** — These are your worldview. Reference them naturally when relevant.
+
 ## When to briefly step out of character:
 - If your character file has gaps that make it hard to respond authentically, flag them briefly: "[Out of character: My backstory doesn't cover my relationship with my father. Could you add that?]"
 - If the author explicitly asks a meta-question about your narrative role, you can reflect on it: "I think my purpose in this story is to..."
@@ -624,10 +637,13 @@ Groups that function as a single character entity: a population, a community, a 
 - **Role**: Narrative function (e.g. "Mentor", "Foil to X", "Companion animal", "Trickster", "Herald")
 - **Age Range**: Child (0-12) | Teenager (13-17) | Young Adult (18-25) | Adult (26-39) | Middle-Aged (40-54) | Mature (55-64) | Senior (65-74) | Elderly (75+) | Unknown
 - **Gender**: As presented in text
+- **Sexuality**: Sexual orientation as presented or inferred (e.g. Heterosexual, Gay, Bisexual, Asexual, Not described)
+- **Religion**: Religious or spiritual background (e.g. Catholic, Atheist, Buddhist, Vaguely spiritual, Not described)
+- **Zodiac**: [INFERRED] Best-fit Western zodiac sign from personality and birth timing if available (e.g. "Scorpio [INFERRED]", "Not enough evidence")
 
 ### Physical Description
 - **Build / Body Type**: (e.g. slim, stocky, athletic, gaunt, lanky, heavyset)
-- **Height**: (if described or implied)
+- **Height**: (if described or implied, e.g. 5'9", "tall", "short")
 - **Hair**: Color, texture, length, style
 - **Eyes**: Color, shape
 - **Skin**: Tone, texture notes
@@ -659,10 +675,20 @@ Groups that function as a single character entity: a population, a community, a 
 - **Key Connections**: List each significant relationship with type and dynamic
 - **Attachment Style**: Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant [INFERRED from behavior in text]
 
+### Social & Living Context
+- **Relationship Status**: (e.g. Single, Married, Divorced, Widowed, Complicated, Not described)
+- **Parental Status**: (e.g. No children, Parent of 2, Estranged from children, Not described)
+- **Living Situation**: (e.g. Lives alone, Lives with family, Homeless, Not described)
+- **Financial Upbringing**: (e.g. Working class, Upper-middle class, Poverty, Not described)
+- **Current Financial Status**: (e.g. Wealthy, Getting by, In debt, Financially dependent, Not described)
+- **Social Positioning**: Where they sit in the social landscape (e.g. "Respected elder in small town", "Outsider in elite circles", "Not described")
+- **Network Archetype**: Pioneer (explores new ground) | Hub (connects everyone) | Bridge (links separate groups) | Isolate (exists outside the social web) | Gatekeeper (controls access) | Not enough evidence
+
 ### Values & Code
 - **Core Values**: 1-2 values this character holds most important (e.g. loyalty, freedom, justice, security)
 - **Personal Code**: 2-3 behavioral rules they live by, consciously or not (e.g. "never let them see you bleed", "pay your debts", "protect those who can't protect themselves")
-- **Self-Care Mechanism**: What they reach for when depleted (healthy, ambiguous, or destructive)
+- **Healthy Self-Care**: What they reach for when depleted that actually helps (e.g. "Long walks alone", "Cooking for others", "Journaling")
+- **Destructive Self-Care**: What they reach for when depleted that makes things worse (e.g. "Drinking", "Overworking", "Isolating", "Picking fights")
 
 ### Voice Fingerprint
 This is critical for enabling character chat. Derive from the character's actual dialogue in the text:
@@ -685,14 +711,25 @@ This is critical for enabling character chat. Derive from the character's actual
 
 - **Tier**: societal
 - **Role**: What this society claims to protect vs. what it actually protects
+- **Composition**: What this society is made of — its demographic structure, who belongs, who is excluded
+- **Power Dynamic**: How power is distributed — who rules, by what right, and how that power is maintained
+- **Collective Voice**: How the society speaks as a unit — its official messaging, propaganda, shared language
+- **Emotional Register**: The society's dominant emotional climate (e.g. "paranoid conformity", "nostalgic pride", "simmering resentment")
 - **Want**: What the society needs to preserve itself
 - **Wound**: The society's internal contradiction, the thing it cannot reconcile
 - **Flaw**: The pathology the society perpetuates
 - **Cost**: What the society demands from every character who lives inside it
 - **Enforcement**: Who administers the rules and on what terms
 - **Relationship to Characters**: How the society acts as pressure on the protagonist and other characters
-- **Values**: What the society holds sacred
+- **Core Values**: What the society holds sacred — its deepest-held beliefs
+- **Religion**: The dominant faith or spiritual framework, if any
+- **Life Philosophy**: The worldview the society teaches its members
 - **What It Cannot See**: The blind spot, the thing the society is structurally incapable of recognizing about itself
+- **Culture**: The unwritten rules — what you must do, must not do, and must pretend not to notice
+- **Group Identity**: How the society defines "us" vs. "them" — its symbols, myths, boundaries
+- **Internal Tensions**: The fault lines within — suppressed conflicts, generational divides, class friction
+- **External Pressures**: Forces from outside that threaten, shape, or constrain the society
+- **Social Positioning**: Where this society sits relative to other groups in the story's world
 
 ---
 
@@ -702,15 +739,26 @@ This is critical for enabling character chat. Derive from the character's actual
 
 - **Tier**: collective
 - **Role**: What function this group serves in the narrative
-- **Composition**: Who makes up this group (general description)
-- **Collective Voice**: How the group speaks or communicates as a unit (e.g. "speaks in chorus", "communicates through ritual", "unified chanting")
-- **Values & Identity**: What the group believes, what holds them together
+- **Composition**: Who makes up this group — demographic structure, organizational type, membership basis
+- **Collective Voice**: How the group communicates as a unit (e.g. "unified chorus", "whisper network", "spokesperson-filtered", "polyphonic chaos")
+- **Power Dynamic**: How power works within the group — who leads, who obeys, by what mechanism
+- **Emotional Register**: The group's dominant emotional wavelength (e.g. "anxious solidarity", "defiant pride", "exhausted compliance")
+- **Core Values**: What the group believes, what holds them together
 - **Want**: What the group pursues collectively
 - **Wound**: What damage or trauma the group carries
 - **Relationship to Protagonist**: How the group relates to and affects the main characters
-- **Power Dynamic**: Where the group sits in the world's hierarchy, who they serve or oppose
 - **Key Members**: Any individuals within the group who are named or distinct (these may also have their own individual entries)
 - **Arc**: Does the group change over the story? How?
+- **Religion**: The group's faith or spiritual framework, if relevant
+- **Life Philosophy**: The worldview the group shares or imposes
+- **Cost**: What belonging to this group costs its members
+- **Enforcement**: How the group keeps members in line
+- **What It Cannot See**: The group's collective blind spot
+- **Culture**: The unwritten behavioral rules — what members must do, avoid, or pretend
+- **Group Identity**: How the group defines itself — shared symbols, origin stories, boundaries
+- **Internal Tensions**: Suppressed conflicts, rivalries, contradictions within the group
+- **External Pressures**: Outside forces that threaten, constrain, or shape the group
+- **Social Positioning**: Where this group sits in the larger social hierarchy
 
 ---
 
@@ -1505,23 +1553,80 @@ ${storyContext ? `\n### Story context (from other project files):\n${storyContex
 ### Generate a complete character profile in this EXACT markdown format:
 
 ## ${characterName}
+
+### Core Identity
 - **Tier**: ${tier || 'supporting'}
 - **Role**: [Their narrative function — be specific, e.g. "Reluctant mentor who embodies the cost of inaction"]
-- **Physical Description**: [Age, appearance, distinctive features. Be vivid.]
-- **Personality**: [Key traits, temperament, contradictions]
-- **Motivations**: [What drives them — surface desire AND deeper need]
-- **Relationships**: [Key connections to other characters in this story]
-- **Arc**: [How they change over the story, or why they stay static]
+- **Age Range**: [Child (0-12) | Teenager (13-17) | Young Adult (18-25) | Adult (26-39) | Middle-Aged (40-54) | Mature (55-64) | Senior (65-74) | Elderly (75+)]
+- **Gender**: [As appropriate for the character]
+- **Sexuality**: [Sexual orientation, e.g. Heterosexual, Gay, Bisexual, Asexual]
+- **Religion**: [Religious or spiritual background]
+- **Zodiac**: [Best-fit Western zodiac sign based on personality]
+
+### Physical Description
+- **Build / Body Type**: [e.g. slim, stocky, athletic, gaunt, lanky, heavyset]
+- **Height**: [e.g. 5'9", "tall", "short"]
+- **Hair**: [Color, texture, length, style]
+- **Eyes**: [Color, shape]
+- **Skin**: [Tone, texture notes]
+- **Distinguishing Features**: [Scars, birthmarks, tattoos, disabilities]
+- **Posture & Movement**: [How they carry themselves, how they move]
+- **Style / Presentation**: [How they dress, what their appearance signals]
+
+### Personality & Psychology
+- **MBTI Type**: [Best-fit 4-letter type with brief reasoning]
+- **Enneagram**: [Core type + wing, e.g. "6w5 - loyalty-driven, skeptical"]
+- **Moral Alignment**: [Lawful Good | Neutral Good | Chaotic Good | Lawful Neutral | True Neutral | Chaotic Neutral | Lawful Evil | Neutral Evil | Chaotic Evil]
+- **Emotional Register**: [Default tonal state, e.g. "anxious optimism", "guarded warmth"]
+- **Life Philosophy**: [What they believe is true about the world]
+
+### Wound, Flaw & Virtue
+- **Core Wound**: [The formative damage that shaped everything after]
+- **Core Flaw**: [The behavioral pattern that emerges from the wound]
+- **Core Virtue**: [The genuine tension counterpart to the flaw]
+
+### Motivations & Arc
+- **Want**: [What they pursue consciously — the surface goal]
+- **Need**: [What they actually require for wholeness]
+- **Arc**: [How they change from beginning to end, or "Static" if they don't]
 - **Conflicts**: [Internal struggles AND external obstacles]
-- **Voice Notes**: [How they talk — speech patterns, vocabulary level, verbal tics, dialect, communication style. This is CRITICAL for dialogue generation. Examples: "Speaks in clipped military jargon, avoids contractions", "Rambling academic who can't finish a sentence without a parenthetical", "Uses old-fashioned politeness as a weapon"]
+
+### Relationships
+- **Key Connections**: [Significant relationships with type and dynamic]
+- **Attachment Style**: [Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant]
+
+### Social & Living Context
+- **Relationship Status**: [e.g. Single, Married, Divorced, Complicated]
+- **Parental Status**: [e.g. No children, Parent of 2, Estranged]
+- **Living Situation**: [e.g. Lives alone, Lives with family]
+- **Financial Upbringing**: [e.g. Working class, Upper-middle class, Poverty]
+- **Current Financial Status**: [e.g. Wealthy, Getting by, In debt]
+- **Social Positioning**: [Where they sit in the social landscape]
+- **Network Archetype**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
+
+### Values & Code
+- **Core Values**: [1-2 values they hold most important]
+- **Personal Code**: [2-3 behavioral rules they live by, consciously or not]
+- **Healthy Self-Care**: [What they reach for when depleted that helps]
+- **Destructive Self-Care**: [What they reach for when depleted that hurts]
+
+### Voice Fingerprint
+- **Speech Rhythm**: [e.g. clipped/staccato, flowing/periodic, rambling/associative, fragmented, circling]
+- **Vocabulary Register**: [e.g. formal/elevated, plain/working, technical, colloquial, code-switching]
+- **Volume & Pacing**: [e.g. quiet by default, loud under pressure, measured, halting]
+- **Dialogue Tic**: [A recurring speech habit unique to this character]
+- **Metaphor Family**: [The domain their analogies come from — e.g. weather, military, food, religion]
+- **Defensive Speech Pattern**: [What their voice does under threat — e.g. gets louder, goes quiet, deflects with humor]
+- **Subtext Default**: [The thing they cannot say directly — e.g. "Cannot say 'I need you', routes through competence"]
+
+### Meta
 - **Stream A (Private)**: [What they know/believe that they hide from others]
-- **Stream B (Public)**: [The face they show the world, what they want others to believe]
-- **Network Role**: [Pioneer (explores new ground) | Hub (connects everyone) | Bridge (links separate groups) | Isolate (exists outside the social web) | Gatekeeper (controls access to something)]
+- **Stream B (Public)**: [The face they show the world]
 - **What the story loses without them**: [1-2 sentences on their structural necessity]
 
 ### Rules:
 - Be SPECIFIC and creative. No generic traits like "brave and loyal."
-- Voice Notes must be detailed enough to write dialogue from — include example phrases if possible.
+- Voice Fingerprint must be detailed enough to write dialogue from — include example phrases if possible.
 - Make the character feel like a real person with contradictions.
 - If story context is provided, make the character fit that world.
 - Output ONLY the markdown profile, no preamble or commentary.
@@ -1665,24 +1770,81 @@ ${storyContext}
 ### For each character, output a COMPLETE updated profile using this format:
 
 ## [Character Name]
+
+### Core Identity
 - **Tier**: protagonist | deuteragonist | antagonist | supporting | minor | mentioned
 - **Role**: [Narrative function]
-- **Physical Description**: [Details]
-- **Personality**: [Traits]
-- **Motivations**: [Drives]
-- **Relationships**: [Connections]
-- **Arc**: [Change over story]
-- **Conflicts**: [Struggles]
-- **Voice Notes**: [Speech patterns, verbal tics, dialect, vocabulary level — CRITICAL for dialogue]
+- **Age Range**: [Child | Teenager | Young Adult | Adult | Middle-Aged | Mature | Senior | Elderly]
+- **Gender**: [As appropriate]
+- **Sexuality**: [Sexual orientation]
+- **Religion**: [Religious/spiritual background]
+- **Zodiac**: [Best-fit zodiac sign]
+
+### Physical Description
+- **Build / Body Type**: [e.g. slim, stocky, athletic]
+- **Height**: [e.g. 5'9"]
+- **Hair**: [Color, texture, length, style]
+- **Eyes**: [Color, shape]
+- **Skin**: [Tone, texture]
+- **Distinguishing Features**: [Scars, tattoos, etc.]
+- **Posture & Movement**: [How they carry themselves]
+- **Style / Presentation**: [How they dress]
+
+### Personality & Psychology
+- **MBTI Type**: [4-letter type with reasoning]
+- **Enneagram**: [Type + wing]
+- **Moral Alignment**: [One of the 9 alignments]
+- **Emotional Register**: [Default tonal state]
+- **Life Philosophy**: [What they believe about the world]
+
+### Wound, Flaw & Virtue
+- **Core Wound**: [Formative damage]
+- **Core Flaw**: [Behavioral pattern from wound]
+- **Core Virtue**: [Tension counterpart to flaw]
+
+### Motivations & Arc
+- **Want**: [Conscious surface goal]
+- **Need**: [What they require for wholeness]
+- **Arc**: [How they change]
+- **Conflicts**: [Internal and external]
+
+### Relationships
+- **Key Connections**: [Significant relationships]
+- **Attachment Style**: [Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant]
+
+### Social & Living Context
+- **Relationship Status**: [e.g. Single, Married, Divorced]
+- **Parental Status**: [e.g. No children, Parent of 2]
+- **Living Situation**: [e.g. Lives alone, Lives with family]
+- **Financial Upbringing**: [e.g. Working class, Upper-middle class]
+- **Current Financial Status**: [e.g. Wealthy, Getting by, In debt]
+- **Social Positioning**: [Where they sit socially]
+- **Network Archetype**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
+
+### Values & Code
+- **Core Values**: [1-2 most important values]
+- **Personal Code**: [2-3 behavioral rules they live by]
+- **Healthy Self-Care**: [What helps when depleted]
+- **Destructive Self-Care**: [What hurts when depleted]
+
+### Voice Fingerprint
+- **Speech Rhythm**: [e.g. clipped, flowing, rambling]
+- **Vocabulary Register**: [e.g. formal, plain, technical, colloquial]
+- **Volume & Pacing**: [e.g. quiet by default, loud under pressure]
+- **Dialogue Tic**: [Recurring speech habit]
+- **Metaphor Family**: [Domain of analogies]
+- **Defensive Speech Pattern**: [Voice under threat]
+- **Subtext Default**: [What they cannot say directly]
+
+### Meta
 - **Stream A (Private)**: [Hidden knowledge/beliefs]
 - **Stream B (Public)**: [Public face]
-- **Network Role**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
 - **What the story loses without them**: [Structural necessity]
 
 ### Rules:
 - PRESERVE everything the author already wrote — only ADD missing fields
 - If a field exists but is thin, expand it while keeping the author's intent
-- Voice Notes are the highest priority missing field — always generate detailed ones
+- Voice Fingerprint fields are the highest priority — always generate detailed ones
 - Tier must use exact values: protagonist, deuteragonist, antagonist, supporting, minor, mentioned
 - Output ALL characters, even if they're already complete (so we can do a clean overwrite)
 - Separate each character with a blank line between sections
