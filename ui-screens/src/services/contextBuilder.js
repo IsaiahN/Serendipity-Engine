@@ -83,6 +83,7 @@ export function buildChapterContext(files, chapterNum, options = {}) {
     { path: 'outline.md', label: 'Story Outline' },
     { path: 'story/arc.md', label: 'Story Arc' },
     { path: 'world/world-building.md', label: 'World Building' },
+    { path: 'world/hallmarks.md', label: 'World Hallmarks' },
     { path: 'relationships/questions-answered.md', label: 'Relationships' },
   ];
 
@@ -252,6 +253,10 @@ export function buildChatContext(files, chatHistory, options = {}) {
     if (files['author.md']?.trim()) systemPrompt += `## Author\n${files['author.md']}\n\n`;
     if (files['narrator.md']?.trim()) systemPrompt += `## Narrator\n${files['narrator.md']}\n\n`;
     if (files['outline.md']?.trim()) systemPrompt += `## Outline\n${files['outline.md']}\n\n`;
+    if (files['world/world-building.md']?.trim()) systemPrompt += `## World Building\n${files['world/world-building.md']}\n\n`;
+    if (files['world/hallmarks.md']?.trim()) systemPrompt += `## World Hallmarks\n${files['world/hallmarks.md']}\n\n`;
+    if (files['story/arc.md']?.trim()) systemPrompt += `## Story Arc\n${files['story/arc.md']}\n\n`;
+    if (files['relationships/questions-answered.md']?.trim()) systemPrompt += `## Relationships\n${files['relationships/questions-answered.md']}\n\n`;
   }
 
   if (persona === 'character' && characterName) {

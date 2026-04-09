@@ -263,6 +263,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Review', 8: 'Outline', 9: 'Chapter Execution', 10: 'Editor' }[phase] || '';
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
+  const projectFiles = useProjectStore(s => s.files);
 
   // Reset question index when phase changes so we start at Q1
   useEffect(() => { setCurrentQ(0); }, [phase]);
@@ -296,9 +297,19 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
       .filter(Boolean)
       .join('\n\n');
 
+    // Gather existing project context for richer, more consistent AI guidance
+    const projectCtx = [];
+    if (projectFiles?.['author.md']?.trim()) projectCtx.push(`## Author Profile\n${projectFiles['author.md'].slice(0, 1500)}`);
+    if (projectFiles?.['narrator.md']?.trim()) projectCtx.push(`## Narrator\n${projectFiles['narrator.md'].slice(0, 1500)}`);
+    if (projectFiles?.['world/world-building.md']?.trim()) projectCtx.push(`## World Building\n${projectFiles['world/world-building.md'].slice(0, 2000)}`);
+    if (projectFiles?.['world/hallmarks.md']?.trim()) projectCtx.push(`## World Hallmarks\n${projectFiles['world/hallmarks.md'].slice(0, 1500)}`);
+    if (projectFiles?.['story/arc.md']?.trim()) projectCtx.push(`## Story Arc\n${projectFiles['story/arc.md'].slice(0, 1500)}`);
+    if (projectFiles?.['outline.md']?.trim()) projectCtx.push(`## Outline\n${projectFiles['outline.md'].slice(0, 1500)}`);
+    const projectContext = projectCtx.length > 0 ? `\n\nHere is existing project context to ground your answer:\n\n${projectCtx.join('\n\n')}` : '';
+
     const result = await sendMessage({
       messages: [
-        { role: 'system', content: PROMPTS.PHASE_GUIDE.build({ phaseNum: phase, phaseName, question: q.q, description: q.desc || '', hint: q.hint || '', previousAnswers: existingAnswers || null }) },
+        { role: 'system', content: PROMPTS.PHASE_GUIDE.build({ phaseNum: phase, phaseName, question: q.q, description: q.desc || '', hint: q.hint || '', previousAnswers: existingAnswers || null }) + projectContext },
         ...(existingAnswers ? [{ role: 'user', content: `Here are the author's answers so far in this phase:\n\n${existingAnswers}` }, { role: 'assistant', content: 'Got it. I have context from your previous answers. How can I help with the current question?' }] : []),
         { role: 'user', content: `Help me answer this question: "${q.q}"\n\n${q.desc || ''}\n\n${q.hint ? `Hint: ${q.hint}` : ''}\n\nGenerate a thoughtful, detailed answer I can use as a starting point. Be specific and creative.` },
       ],
@@ -1200,6 +1211,8 @@ function EditorialReviewMode({ onGoToChapters }) {
     if (files?.['outline.md']?.trim()) parts.push(`## Story Outline\n${files['outline.md']}`);
     if (files?.['story/arc.md']?.trim()) parts.push(`## Story Arc\n${files['story/arc.md']}`);
     if (files?.['world/world-building.md']?.trim()) parts.push(`## World Building\n${files['world/world-building.md']}`);
+    if (files?.['world/hallmarks.md']?.trim()) parts.push(`## World Hallmarks\n${files['world/hallmarks.md']}`);
+    if (files?.['world/questions-answered.md']?.trim()) parts.push(`## World Questions\n${files['world/questions-answered.md']}`);
     if (files?.['relationships/questions-answered.md']?.trim()) parts.push(`## Relationships\n${files['relationships/questions-answered.md']}`);
 
     // All character files
@@ -2388,7 +2401,8 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
       genre: activeProject?.genre || '',
       authorProfile: files?.['author.md']?.slice(0, 3000) || '',
       narratorProfile: files?.['narrator.md']?.slice(0, 2000) || '',
-      worldBuilding: files?.['world/world-building.md']?.slice(0, 3000) || '',
+      worldBuilding: (files?.['world/world-building.md']?.slice(0, 3000) || '') +
+        (files?.['world/hallmarks.md'] ? '\n\n## World Hallmarks\n' + files['world/hallmarks.md'].slice(0, 2000) : ''),
       characters: Object.keys(files || {}).filter(f => f.startsWith('characters/') && f.endsWith('.md'))
         .map(f => files[f]?.slice(0, 800)).join('\n\n---\n\n') || '',
       relationships: files?.['relationships/questions-answered.md']?.slice(0, 2000) || '',
@@ -7567,23 +7581,38 @@ function WorldBuildingMode() {
   const worldContent = projectFiles['world/world-building.md'] || '';
 
   // Parse world-building.md into structured sections
-  // Handles BOTH decomposed format (## Locations, ## Culture) AND
-  // Phase 3 question format (## Where and when does this story take place?)
+  // Handles THREE formats:
+  // 1. Decomposed format (## Locations, ## Culture & Rules, ## History, ## Hallmarks)
+  // 2. Phase 3 question format (## Where and when does this story take place?)
+  // 3. DECOMPOSE_WORLD output format (## Setting and Geography, ## Culture and Society, ## Economics, etc.)
   const parseWorldData = (content) => {
     if (!content.trim()) return { overview: {}, locations: [], cultureRules: [], hallmarks: [], history: [] };
 
-    // Map Phase 3 question headers to canonical section keys
-    const questionToSection = (header) => {
-      const h = header.toLowerCase();
-      if (h.includes('where') && h.includes('when') || h.includes('time period') || h.includes('emotional geography') || h.includes('central tension') || h.includes('unique')) return 'overview';
-      if (h.includes('social structure') || h.includes('rules of this world')) return 'culture';
-      if (h.includes('hallmarks')) return 'hallmarks';
-      // Decomposed format — direct match
+    // Map all header variants to canonical section keys
+    const headerToSection = (header) => {
+      const h = header.toLowerCase().trim();
+      // Direct matches (decomposed format)
       if (h === 'locations' || h === 'places' || h === 'geography') return 'locations';
       if (h === 'culture' || h === 'culture & rules' || h === 'society' || h === 'rules') return 'culture';
       if (h === 'history' || h === 'timeline') return 'history';
       if (h === 'hallmarks' || h === 'symbols' || h === 'motifs') return 'hallmarks';
       if (h === 'overview' || h === 'setting') return 'overview';
+      // DECOMPOSE_WORLD output format
+      if (h.includes('setting') && h.includes('geography')) return 'locations';
+      if (h.includes('time') && h.includes('era')) return 'overview';
+      if (h.includes('culture') && h.includes('society')) return 'culture';
+      if (h.includes('magic') || h.includes('science system')) return 'overview';
+      if (h.includes('economics') || h === 'economics') return 'overview';
+      if (h.includes('conflicts') && h.includes('tensions')) return 'overview';
+      // Phase 3 question format
+      if (h.includes('where') && h.includes('when') || h.includes('time period') || h.includes('emotional geography') || h.includes('central tension') || h.includes('unique')) return 'overview';
+      if (h.includes('social structure') || h.includes('rules of this world')) return 'culture';
+      if (h.includes('hallmarks')) return 'hallmarks';
+      // Fuzzy keyword matches for any remaining headers
+      if (h.includes('location') || h.includes('place') || h.includes('geograph')) return 'locations';
+      if (h.includes('cultur') || h.includes('rule') || h.includes('societ') || h.includes('norm') || h.includes('custom')) return 'culture';
+      if (h.includes('histor') || h.includes('timeline') || h.includes('past') || h.includes('origin')) return 'history';
+      if (h.includes('hallmark') || h.includes('symbol') || h.includes('motif') || h.includes('icon')) return 'hallmarks';
       return null; // unknown — will add to overview
     };
 
@@ -7593,7 +7622,7 @@ function WorldBuildingMode() {
     lines.forEach(line => {
       const h2 = line.match(/^##\s+(.+)/);
       if (h2) {
-        const mapped = questionToSection(h2[1].trim());
+        const mapped = headerToSection(h2[1].trim());
         currentSection = mapped || h2[1].trim().toLowerCase();
         if (!sections[currentSection]) sections[currentSection] = [];
         return;
@@ -7602,19 +7631,24 @@ function WorldBuildingMode() {
       sections[currentSection].push(line);
     });
 
-    // Parse locations from markdown list items or subsections
+    // Parse locations from markdown list items, subsections, or bold paragraph format
     const parseListItems = (lines = []) => {
       const items = [];
       let current = null;
       for (const line of lines) {
         const h3 = line.match(/^###\s+(.+)/);
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        const boldParagraph = line.match(/^\*\*(.+?)\*\*\s*$/);
         if (h3) {
           if (current) items.push(current);
           current = { name: h3[1].trim(), desc: '', type: 'Location', importance: 'Primary', connections: [] };
+        } else if (boldParagraph && !bullet) {
+          // DECOMPOSE_WORLD format: **Physical Landscape** as a subsection header
+          if (current) items.push(current);
+          current = { name: boldParagraph[1].trim(), desc: '', type: 'Location', importance: 'Primary', connections: [] };
         } else if (bullet && !current) {
           items.push({ name: bullet[1].trim(), desc: bullet[2]?.trim() || '', type: 'Location', importance: 'Primary', connections: [] });
-        } else if (current && line.trim()) {
+        } else if (current && line.trim() && !line.match(/^---$/)) {
           current.desc += (current.desc ? ' ' : '') + line.trim();
         }
       }
@@ -7729,8 +7763,33 @@ function WorldBuildingMode() {
   const worldData = parseWorldData(worldContent);
   const locations = worldData.locations.length > 0 ? worldData.locations : [];
   const cultureRules = worldData.cultureRules.length > 0 ? worldData.cultureRules : [];
-  const hallmarks = worldData.hallmarks.length > 0 ? worldData.hallmarks : [];
   const history = worldData.history.length > 0 ? worldData.history : [];
+
+  // Hallmarks: prefer the dedicated hallmarks.md file (from enrichment), fall back to inline section
+  const parseHallmarksFile = (content) => {
+    if (!content?.trim()) return [];
+    const items = [];
+    // Parse enrichment format: **N. Name** followed by metadata bullets
+    const blocks = content.split(/\n---\n|\n(?=\*\*\d+\.\s)/);
+    for (const block of blocks) {
+      const nameMatch = block.match(/\*\*(?:\d+\.\s*)?(.+?)\*\*/);
+      if (!nameMatch) continue;
+      const name = nameMatch[1].trim();
+      if (name.toLowerCase() === 'world hallmarks' || !name) continue;
+      const catMatch = block.match(/\*\*Category:\*\*\s*(.+)/i);
+      const resMatch = block.match(/\*\*Resonance:\*\*\s*([\s\S]*?)(?=\n- \*\*|\n---|\n\*\*\d|$)/i);
+      const funcMatch = block.match(/\*\*(?:Plot function|Plot function vs\.? Identity function):\*\*\s*([\s\S]*?)(?=\n- \*\*|\n---|\n\*\*\d|$)/i);
+      const firstMatch = block.match(/\*\*First appearance:\*\*\s*(.+)/i);
+      const significance = (resMatch?.[1]?.trim() || funcMatch?.[1]?.trim() || '').split('\n')[0].trim();
+      const category = catMatch?.[1]?.trim()?.split('/')[0]?.trim() || 'Symbol';
+      items.push({ name, type: category, significance, firstAppearance: firstMatch?.[1]?.trim() || '', chapters: [] });
+    }
+    return items;
+  };
+
+  const hallmarksFileContent = projectFiles['world/hallmarks.md'] || '';
+  const hallmarksFromFile = parseHallmarksFile(hallmarksFileContent);
+  const hallmarks = hallmarksFromFile.length > 0 ? hallmarksFromFile : worldData.hallmarks;
 
   const worldTabs = [
     { key: 'overview', label: 'Overview' },
@@ -7806,6 +7865,13 @@ function WorldBuildingMode() {
         {/* Locations */}
         {activeTab === 'locations' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {locations.length === 0 && (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  No locations extracted yet. Complete Phase 3 (World) to populate locations, or ensure your world-building document includes a Locations section.
+                </p>
+              </Card>
+            )}
             {locations.map(loc => (
               <Card key={loc.name} style={{ padding: 14, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{
@@ -7840,6 +7906,13 @@ function WorldBuildingMode() {
         {/* Culture & Rules */}
         {activeTab === 'culture' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {cultureRules.length === 0 && (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  No cultural rules extracted yet. Complete Phase 3 (World) to populate this section.
+                </p>
+              </Card>
+            )}
             {cultureRules.map(rule => (
               <Card key={rule.rule} style={{ padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -7858,9 +7931,16 @@ function WorldBuildingMode() {
 
         {/* History */}
         {activeTab === 'history' && (
-          <div style={{ position: 'relative', paddingLeft: 24 }}>
+          <div style={{ position: 'relative', paddingLeft: history.length > 0 ? 24 : 0 }}>
+            {history.length === 0 && (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  No historical timeline yet. Add a History section to your world-building with dated events (e.g., "- **1600s**: Event description").
+                </p>
+              </Card>
+            )}
             {/* Vertical timeline line */}
-            <div style={{ position: 'absolute', left: 8, top: 8, bottom: 8, width: 2, background: 'var(--border)' }} />
+            {history.length > 0 && <div style={{ position: 'absolute', left: 8, top: 8, bottom: 8, width: 2, background: 'var(--border)' }} />}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {history.map((h, i) => (
                 <div key={h.year} style={{ display: 'flex', gap: 14, position: 'relative' }}>
@@ -7886,24 +7966,37 @@ function WorldBuildingMode() {
 
         {/* Hallmarks */}
         {activeTab === 'hallmarks' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {hallmarks.map(h => (
-              <Card key={h.name} style={{ padding: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{h.name}</span>
-                  <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 100, background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>{h.type}</span>
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{h.significance}</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {h.chapters.map(ch => (
-                    <span key={ch} style={{
-                      fontSize: '0.65rem', padding: '1px 6px', borderRadius: 100,
-                      background: 'var(--accent-glow)', color: 'var(--accent)', fontWeight: 500,
-                    }}>Ch {ch}</span>
-                  ))}
-                </div>
+          <div>
+            {hallmarks.length === 0 ? (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  No hallmarks yet. Complete Phase 3 (World) or run the enrichment to generate hallmarks.
+                </p>
               </Card>
-            ))}
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {hallmarks.map(h => (
+                  <Card key={h.name} style={{ padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{h.name}</span>
+                      <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 100, background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>{h.type}</span>
+                    </div>
+                    {h.firstAppearance && (
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4, fontStyle: 'italic' }}>{h.firstAppearance}</div>
+                    )}
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{h.significance}</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {h.chapters.map(ch => (
+                        <span key={ch} style={{
+                          fontSize: '0.65rem', padding: '1px 6px', borderRadius: 100,
+                          background: 'var(--accent-glow)', color: 'var(--accent)', fontWeight: 500,
+                        }}>Ch {ch}</span>
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -10268,7 +10361,9 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
     const parts = [];
     if (projectFiles['author.md']) parts.push(`## Author Profile\n${projectFiles['author.md']}`);
     if (projectFiles['narrator.md']) parts.push(`## Narrator\n${projectFiles['narrator.md']}`);
-    if (projectFiles['world-building.md']) parts.push(`## World Building\n${projectFiles['world-building.md']}`);
+    if (projectFiles['world/world-building.md']) parts.push(`## World Building\n${projectFiles['world/world-building.md']}`);
+    if (projectFiles['world/hallmarks.md']) parts.push(`## World Hallmarks\n${projectFiles['world/hallmarks.md']}`);
+    if (projectFiles['story/arc.md']) parts.push(`## Story Arc\n${projectFiles['story/arc.md']}`);
     if (projectFiles['outline.md']) parts.push(`## Outline\n${projectFiles['outline.md']}`);
     if (projectFiles['story/questions-answered.md']) parts.push(`## Story Analysis\n${projectFiles['story/questions-answered.md']}`);
     // Gather existing characters
@@ -10343,7 +10438,7 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
       // ── 2. World Hallmarks ──
       if (selectedKeys.includes('hallmarks')) {
         setProgress({ label: 'Generating world hallmarks', completed: completedSteps, total: totalSteps });
-        const worldBuilding = projectFiles['world-building.md'] || '';
+        const worldBuilding = projectFiles['world/world-building.md'] || '';
         const prompt = PROMPTS.PROJECT_ENRICH_WORLD_HALLMARKS.build({ worldBuilding, storyContext });
         const resp = await sendMessage({
           messages: [{ role: 'user', content: prompt }],
