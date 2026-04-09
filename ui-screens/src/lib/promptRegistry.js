@@ -257,23 +257,32 @@ Generate a **thoughtful, detailed draft answer** the author can use as a startin
    * DESTINATION: Saved as story/chapter-{N}.md in the project.
    */
   CHAPTER_GENERATION: {
-    build: ({ chapterNum, authorNotes }) => `
+    build: ({ chapterNum, authorNotes, medium }) => `
 ## Task: Write Chapter ${chapterNum}
 
 Write this chapter following the outline, maintaining voice consistency with the narrator profile, and respecting all character arcs and world rules.
 
+### Story Medium: ${medium || 'Novel'}
+
 ### Requirements:
-- Advance the plot according to the outline entry for this chapter
-- Deepen character relationships through action, dialogue, and subtext
-- Maintain the tonal arc specified in the story foundation
-- Use sensory detail and scene-setting appropriate to the world
-- End the chapter with momentum (question, tension, or turn) that propels the reader forward
+- **Follow the outline precisely.** The outline entry for this chapter specifies the scene breakdown, dominant tone, visual register, active subproblem threads, subplot status, emotional arc, and key moments. Hit every beat.
+- **Voice consistency.** Match the narrator profile exactly: POV, tense, narrative distance, vocabulary register, sentence rhythm. The narrator's voice should be indistinguishable from previous chapters.
+- **Character voice differentiation.** Every character who speaks must sound like themselves. Use their Voice Fingerprint (speech rhythm, vocabulary register, dialogue tic, metaphor family, defensive speech pattern). Characters under stress should shift as their profile predicts.
+- **Use the full character data.** Reference characters' wounds, flaws, virtues, wants, needs, attachment styles, and personal codes. These drive behavior, not just backstory.
+- **Advance relationships.** Show relationships evolving through action, dialogue, and subtext. Use the relationship graph to ground every interaction.
+- **Respect the world.** Use hallmarks, world rules, and the social structure. The setting is not backdrop; it shapes every scene.
+- **Tonal coherence.** Match the dominant tone specified in the outline for this chapter. Follow the emotional arc (start, middle, end) for the chapter.
+- **Sensory grounding.** Every scene needs at least 2-3 sensory details (not just visual) that are specific to this world.
+- **Subtext.** Characters rarely say exactly what they mean. Use the Subtext Default from their profiles to route truth through indirection.
+- **Chapter momentum.** End with a hook, question, tension, or turn that propels the reader forward.
 
 ### Constraints:
 - Output ONLY the chapter prose. No titles like "Chapter X" unless the story style includes them.
 - No author's notes, no meta-commentary, no "[continue here]" placeholders
 - Maintain consistent POV, tense, and voice as defined in the narrator profile
 - Respect the world rules: if the world forbids something, characters cannot do it without consequence
+- Reference the author's thematic intent and Big Picture Statement; let theme emerge through events, not exposition
+- Word count should approximately match the target specified in the outline for this chapter
 ${authorNotes ? `\n### Author's Notes for This Chapter:\n${authorNotes}` : ''}
 `,
   },
@@ -1924,6 +1933,282 @@ Example:
 - Only include characters with meaningful interactions (skip truly disconnected pairs)
 - Use ONLY the exact slugs listed above for "from" and "to" fields
 - Output ONLY the JSON, no preamble or explanation
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  24. PHASE 7 — AI Review (audits all phases at once)
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * ROLE:        A structural auditor reviewing the entire story blueprint.
+   * USE MODE:    Fires when the user clicks "Run AI Review" in Phase 7.
+   * BOUNDARIES:  Read-only analysis. Produces actionable suggestions grouped
+   *              by phase. Does NOT auto-modify any files.
+   * CONTEXT:     Receives: all phase answers, all project files.
+   * OUTPUT:      JSON array of categorized suggestions.
+   * DESTINATION: Displayed in the Phase 7 AI Review panel. User picks which to apply.
+   */
+  PHASE_7_AUDIT: {
+    build: ({ phaseAnswers, projectFiles, medium, genre }) => GOLDEN_RULES + `
+## Your Role: Story Blueprint Auditor
+
+You are conducting a **comprehensive structural audit** of the author's entire story blueprint. Review every phase (Author, Narrator, World, Characters, Relationships, Story Foundation) and produce actionable suggestions.
+
+### Story Medium: ${medium || 'Novel'}
+### Genre: ${genre || 'Not specified'}
+
+### Phase Answers (what the author decided):
+${phaseAnswers}
+
+### Project Files (the current state of the blueprint):
+${projectFiles}
+
+### Your audit must cover:
+1. **Author (Phase 1)** — Is the author profile clear? Are themes well-defined? Is the genre/audience specific enough?
+2. **Narrator (Phase 2)** — Is the POV consistent with the story's needs? Does the voice match the genre? Are there tense/perspective conflicts?
+3. **World (Phase 3)** — Are world rules internally consistent? Are hallmarks distinctive? Is the social structure clear? Any contradictions with character behavior?
+4. **Characters (Phase 4)** — Are character motivations clear and distinct? Do wounds drive flaws? Are Voice Fingerprints detailed enough for dialogue? Any redundant characters?
+5. **Relationships (Phase 5)** — Is the relationship web complete? Are there missing connections? Do power dynamics serve the plot?
+6. **Story Foundation (Phase 6)** — Is the premise compelling? Does the arc have clear turns? Is the story death well-guarded against? Does the structure serve the theme?
+7. **Cross-Phase Consistency** — Do narrator choices support the world? Do character arcs align with the theme? Does the timeline hold up? Any world rules that contradict character actions?
+
+### Output format (JSON array):
+\`\`\`json
+[
+  {
+    "phase": 1,
+    "phaseName": "Author",
+    "severity": "warning",
+    "category": "completeness",
+    "title": "Short title of the issue",
+    "description": "Specific description of what needs attention and why",
+    "suggestion": "Concrete, actionable suggestion for how to fix it",
+    "autoApplyTarget": "author.md",
+    "autoApplyContent": "If this can be auto-applied, provide the exact text to append or replace. Otherwise null."
+  }
+]
+\`\`\`
+
+### Severity levels:
+- **critical** — Structural problem that will break the story (contradictions, missing core elements)
+- **warning** — Issue that weakens the story but won't break it (thin characterization, vague world rules)
+- **suggestion** — Enhancement that would strengthen the story (deeper subtext, stronger voice, tighter pacing)
+- **strength** — Something the author did well (acknowledge 2-3 strengths across the blueprint)
+
+### Category types:
+- **consistency** — Cross-phase contradictions or internal conflicts
+- **completeness** — Missing information or thin areas
+- **craft** — Craft-level improvements (voice, subtext, pacing, tension)
+- **structure** — Structural issues (arc problems, pacing, plot holes)
+- **strength** — Things working well
+
+### Rules:
+- Produce 8-15 items total. Not too few (useless), not too many (overwhelming).
+- Include at least 2-3 "strength" items — the author needs to know what's working.
+- Every suggestion must be SPECIFIC and reference actual content from the blueprint.
+- "autoApplyContent" should be null for complex suggestions that require author judgment.
+- For simpler fixes (e.g., adding a missing field, clarifying a vague answer), provide auto-apply content.
+- Respond ONLY with the JSON array.
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  25. OUTLINE GENERATION (generates full outline from phase data)
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * ROLE:        A story architect generating a detailed outline.
+   * USE MODE:    Fires when user clicks "Generate Outline" in the Outline phase.
+   * BOUNDARIES:  Must follow the metafile guidelines. Must be medium-aware.
+   *              Must include word counts, tonal arc, scene metadata.
+   * CONTEXT:     Receives: all phase answers, all project files, medium type.
+   * OUTPUT:      Complete outline in markdown.
+   * DESTINATION: Saved as outline.md in the project.
+   */
+  OUTLINE_GENERATION: {
+    build: ({ phaseAnswers, projectFiles, medium, mediumUnit, wordRange, genre, authorProfile, narratorProfile, worldBuilding, characters, relationships, storyFoundation }) => GOLDEN_RULES + `
+## Your Role: Story Architect — Outline Generator
+
+Generate a **complete, detailed outline** for this story based on everything the author has built across all phases.
+
+### Story Parameters:
+- **Medium**: ${medium || 'Novel'}
+- **Unit**: ${mediumUnit || 'chapters'} (this is how the story is divided — chapters, scenes, acts, episodes, etc.)
+- **Target Word Range**: ${wordRange ? `${wordRange[0].toLocaleString()} - ${wordRange[1].toLocaleString()} words` : '50,000 - 120,000 words'}
+- **Genre**: ${genre || 'Not specified'}
+
+### Author Profile:
+${authorProfile || '(Not yet written)'}
+
+### Narrator Profile:
+${narratorProfile || '(Not yet written)'}
+
+### World Building:
+${worldBuilding || '(Not yet written)'}
+
+### Characters:
+${characters || '(No characters yet)'}
+
+### Relationships:
+${relationships || '(No relationships yet)'}
+
+### Story Foundation:
+${storyFoundation || '(Not yet written)'}
+
+### Phase Answers:
+${phaseAnswers || '(No phase answers)'}
+
+### OUTLINE FORMAT — Follow this structure exactly:
+
+# Outline
+## *[Story Title]*
+
+---
+
+### Story Parameters
+- **Medium**: ${medium || 'Novel'}
+- **Target Length**: [total word count target]
+- **Structure**: [3-act, 5-act, episodic, etc. — match the medium]
+- **POV**: [from narrator profile]
+- **Tense**: [from narrator profile]
+- **Tonal Arc**: [overall emotional trajectory, e.g. "Intimate → Tense → Devastating → Quietly hopeful"]
+
+---
+
+### ${mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapter'}-by-${mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapter'} Outline
+
+For EACH ${mediumUnit || 'chapter'}, include:
+
+#### ${mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapter'} [N]: [Working Title]
+- **Word Count Target**: [target for this unit]
+- **Dominant Tone**: [e.g. "Suspenseful with undercurrent of grief"]
+- **Visual Register**: [e.g. "Claustrophobic interiors, dim lighting, close-up emotional detail"]
+- **POV Character**: [whose perspective, if applicable]
+- **Scene Breakdown**:
+  - Scene 1: [Brief description — setting, characters present, what happens]
+  - Scene 2: [Brief description]
+  - [etc.]
+- **Active Subproblem Threads**: [Which story threads are being advanced in this unit]
+- **Subplot Status**: [Which subplots appear, their current state]
+- **Emotional Arc**: [How the emotional register moves within this unit — start → middle → end]
+- **Key Moments**: [1-3 pivotal moments that happen in this unit]
+- **Cliffhanger / Hook**: [What propels the reader into the next unit]
+
+---
+
+### Thread Tracker
+| Thread | Planted | Advanced | Resolved |
+|--------|---------|----------|----------|
+| [Thread name] | [Unit #] | [Unit #s] | [Unit # or "Open"] |
+
+---
+
+### Act Structure Summary
+- **Act 1** (Setup): [Units covered, word count, what's established]
+- **Act 2** (Confrontation): [Units covered, word count, what escalates]
+- **Act 3** (Resolution): [Units covered, word count, how it resolves]
+
+---
+
+### Chapter Summary Table
+| # | Working Title | Word Target | Tone | Key Event |
+|---|--------------|-------------|------|-----------|
+| 1 | [Title] | [words] | [tone] | [event] |
+
+### Rules:
+- Generate enough ${mediumUnit || 'chapter'}s to fill the target word range. For a novel, this is typically 15-30 chapters.
+- Word count targets per ${mediumUnit || 'chapter'} should sum to approximately the overall target.
+- Every character with an arc must appear in the outline. Track their progression.
+- Every planted story thread must be resolved or explicitly left open.
+- The tonal arc must be coherent — no random tone shifts without narrative justification.
+- Match the medium: screenplays get scenes with visual direction; novels get chapter beats; TV shows get episode arcs with A/B plots.
+- The ending must answer the Central Dramatic Question from the Story Foundation.
+- Output ONLY the markdown outline. No preamble, no commentary.
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
+  //  26. OUTLINE REVIEW (grades and critiques a submitted outline)
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * ROLE:        A story editor reviewing and grading an outline.
+   * USE MODE:    Fires when user clicks "Review Outline" in the Outline phase.
+   * BOUNDARIES:  Read-only analysis. Returns structured feedback + a diff
+   *              of suggested improvements.
+   * CONTEXT:     Receives: the outline, project files for cross-reference.
+   * OUTPUT:      JSON with grade, feedback items, and optional diff suggestions.
+   * DESTINATION: Displayed in the Outline Review panel. User can accept/reject.
+   */
+  OUTLINE_REVIEW: {
+    build: ({ outline, projectFiles, medium, genre }) => GOLDEN_RULES + `
+## Your Role: Story Editor — Outline Review
+
+Review and grade this outline. Be specific, constructive, and actionable.
+
+### Story Medium: ${medium || 'Novel'}
+### Genre: ${genre || 'Not specified'}
+
+### The Outline:
+${outline}
+
+### Project Context (for cross-reference):
+${projectFiles}
+
+### Review Criteria:
+1. **Structural Integrity** — Does the arc work? Are the turns earned? Is the climax properly built to?
+2. **Pacing** — Are word counts distributed well? Any sections that feel rushed or bloated?
+3. **Character Arc Tracking** — Do all major characters have visible arcs in the outline? Any characters who disappear?
+4. **Thread Management** — Are all threads planted and resolved (or explicitly left open)? Any dangling threads?
+5. **Tonal Coherence** — Does the tonal arc make sense? Any jarring shifts?
+6. **Medium Fit** — Does the outline respect the medium's conventions? (Chapter length for novels, scene pacing for screenplays, etc.)
+7. **Theme Integration** — Is the theme woven through the structure, not just stated?
+8. **Ending Strength** — Does the ending answer the Central Dramatic Question? Is it earned?
+
+### Output format (JSON):
+\`\`\`json
+{
+  "grade": "B+",
+  "gradeExplanation": "1-2 sentences explaining the grade",
+  "strengths": [
+    "Specific strength 1",
+    "Specific strength 2"
+  ],
+  "issues": [
+    {
+      "category": "pacing",
+      "severity": "warning",
+      "title": "Short issue title",
+      "description": "What the problem is and why it matters",
+      "suggestion": "Concrete fix",
+      "affectedUnits": [3, 4, 5]
+    }
+  ],
+  "suggestions": [
+    {
+      "type": "addition",
+      "location": "After Chapter 12",
+      "content": "Suggested new content or modification in markdown",
+      "reason": "Why this would improve the outline"
+    }
+  ],
+  "missingElements": [
+    "Any required outline elements that are absent (thread tracker, word counts, etc.)"
+  ]
+}
+\`\`\`
+
+### Grading scale:
+- **A+/A**: Publication-ready outline. Clear arc, tight pacing, all threads tracked, theme embedded.
+- **A-/B+**: Strong outline with minor gaps. A revision pass would make it excellent.
+- **B/B-**: Solid foundation but needs structural work. Some arcs unclear, pacing uneven.
+- **C+/C**: Functional but significant issues. Missing character arcs, inconsistent tone, weak ending.
+- **C-/D**: Major structural problems. Needs substantial rework before chapter generation.
+
+### Rules:
+- Be constructive. Every critique must include a direction for fixing it.
+- Include 2-3 strengths — the author needs to know what to keep.
+- Issues should be ordered by severity (critical first).
+- Suggestions with "content" are things the author can preview as a diff and accept/reject.
+- Respond ONLY with the JSON.
 `,
   },
 

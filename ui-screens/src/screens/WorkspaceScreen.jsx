@@ -232,13 +232,8 @@ const phaseQuestions = {
     { id: 2, q: 'What is the narrative arc?', desc: 'Three-act structure, five-act, nonlinear? Where are the major turns?', placeholder: 'Outline the story structure...' },
     { id: 3, q: 'What is the story death?', desc: 'The specific way this story could fail to live — the pattern that would kill it.', placeholder: 'What would make this story hollow...' },
   ],
-  7: [
-    { id: 1, q: 'Story Structure Audit', desc: 'Review all your decisions across Author, Narrator, World, Characters, Relationships, and Story Foundation for internal consistency and completeness.', hint: 'This is where the system checks that your world rules don\'t contradict your character motivations, your narrator voice fits your genre, and your story death is properly guarded against.', placeholder: 'Notes on quality control findings...' },
-    { id: 2, q: 'Consistency Review', desc: 'Are there any contradictions between your world rules, character motivations, and narrative voice?', hint: 'Example: If your world forbids electricity but your character texts someone, that\'s a contradiction to resolve.', placeholder: 'List any inconsistencies found...' },
-  ],
-  '⟡': [
-    { id: 1, q: 'Bridge Review', desc: 'Before generating content, review all phases and confirm your story foundation is solid. This is your last chance to make structural changes before content generation.', placeholder: 'Final notes before generation...' },
-  ],
+  7: [], // Phase 7 (AI Review) has its own dedicated UI — no manual questions
+  '⟡': [], // Outline phase has its own dedicated UI — no manual questions
   8: [
     { id: 1, q: 'Chapter outline and execution begins here.', desc: 'Generate chapter-by-chapter content based on your completed story foundation.', placeholder: 'Chapter generation notes...' },
   ],
@@ -254,8 +249,9 @@ const DECOMPOSED_FILE_MAP = {
   3: 'world/world-building.md',
   4: null, // characters — multiple files
   5: 'relationships/questions-answered.md',
-  6: 'outline.md',
+  6: 'story/arc.md',
   7: 'dry-run-audit.md',
+  '⟡': 'outline.md',
 };
 
 function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDecomposed, onOpenFile }) {
@@ -265,7 +261,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   const [aiError, setAiError] = useState(null);
   const questions = phaseQuestions[phase] || [];
   const phaseAnswerMap = answers[phase] || {};
-  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Quality Control', '⟡': 'Bridge', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
+  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'AI Review', '⟡': 'Outline', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
 
@@ -1326,6 +1322,724 @@ function MarkdownBlock({ text, isMarkdown }) {
   return <>{elements}</>;
 }
 
+/* ─── Phase 7: AI Review Mode ─── */
+function AIReviewMode({ onNextPhase }) {
+  const [stage, setStage] = useState('idle'); // idle | loading | results | error
+  const [suggestions, setSuggestions] = useState([]);
+  const [error, setError] = useState(null);
+  const [acceptedIds, setAcceptedIds] = useState(new Set());
+  const [rejectedIds, setRejectedIds] = useState(new Set());
+  const [filterSeverity, setFilterSeverity] = useState('all');
+  const [filterPhase, setFilterPhase] = useState('all');
+  const [manualNotes, setManualNotes] = useState('');
+
+  const files = useProjectStore(s => s.files);
+  const phaseAnswers = useProjectStore(s => s.phaseAnswers) || {};
+  const activeProject = useProjectStore(s => s.activeProject);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const sendMessage = useLlmStore.getState().sendMessage;
+  const activeProviders = useLlmStore(s => s.activeProviders);
+
+  const handleRunReview = async () => {
+    if (activeProviders.length === 0) {
+      setError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setStage('loading');
+    setError(null);
+    setSuggestions([]);
+    setAcceptedIds(new Set());
+    setRejectedIds(new Set());
+
+    try {
+      // Build phase answers summary
+      const phaseNames = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation' };
+      let answersText = '';
+      for (const [pNum, pName] of Object.entries(phaseNames)) {
+        const answers = phaseAnswers[pNum] || {};
+        const qs = phaseQuestions[pNum] || [];
+        const entries = qs.map(q => {
+          const a = answers[q.id];
+          return a ? `Q: ${q.q}\nA: ${a}` : null;
+        }).filter(Boolean);
+        if (entries.length) answersText += `\n### Phase ${pNum}: ${pName}\n${entries.join('\n\n')}\n`;
+      }
+
+      // Build project files summary (truncated)
+      let filesText = '';
+      const importantFiles = ['author.md', 'narrator.md', 'outline.md', 'world/world-building.md', 'story/arc.md', 'relationships/questions-answered.md'];
+      for (const f of importantFiles) {
+        if (files[f]?.trim()) filesText += `\n### ${f}\n${files[f].slice(0, 2000)}\n`;
+      }
+      // Add character summaries (first 500 chars each)
+      Object.keys(files).filter(f => f.startsWith('characters/') && f.endsWith('.md')).forEach(f => {
+        filesText += `\n### ${f}\n${files[f].slice(0, 500)}\n`;
+      });
+
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: PROMPTS.PHASE_7_AUDIT.build({
+            phaseAnswers: answersText,
+            projectFiles: filesText,
+            medium: activeProject?.medium || 'novel',
+            genre: activeProject?.genre || '',
+          })},
+          { role: 'user', content: 'Run a comprehensive audit of this story blueprint. Return JSON suggestions.' },
+        ],
+        role: 'editor',
+        maxTokens: 4000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'AI review failed.');
+        setStage('error');
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const items = JSON.parse(jsonMatch[0]).map((item, i) => ({ ...item, id: i }));
+        setSuggestions(items);
+        setStage('results');
+      } else {
+        setError('Could not parse AI response. Try again.');
+        setStage('error');
+      }
+    } catch (err) {
+      setError(err.message);
+      setStage('error');
+    }
+  };
+
+  const handleAccept = (item) => {
+    setAcceptedIds(prev => { const s = new Set(prev); s.add(item.id); return s; });
+    setRejectedIds(prev => { const s = new Set(prev); s.delete(item.id); return s; });
+    // Auto-apply if possible
+    if (item.autoApplyTarget && item.autoApplyContent) {
+      const existing = files[item.autoApplyTarget] || '';
+      updateFile(item.autoApplyTarget, existing + '\n\n' + item.autoApplyContent);
+    }
+  };
+
+  const handleReject = (id) => {
+    setRejectedIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    setAcceptedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+  };
+
+  const handleAcceptAll = () => {
+    suggestions.forEach(item => {
+      if (item.severity !== 'strength') handleAccept(item);
+    });
+  };
+
+  const filteredSuggestions = suggestions.filter(s => {
+    if (filterSeverity !== 'all' && s.severity !== filterSeverity) return false;
+    if (filterPhase !== 'all' && String(s.phase) !== filterPhase) return false;
+    return true;
+  });
+
+  const severityColors = {
+    critical: { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', text: '#f87171', icon: '!!' },
+    warning: { bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.25)', text: '#fbbf24', icon: '!' },
+    suggestion: { bg: 'rgba(96,165,250,0.08)', border: 'rgba(96,165,250,0.25)', text: '#60a5fa', icon: '~' },
+    strength: { bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.25)', text: '#4ade80', icon: '✓' },
+  };
+
+  const phaseComplete = stage === 'results' && suggestions.length > 0 &&
+    suggestions.filter(s => s.severity !== 'strength').every(s => acceptedIds.has(s.id) || rejectedIds.has(s.id));
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 750, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>AI Review</h2>
+        <Badge variant="accent">Phase 7</Badge>
+      </div>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
+        The AI will audit your entire story blueprint across all phases and produce actionable suggestions.
+        You can accept, reject, or skip each suggestion. You can also skip the AI review entirely and proceed to the Outline phase.
+      </p>
+
+      {/* Idle state — run or skip */}
+      {stage === 'idle' && (
+        <div style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
+          <Button variant="primary" onClick={handleRunReview} style={{ padding: '14px 0', fontSize: '0.9rem' }}>
+            <Brain size={16} style={{ marginRight: 8 }} /> Run AI Review
+          </Button>
+          <Button variant="ghost" onClick={onNextPhase} style={{ fontSize: '0.8rem' }}>
+            Skip AI Review — go directly to Outline →
+          </Button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {stage === 'loading' && (
+        <div style={{
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', padding: 32, textAlign: 'center',
+        }}>
+          <Sparkles size={28} style={{ color: 'var(--accent)', animation: 'spin 1.5s linear infinite', marginBottom: 12 }} />
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 6 }}>Auditing your story blueprint...</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Reviewing all 6 phases for consistency, completeness, and craft</div>
+        </div>
+      )}
+
+      {/* Error */}
+      {stage === 'error' && (
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <AlertTriangle size={18} color="#ef4444" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#ef4444' }}>Review Failed</span>
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#f87171', marginBottom: 12 }}>{error}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" onClick={handleRunReview}>Try Again</Button>
+            <Button variant="ghost" onClick={onNextPhase}>Skip to Outline →</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {stage === 'results' && (
+        <>
+          {/* Summary bar */}
+          <div style={{
+            display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center',
+          }}>
+            {['critical', 'warning', 'suggestion', 'strength'].map(sev => {
+              const count = suggestions.filter(s => s.severity === sev).length;
+              if (!count) return null;
+              const c = severityColors[sev];
+              return (
+                <Badge key={sev} style={{ background: c.bg, color: c.text, cursor: 'pointer', border: filterSeverity === sev ? `1px solid ${c.text}` : 'none' }}
+                  onClick={() => setFilterSeverity(filterSeverity === sev ? 'all' : sev)}>
+                  {count} {sev}{count !== 1 ? 's' : ''}
+                </Badge>
+              );
+            })}
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {acceptedIds.size + rejectedIds.size} / {suggestions.filter(s => s.severity !== 'strength').length} reviewed
+            </span>
+          </div>
+
+          {/* Phase filter pills */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            {['all', '1', '2', '3', '4', '5', '6', '7'].map(p => {
+              const label = p === 'all' ? 'All Phases' : p === '7' ? 'Cross-Phase' : `Phase ${p}`;
+              const count = p === 'all' ? suggestions.length : suggestions.filter(s => String(s.phase) === p).length;
+              if (p !== 'all' && !count) return null;
+              return (
+                <div key={p} onClick={() => setFilterPhase(p)} style={{
+                  padding: '4px 10px', borderRadius: 100, fontSize: '0.7rem', cursor: 'pointer',
+                  background: filterPhase === p ? 'var(--accent)' : 'var(--bg-tertiary)',
+                  color: filterPhase === p ? '#000' : 'var(--text-muted)',
+                  fontWeight: filterPhase === p ? 600 : 400,
+                }}>
+                  {label} {count ? `(${count})` : ''}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bulk actions */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <Button variant="secondary" onClick={handleAcceptAll} style={{ fontSize: '0.75rem' }}>
+              Accept All Auto-Applicable
+            </Button>
+            <Button variant="ghost" onClick={handleRunReview} style={{ fontSize: '0.75rem' }}>
+              Re-run Review
+            </Button>
+          </div>
+
+          {/* Suggestion cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filteredSuggestions.map(item => {
+              const c = severityColors[item.severity] || severityColors.suggestion;
+              const isAccepted = acceptedIds.has(item.id);
+              const isRejected = rejectedIds.has(item.id);
+              return (
+                <div key={item.id} style={{
+                  background: isAccepted ? 'rgba(74,222,128,0.05)' : isRejected ? 'rgba(239,68,68,0.03)' : c.bg,
+                  border: `1px solid ${isAccepted ? 'rgba(74,222,128,0.3)' : isRejected ? 'rgba(239,68,68,0.15)' : c.border}`,
+                  borderRadius: 'var(--radius-md)', padding: 16,
+                  opacity: isRejected ? 0.5 : 1,
+                  transition: 'all 0.2s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: c.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {item.severity}
+                    </span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      Phase {item.phase}: {item.phaseName}
+                    </span>
+                    {item.category && (
+                      <Badge style={{ fontSize: '0.55rem', background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                        {item.category}
+                      </Badge>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {isAccepted && <Badge style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', fontSize: '0.6rem' }}>Accepted</Badge>}
+                    {isRejected && <Badge style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: '0.6rem' }}>Rejected</Badge>}
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>
+                  {item.suggestion && item.severity !== 'strength' && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginBottom: 10, fontStyle: 'italic' }}>
+                      Suggestion: {item.suggestion}
+                    </div>
+                  )}
+                  {item.severity !== 'strength' && !isAccepted && !isRejected && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button variant="primary" onClick={() => handleAccept(item)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        {item.autoApplyContent ? 'Accept & Apply' : 'Accept'}
+                      </Button>
+                      <Button variant="ghost" onClick={() => handleReject(item.id)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Manual notes area */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Your Notes (optional)
+            </div>
+            <textarea
+              value={manualNotes}
+              onChange={e => setManualNotes(e.target.value)}
+              placeholder="Add your own notes about the review, things you want to revisit, or reminders for the outline phase..."
+              style={{
+                width: '100%', minHeight: 80, padding: 12, boxSizing: 'border-box',
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                fontFamily: 'var(--font-sans)', fontSize: '0.85rem', resize: 'vertical',
+              }}
+            />
+          </div>
+
+          {/* Proceed */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+            <Button variant="ghost" onClick={() => { setStage('idle'); }}>← Back</Button>
+            <Button variant="primary" onClick={() => {
+              // Save review results as a file
+              if (suggestions.length > 0) {
+                const reviewMd = [
+                  '# AI Review Results',
+                  `*Generated: ${new Date().toLocaleString()}*\n`,
+                  ...suggestions.map(s => {
+                    const status = acceptedIds.has(s.id) ? 'ACCEPTED' : rejectedIds.has(s.id) ? 'REJECTED' : 'UNREVIEWED';
+                    return `## [${s.severity.toUpperCase()}] ${s.title} (Phase ${s.phase})\n**Status**: ${status}\n${s.description}\n${s.suggestion ? `**Suggestion**: ${s.suggestion}` : ''}\n`;
+                  }),
+                  manualNotes ? `\n## Author Notes\n${manualNotes}\n` : '',
+                ].join('\n');
+                updateFile('dry-run-audit.md', reviewMd);
+              }
+              // Mark phase 7 as complete by storing a sentinel answer
+              useProjectStore.getState().updatePhaseAnswers(7, { 1: suggestions.length > 0 ? 'AI Review completed' : 'Skipped', _reviewComplete: true });
+              onNextPhase();
+            }}>
+              Proceed to Outline →
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─── Outline Phase (replaces Bridge) ─── */
+function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
+  const [stage, setStage] = useState('idle'); // idle | generating | editing | reviewing | review-results
+  const [outlineContent, setOutlineContent] = useState('');
+  const [error, setError] = useState(null);
+  const [reviewResults, setReviewResults] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [promptText, setPromptText] = useState('');
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [diffView, setDiffView] = useState(false);
+  const [previousContent, setPreviousContent] = useState('');
+
+  const files = useProjectStore(s => s.files);
+  const phaseAnswers = useProjectStore(s => s.phaseAnswers) || {};
+  const activeProject = useProjectStore(s => s.activeProject);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const sendMessage = useLlmStore.getState().sendMessage;
+  const activeProviders = useLlmStore(s => s.activeProviders);
+
+  // Load existing outline on mount
+  useEffect(() => {
+    const existing = files?.['outline.md'] || '';
+    if (existing.trim()) {
+      setOutlineContent(existing);
+      setStage('editing');
+    }
+  }, [files?.['outline.md']]);
+
+  // Build context from all phase data
+  const buildContext = () => {
+    const phaseNames = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation' };
+    let answersText = '';
+    for (const [pNum, pName] of Object.entries(phaseNames)) {
+      const answers = phaseAnswers[pNum] || {};
+      const qs = phaseQuestions[pNum] || [];
+      const entries = qs.map(q => {
+        const a = answers[q.id];
+        return a ? `Q: ${q.q}\nA: ${a}` : null;
+      }).filter(Boolean);
+      if (entries.length) answersText += `\n### Phase ${pNum}: ${pName}\n${entries.join('\n\n')}\n`;
+    }
+
+    const mediumDef = STORY_MEDIUMS.find(m => m.key === activeProject?.medium);
+
+    return {
+      phaseAnswers: answersText,
+      medium: mediumDef?.label || activeProject?.medium || 'Novel',
+      mediumUnit: mediumDef?.unit || 'chapters',
+      wordRange: mediumDef?.wordRange || [50000, 120000],
+      genre: activeProject?.genre || '',
+      authorProfile: files?.['author.md']?.slice(0, 3000) || '',
+      narratorProfile: files?.['narrator.md']?.slice(0, 2000) || '',
+      worldBuilding: files?.['world/world-building.md']?.slice(0, 3000) || '',
+      characters: Object.keys(files || {}).filter(f => f.startsWith('characters/') && f.endsWith('.md'))
+        .map(f => files[f]?.slice(0, 800)).join('\n\n---\n\n') || '',
+      relationships: files?.['relationships/questions-answered.md']?.slice(0, 2000) || '',
+      storyFoundation: (files?.['story/arc.md']?.slice(0, 2000) || '') + '\n' + (files?.['story/questions-answered.md']?.slice(0, 1500) || ''),
+    };
+  };
+
+  const handleGenerate = async () => {
+    if (activeProviders.length === 0) {
+      setError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setStage('generating');
+    setError(null);
+
+    try {
+      const ctx = buildContext();
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: PROMPTS.OUTLINE_GENERATION.build(ctx) },
+          { role: 'user', content: 'Generate a complete, detailed outline for this story following the exact format specified.' },
+        ],
+        role: 'generator',
+        maxTokens: 8192,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Outline generation failed.');
+        setStage('idle');
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      setOutlineContent(cleaned);
+      updateFile('outline.md', cleaned);
+      setStage('editing');
+    } catch (err) {
+      setError(err.message);
+      setStage('idle');
+    }
+  };
+
+  const handleReview = async () => {
+    if (activeProviders.length === 0) {
+      setError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setReviewLoading(true);
+    setReviewResults(null);
+
+    try {
+      // Build abbreviated project context
+      let projectCtx = '';
+      const importantFiles = ['author.md', 'narrator.md', 'world/world-building.md', 'story/arc.md'];
+      for (const f of importantFiles) {
+        if (files[f]?.trim()) projectCtx += `\n### ${f}\n${files[f].slice(0, 1500)}\n`;
+      }
+
+      const mediumDef = STORY_MEDIUMS.find(m => m.key === activeProject?.medium);
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: PROMPTS.OUTLINE_REVIEW.build({
+            outline: outlineContent,
+            projectFiles: projectCtx,
+            medium: mediumDef?.label || 'Novel',
+            genre: activeProject?.genre || '',
+          })},
+          { role: 'user', content: 'Review and grade this outline. Return structured JSON feedback.' },
+        ],
+        role: 'editor',
+        maxTokens: 4000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Review failed.');
+        setReviewLoading(false);
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        setReviewResults(JSON.parse(jsonMatch[0]));
+        setStage('review-results');
+      } else {
+        setError('Could not parse review response.');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+    setReviewLoading(false);
+  };
+
+  const handlePromptUpdate = async () => {
+    if (!promptText.trim() || activeProviders.length === 0) return;
+    setPromptLoading(true);
+    setPreviousContent(outlineContent);
+
+    try {
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: GOLDEN_RULES + `\n## Your Role: Outline Editor\n\nYou are editing an existing story outline based on the author's instructions. Make the requested changes while preserving the overall structure and format. Output the COMPLETE updated outline (not just the changed parts).\n\n### Current Outline:\n${outlineContent}` },
+          { role: 'user', content: promptText },
+        ],
+        role: 'generator',
+        maxTokens: 8192,
+      });
+
+      if (result.success) {
+        const cleaned = removeEmdashes(result.content);
+        setOutlineContent(cleaned);
+        updateFile('outline.md', cleaned);
+        setDiffView(true);
+      } else {
+        setError(result.error || 'Update failed.');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+    setPromptLoading(false);
+    setPromptText('');
+  };
+
+  const handleAcceptDiff = () => {
+    setDiffView(false);
+    setPreviousContent('');
+  };
+
+  const handleRejectDiff = () => {
+    setOutlineContent(previousContent);
+    updateFile('outline.md', previousContent);
+    setDiffView(false);
+    setPreviousContent('');
+  };
+
+  const gradeColors = {
+    'A+': '#4ade80', 'A': '#4ade80', 'A-': '#86efac',
+    'B+': '#fbbf24', 'B': '#fbbf24', 'B-': '#fcd34d',
+    'C+': '#f97316', 'C': '#f97316', 'C-': '#fb923c',
+    'D': '#ef4444', 'F': '#ef4444',
+  };
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 750, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Outline</h2>
+        <Badge variant="muted">Phase ⟡</Badge>
+      </div>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
+        Generate your story outline from all the blueprint data, or paste your own. You can prompt the AI to make changes, submit for review, and iterate until you are satisfied.
+      </p>
+
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-md)', padding: 12, marginBottom: 16, fontSize: '0.8rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertTriangle size={14} /> {error}
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}><X size={14} /></button>
+        </div>
+      )}
+
+      {/* Idle — generate or paste */}
+      {stage === 'idle' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Button variant="primary" onClick={handleGenerate} style={{ padding: '14px 0', fontSize: '0.9rem' }}>
+            <Sparkles size={16} style={{ marginRight: 8 }} /> Auto-Generate Outline
+          </Button>
+          <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>or</div>
+          <Button variant="secondary" onClick={() => setStage('editing')} style={{ fontSize: '0.85rem' }}>
+            <Pencil size={14} style={{ marginRight: 6 }} /> Write / Paste My Own Outline
+          </Button>
+        </div>
+      )}
+
+      {/* Generating */}
+      {stage === 'generating' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 32, textAlign: 'center' }}>
+          <Sparkles size={28} style={{ color: 'var(--accent)', animation: 'spin 1.5s linear infinite', marginBottom: 12 }} />
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 6 }}>Generating your outline...</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Building from author, narrator, world, characters, relationships, and story foundation data</div>
+        </div>
+      )}
+
+      {/* Editing state — main editing view */}
+      {(stage === 'editing' || stage === 'review-results') && (
+        <>
+          {/* Diff view bar */}
+          {diffView && previousContent && (
+            <div style={{
+              background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+              borderRadius: 'var(--radius-md)', padding: 12, marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <GitCompare size={16} color="#fbbf24" />
+              <span style={{ fontSize: '0.8rem', color: '#fbbf24', flex: 1 }}>AI made changes to your outline. Review the updated version below.</span>
+              <Button variant="primary" onClick={handleAcceptDiff} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>Accept Changes</Button>
+              <Button variant="ghost" onClick={handleRejectDiff} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>Revert</Button>
+            </div>
+          )}
+
+          {/* Review results panel */}
+          {stage === 'review-results' && reviewResults && (
+            <div style={{
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: `${gradeColors[reviewResults.grade] || 'var(--accent)'}22`,
+                  color: gradeColors[reviewResults.grade] || 'var(--accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.1rem', fontWeight: 800,
+                }}>
+                  {reviewResults.grade}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Outline Review</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{reviewResults.gradeExplanation}</div>
+                </div>
+                <div style={{ flex: 1 }} />
+                <Button variant="ghost" onClick={() => setStage('editing')} style={{ fontSize: '0.7rem' }}>Dismiss</Button>
+              </div>
+
+              {/* Strengths */}
+              {reviewResults.strengths?.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#4ade80', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Strengths</div>
+                  {reviewResults.strengths.map((s, i) => (
+                    <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 2, paddingLeft: 8, borderLeft: '2px solid rgba(74,222,128,0.3)' }}>{s}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Issues */}
+              {reviewResults.issues?.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#fbbf24', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Issues</div>
+                  {reviewResults.issues.map((issue, i) => (
+                    <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 6, paddingLeft: 8, borderLeft: `2px solid ${issue.severity === 'critical' ? 'rgba(239,68,68,0.4)' : 'rgba(251,191,36,0.4)'}` }}>
+                      <span style={{ fontWeight: 600 }}>{issue.title}</span>: {issue.description}
+                      {issue.suggestion && <div style={{ color: 'var(--accent)', fontStyle: 'italic', marginTop: 2 }}>Fix: {issue.suggestion}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Suggestions with apply */}
+              {reviewResults.suggestions?.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#60a5fa', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Suggested Changes</div>
+                  {reviewResults.suggestions.map((sug, i) => (
+                    <div key={i} style={{ background: 'rgba(96,165,250,0.05)', border: '1px solid rgba(96,165,250,0.15)', borderRadius: 'var(--radius-sm)', padding: 10, marginBottom: 6 }}>
+                      <div style={{ fontSize: '0.8rem', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600 }}>{sug.type}</span> at {sug.location}: {sug.reason}
+                      </div>
+                      {sug.content && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: 8, borderRadius: 'var(--radius-sm)', marginBottom: 6, fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: 120, overflowY: 'auto' }}>
+                          {sug.content}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Editor */}
+          <div style={{ marginBottom: 16 }}>
+            <MarkdownEditor
+              value={outlineContent}
+              onChange={(val) => {
+                setOutlineContent(val);
+                updateFile('outline.md', val);
+              }}
+              placeholder="Paste or write your outline here..."
+              minHeight={300}
+            />
+          </div>
+
+          {/* Prompt input for AI modifications */}
+          <div style={{
+            display: 'flex', gap: 8, marginBottom: 16, alignItems: 'flex-end',
+          }}>
+            <div style={{ flex: 1 }}>
+              <textarea
+                value={promptText}
+                onChange={e => setPromptText(e.target.value)}
+                placeholder="Tell the AI what to change... (e.g., 'Add a subplot for the mentor character', 'Extend Act 2 with more tension')"
+                style={{
+                  width: '100%', minHeight: 60, padding: 10, boxSizing: 'border-box',
+                  background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-sans)', fontSize: '0.82rem', resize: 'vertical',
+                }}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handlePromptUpdate(); }}
+              />
+            </div>
+            <Button variant="primary" onClick={handlePromptUpdate} disabled={promptLoading || !promptText.trim()} style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', height: 36 }}>
+              {promptLoading ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 4 }} /> Updating...</> : <><SendHorizontal size={13} style={{ marginRight: 4 }} /> Update</>}
+            </Button>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <Button variant="secondary" onClick={handleReview} disabled={reviewLoading || !outlineContent.trim()} style={{ fontSize: '0.78rem' }}>
+              {reviewLoading ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 4 }} /> Reviewing...</> : <><Eye size={13} style={{ marginRight: 4 }} /> Submit for Review</>}
+            </Button>
+            <Button variant="secondary" onClick={handleGenerate} style={{ fontSize: '0.78rem' }}>
+              <Sparkles size={13} style={{ marginRight: 4 }} /> Regenerate Outline
+            </Button>
+            {onOpenFile && (
+              <Button variant="ghost" onClick={() => onOpenFile('outline.md')} style={{ fontSize: '0.78rem' }}>
+                <Edit3 size={13} style={{ marginRight: 4 }} /> Open in Full Editor
+              </Button>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+            <Button variant="ghost" onClick={onPrevPhase}>← Back to AI Review</Button>
+            <Button variant="primary" onClick={() => {
+              // Mark outline phase complete
+              useProjectStore.getState().updatePhaseAnswers('⟡', { 1: outlineContent ? 'Outline accepted' : 'Skipped', _outlineComplete: true });
+              onNextPhase();
+            }} disabled={!outlineContent.trim()}>
+              Accept Outline & Continue →
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
   // Welcome screen when no file is selected
   if (!file) {
@@ -2155,7 +2869,7 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter, isDecomposed }
   );
 }
 
-function ChatMode({ phasePcts = {} }) {
+function ChatMode({ phasePcts = {}, isDecomposed = false, prereqFlags = {} }) {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -2169,7 +2883,7 @@ function ChatMode({ phasePcts = {} }) {
   const files = useProjectStore(s => s.files);
   const project = useProjectStore(s => s.activeProject);
 
-  const gatedUnlocked = allPrereqsComplete(phasePcts);
+  const gatedUnlocked = allPrereqsComplete(phasePcts, isDecomposed, prereqFlags);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -10312,12 +11026,23 @@ export default function WorkspaceScreen() {
   phases.forEach(p => {
     if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === '⟡')) {
       phasePcts[p.num] = 100;
+    } else if (p.num === 7) {
+      // Phase 7 (AI Review) — complete when _reviewComplete sentinel is set or skipped
+      phasePcts[p.num] = phaseAnswers[7]?._reviewComplete ? 100 : 0;
+    } else if (p.num === '⟡') {
+      // Outline phase — complete when _outlineComplete sentinel is set and outline.md exists
+      const hasOutline = (projectFiles?.['outline.md'] || '').trim().length > 50;
+      phasePcts[p.num] = (phaseAnswers['⟡']?._outlineComplete && hasOutline) ? 100 : 0;
     } else {
       const qs = phaseQuestions[p.num] || [];
       const answered = Object.keys(phaseAnswers[p.num] || {}).filter(k => !k.startsWith('_')).length;
       phasePcts[p.num] = qs.length > 0 ? Math.round((answered / qs.length) * 100) : 0;
     }
   });
+  // Author/narrator completeness flags — used for gating phases 8-9
+  const hasAuthor = (projectFiles?.['author.md'] || '').trim().length > 20;
+  const hasNarrator = (projectFiles?.['narrator.md'] || '').trim().length > 20;
+  const prereqFlags = { hasAuthor, hasNarrator };
   // Derive current active phase = first incomplete non-gated phase
   const derivedCurrentPhase = currentActivePhase(phasePcts);
 
@@ -10504,6 +11229,31 @@ export default function WorkspaceScreen() {
       case 'guided':
         // Phase 8 gets a dedicated chapter execution UI
         if (activePhase === 8) return <ChapterExecutionMode />;
+        // Phase 7 (AI Review) gets its own dedicated UI
+        if (activePhase === 7) return <AIReviewMode
+          onNextPhase={() => {
+            setActivePhase('⟡');
+          }}
+        />;
+        // Outline phase gets its own dedicated UI
+        if (activePhase === '⟡') return <OutlineMode
+          onNextPhase={() => {
+            // Check author/narrator completeness before unlocking phases 8-9
+            const authorContent = (projectFiles?.['author.md'] || '').trim();
+            const narratorContent = (projectFiles?.['narrator.md'] || '').trim();
+            if (!authorContent || !narratorContent) {
+              setGateTargetPhase(8);
+              setShowGateWarning(true);
+              return;
+            }
+            setActivePhase(8);
+          }}
+          onPrevPhase={() => setActivePhase(7)}
+          onOpenFile={(filePath) => {
+            setActiveFile(filePath);
+            setActiveMode('file-editor');
+          }}
+        />;
         return <GuidedFlow
             phase={activePhase || derivedCurrentPhase}
             answers={phaseAnswers}
@@ -10516,13 +11266,13 @@ export default function WorkspaceScreen() {
               // Compile current phase answers into the corresponding project file
               const phaseFileMap = {
                 1: 'author.md', 2: 'narrator.md', 3: 'world/world-building.md',
-                6: 'outline.md', 7: 'story/arc.md',
+                6: 'story/arc.md',
               };
               const targetFile = phaseFileMap[activePhase];
               if (targetFile) {
                 const pQuestions = phaseQuestions[activePhase] || [];
                 const pAnswers = phaseAnswers[activePhase] || {};
-                const phaseName = { 1: 'Author Profile', 2: 'Narrator', 3: 'World Building', 6: 'Story Foundation', 7: 'Quality Control' }[activePhase] || '';
+                const phaseName = { 1: 'Author Profile', 2: 'Narrator', 3: 'World Building', 6: 'Story Foundation' }[activePhase] || '';
                 let md = `# ${phaseName}\n\n`;
                 for (const q of pQuestions) {
                   const answer = pAnswers[q.id];
@@ -10541,7 +11291,7 @@ export default function WorkspaceScreen() {
               if (idx < phaseOrder.length - 1) {
                 const nextNum = phaseOrder[idx + 1];
                 const nextPhase = phases[idx + 1];
-                if (nextPhase.gated && !allPrereqsComplete(phasePcts)) {
+                if (nextPhase.gated && !allPrereqsComplete(phasePcts, isDecomposed, prereqFlags)) {
                   setGateTargetPhase(nextNum);
                   setShowGateWarning(true);
                 } else {
@@ -10582,7 +11332,7 @@ export default function WorkspaceScreen() {
       />;
       case 'comparison': return <ComparisonMode />;
       case 'graph': return <RelationshipGraph />;
-      case 'chat': return <ChatMode phasePcts={phasePcts} />;
+      case 'chat': return <ChatMode phasePcts={phasePcts} isDecomposed={isDecomposed} prereqFlags={prereqFlags} />;
       case 'timeline': return <TimelineMode />;
       case 'board': return <DrawingBoard onOpenFile={openFile} boardItems={boardItems} setBoardItems={setBoardItems} />;
       case 'world': return <WorldBuildingMode />;
@@ -10913,7 +11663,7 @@ export default function WorkspaceScreen() {
                   <Sparkles size={12} /> Regenerate Analysis
                 </button>
                 {leftTab === 'phases' && (
-                  <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
+                  <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} prereqFlags={prereqFlags} onPhaseClick={(num, name, isLocked) => {
                     if (isLocked) {
                       setGateTargetPhase(num);
                       setShowGateWarning(true);
@@ -11386,7 +12136,7 @@ export default function WorkspaceScreen() {
                       });
                     }
                     // If all non-gated phases done, suggest content generation
-                    if (allPrereqsComplete(phasePcts)) {
+                    if (allPrereqsComplete(phasePcts, isDecomposed, prereqFlags)) {
                       steps.push({
                         label: 'All structure complete — begin content generation',
                         action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
@@ -11579,10 +12329,22 @@ export default function WorkspaceScreen() {
             <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔒</div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Content Generation Locked</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.7, marginBottom: 16 }}>
-              Chapter Execution and Editor phases require all prior phases to be completed first. This ensures your story has a solid foundation before generating content.
+              Chapter Execution and Editor phases require all prior phases to be completed and both the Author and Narrator files to be written. This ensures your story has a solid foundation before generating content.
             </p>
             <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, marginBottom: 20, textAlign: 'left' }}>
-              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>Incomplete Phases</div>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>Requirements</div>
+              {!hasAuthor && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: '0.8rem' }}>
+                  <span style={{ color: '#ef4444' }}>✗</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Author profile (author.md) is empty</span>
+                </div>
+              )}
+              {!hasNarrator && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: '0.8rem' }}>
+                  <span style={{ color: '#ef4444' }}>✗</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Narrator profile (narrator.md) is empty</span>
+                </div>
+              )}
               {phases.filter(p => !p.gated && (phasePcts[p.num] || 0) < 100).map((p, i) => {
                 const pct = phasePcts[p.num] || 0;
                 return (
