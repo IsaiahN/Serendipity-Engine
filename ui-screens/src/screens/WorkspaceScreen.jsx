@@ -92,7 +92,6 @@ const centerStageModes = [
   { key: 'guided', icon: Compass, label: 'Guide' },
   { key: 'chat', icon: MessageSquare, label: 'Story Assistant' },
   { key: 'reader', icon: BookOpen, label: 'Reader' },
-  { key: 'editor', icon: Edit3, label: 'Editor' },
   { key: 'comparison', icon: GitCompare, label: 'Comparison' },
   { key: 'genre-shift', icon: Sparkles, label: 'Paradigm Shift' },
   { key: 'timeline', icon: Clock, label: 'Timeline' },
@@ -1141,6 +1140,569 @@ function EditorMode({ file }) {
           </div>
           {/* Reader Experience Report integrated below editor review */}
           {file && <ReaderExperienceReport chapterPath={file} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─── Phase 10: Editorial Review Mode ─── */
+function EditorialReviewMode({ onGoToChapters }) {
+  const [stage, setStage] = useState('idle'); // idle | running | results
+  const [findings, setFindings] = useState([]);
+  const [error, setError] = useState(null);
+  const [passNumber, setPassNumber] = useState(1);
+  const [acceptedIds, setAcceptedIds] = useState(new Set());
+  const [rejectedIds, setRejectedIds] = useState(new Set());
+  const [filterType, setFilterType] = useState('all'); // all | issues | suggestions | strengths
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const chatEndRef = useRef(null);
+
+  const files = useProjectStore(s => s.files);
+  const updateFile = useProjectStore(s => s.updateFile);
+
+  // Discover all chapters
+  const chapters = useMemo(() => {
+    if (!files) return [];
+    return Object.entries(files)
+      .filter(([path, content]) => /^story\/chapter-\d+\.md$/.test(path) && (content || '').trim().length > 50)
+      .sort(([a], [b]) => {
+        const numA = parseInt(a.match(/chapter-(\d+)/)[1]);
+        const numB = parseInt(b.match(/chapter-(\d+)/)[1]);
+        return numA - numB;
+      })
+      .map(([path, content]) => ({
+        path,
+        num: parseInt(path.match(/chapter-(\d+)/)[1]),
+        wordCount: (content || '').split(/\s+/).length,
+        content,
+      }));
+  }, [files]);
+
+  const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0);
+
+  // Timer
+  useEffect(() => {
+    if (stage !== 'running') return;
+    const iv = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [stage]);
+
+  const buildProjectContext = () => {
+    const parts = [];
+    if (files?.['author.md']?.trim()) parts.push(`## Author Profile\n${files['author.md']}`);
+    if (files?.['narrator.md']?.trim()) parts.push(`## Narrator Profile\n${files['narrator.md']}`);
+    if (files?.['outline.md']?.trim()) parts.push(`## Story Outline\n${files['outline.md']}`);
+    if (files?.['story/arc.md']?.trim()) parts.push(`## Story Arc\n${files['story/arc.md']}`);
+    if (files?.['world/world-building.md']?.trim()) parts.push(`## World Building\n${files['world/world-building.md']}`);
+    if (files?.['relationships/questions-answered.md']?.trim()) parts.push(`## Relationships\n${files['relationships/questions-answered.md']}`);
+
+    // All character files
+    const charFiles = Object.entries(files || {})
+      .filter(([path]) => path.startsWith('characters/') && path.endsWith('.md') && path !== 'characters/questions-answered.md');
+    for (const [path, content] of charFiles) {
+      if (!content?.trim()) continue;
+      const charName = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+      parts.push(`## Character: ${charName}\n${content}`);
+    }
+
+    return parts.join('\n\n---\n\n');
+  };
+
+  const handleRunReview = async () => {
+    if (chapters.length === 0) {
+      setError('No chapters found. Generate some chapters first before running an editorial review.');
+      return;
+    }
+
+    setStage('running');
+    setError(null);
+    setElapsedSeconds(0);
+    setStartTime(Date.now());
+
+    try {
+      const projectContext = buildProjectContext();
+      const chapterList = chapters.map(ch => `- Chapter ${ch.num} (${ch.wordCount.toLocaleString()} words)`).join('\n');
+
+      // Build the full manuscript text
+      const manuscriptParts = chapters.map(ch =>
+        `## Chapter ${ch.num}\n\n${ch.content}`
+      );
+      const manuscriptText = manuscriptParts.join('\n\n---\n\n');
+
+      const systemPrompt = PROMPTS.EDITORIAL_REVIEW.build({ projectContext, chapterList });
+
+      const msgs = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      // Multi-pass: include previous findings as context
+      if (passNumber > 1 && findings.length > 0) {
+        const prevSummary = findings.map(f =>
+          `[${f.type.toUpperCase()}] [${f.scope}] ${f.title}: ${f.description} ${acceptedIds.has(f.id) ? '(ACCEPTED)' : rejectedIds.has(f.id) ? '(REJECTED)' : '(UNREVIEWED)'}`
+        ).join('\n');
+        msgs.push(
+          { role: 'user', content: manuscriptText },
+          { role: 'assistant', content: `Previous editorial review (Pass ${passNumber - 1}):\n${prevSummary}` },
+          { role: 'user', content: `This is Pass ${passNumber}. Re-analyze the manuscript, focusing on issues that remain unresolved (rejected items should be re-examined), newly introduced problems, and deeper craft issues that a second pass might reveal. Note which previous accepted changes improve the work.` }
+        );
+      } else {
+        msgs.push({ role: 'user', content: manuscriptText });
+      }
+
+      const result = await useLlmStore.getState().sendMessage({
+        messages: msgs,
+        role: 'editor',
+        maxTokens: 4000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Editorial review failed');
+        setStage('idle');
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+
+      if (jsonMatch) {
+        const items = JSON.parse(jsonMatch[0]);
+        const withIds = items.map((item, i) => ({ ...item, id: `er-${passNumber}-${i}` }));
+        setFindings(withIds);
+        setStage('results');
+        setPassNumber(p => p + 1);
+        setAcceptedIds(new Set());
+        setRejectedIds(new Set());
+
+        // Save editorial report
+        const reportContent = [
+          `# Editorial Review — Pass ${passNumber}`,
+          `*Generated: ${new Date().toLocaleString()}*`,
+          `*Chapters reviewed: ${chapters.length} (${totalWords.toLocaleString()} words)*\n`,
+          ...withIds.map(item =>
+            `## [${(item.type || '').toUpperCase()}] ${item.title}\n**Scope**: ${item.scope || 'Full manuscript'} | **Category**: ${item.category || 'general'} | **Priority**: ${item.priority || 'medium'}\n\n${item.description}\n${item.suggestion ? `\n**Suggestion**: ${item.suggestion}` : ''}\n`
+          ),
+        ].join('\n');
+        try { updateFile(`feedback/editorial-v${passNumber}.md`, reportContent); } catch (e) { /* ignore */ }
+      } else {
+        setFindings([{ id: 'er-fallback-0', type: 'suggestion', scope: 'Full manuscript', category: 'general', title: 'Editorial Feedback', description: cleaned, priority: 'medium' }]);
+        setStage('results');
+      }
+    } catch (err) {
+      setError(err.message || 'Editorial review failed');
+      setStage('idle');
+    }
+  };
+
+  const handleAccept = (item) => {
+    setAcceptedIds(prev => { const s = new Set(prev); s.add(item.id); return s; });
+    setRejectedIds(prev => { const s = new Set(prev); s.delete(item.id); return s; });
+  };
+
+  const handleReject = (id) => {
+    setRejectedIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    setAcceptedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+  };
+
+  // Chat for follow-up questions
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setChatLoading(true);
+
+    try {
+      const context = findings.length > 0
+        ? findings.map(f => `[${f.type}] [${f.scope}] ${f.title}: ${f.description}`).join('\n')
+        : 'No editorial review has been run yet.';
+
+      const msgs = [
+        { role: 'system', content: `You are the editorial reviewer for this manuscript. You previously identified these findings:\n${context}\n\nThe author is asking follow-up questions. Be specific, reference chapters and passages, and give actionable advice. Keep responses concise but helpful.` },
+        ...chatMessages.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMsg },
+      ];
+
+      const result = await useLlmStore.getState().sendMessage({
+        messages: msgs,
+        role: 'editor',
+        maxTokens: 1500,
+      });
+
+      if (result.success) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: removeEmdashes(result.content) }]);
+      } else {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${result.error}` }]);
+      }
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const severityColors = {
+    issue: { bg: 'rgba(249,115,22,0.06)', border: 'rgba(249,115,22,0.2)', text: '#f97316' },
+    suggestion: { bg: 'rgba(251,191,36,0.06)', border: 'rgba(251,191,36,0.2)', text: '#fbbf24' },
+    strength: { bg: 'rgba(74,222,128,0.06)', border: 'rgba(74,222,128,0.2)', text: '#4ade80' },
+  };
+
+  const priorityColors = { high: '#ef4444', medium: '#f97316', low: '#6b7280' };
+
+  const counts = {
+    issues: findings.filter(f => f.type === 'issue').length,
+    suggestions: findings.filter(f => f.type === 'suggestion').length,
+    strengths: findings.filter(f => f.type === 'strength').length,
+  };
+
+  const categories = [...new Set(findings.map(f => f.category).filter(Boolean))];
+
+  const filtered = findings.filter(f => {
+    if (filterType !== 'all' && f.type !== filterType.replace(/s$/, '')) return false;
+    if (filterCategory !== 'all' && f.category !== filterCategory) return false;
+    return true;
+  });
+
+  const badgeStyle = (key, active, bg, fg) => ({
+    background: active ? fg + '33' : bg,
+    color: fg,
+    cursor: 'pointer',
+    border: active ? `1px solid ${fg}` : '1px solid transparent',
+    transition: 'var(--transition)',
+  });
+
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Editorial Review</h2>
+        {stage === 'results' && <Badge variant="accent">Pass {passNumber - 1}</Badge>}
+      </div>
+
+      {/* ── Idle: show manuscript summary & launch ── */}
+      {stage === 'idle' && !error && (
+        <div style={{
+          background: '#1a1410', border: '1px solid #3d2e1a',
+          borderRadius: 'var(--radius-md)', padding: 32,
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center', marginBottom: 24 }}>
+            <Edit3 size={36} style={{ color: '#f97316', opacity: 0.6 }} />
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#d4a574' }}>
+              Full Manuscript Editorial Review
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: 500 }}>
+              Submit all your chapters for a comprehensive developmental edit. The editor will analyze continuity, pacing, character consistency, voice, structure, and prose quality across the entire manuscript.
+            </div>
+          </div>
+
+          {/* Chapter inventory */}
+          <div style={{
+            background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)',
+            padding: 16, marginBottom: 20,
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+              Manuscript Summary
+            </div>
+            {chapters.length === 0 ? (
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                No chapters found. Generate chapters in Phase 9 first.
+                <div style={{ marginTop: 8 }}>
+                  <Button variant="secondary" onClick={onGoToChapters} style={{ fontSize: '0.8rem' }}>
+                    Go to Chapter Execution →
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8, marginBottom: 12 }}>
+                  {chapters.map(ch => (
+                    <div key={ch.num} style={{
+                      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)', padding: '8px 10px',
+                      fontSize: '0.8rem',
+                    }}>
+                      <span style={{ fontWeight: 600 }}>Ch. {ch.num}</span>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>{ch.wordCount.toLocaleString()}w</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {chapters.length} chapter{chapters.length !== 1 ? 's' : ''} · {totalWords.toLocaleString()} words total
+                </div>
+              </>
+            )}
+          </div>
+
+          {chapters.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Button variant="primary" onClick={handleRunReview} style={{ padding: '12px 32px', fontSize: '0.9rem' }}>
+                <Search size={14} style={{ marginRight: 8 }} /> Run Editorial Review
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Running ── */}
+      {stage === 'running' && (
+        <div style={{
+          background: '#1a1410', border: '1px solid #3d2e1a',
+          borderRadius: 'var(--radius-md)', padding: 40,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+          textAlign: 'center',
+        }}>
+          <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
+            <Edit3 size={36} style={{ color: '#f97316' }} />
+          </div>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#d4a574' }}>
+            Reviewing {chapters.length} chapter{chapters.length !== 1 ? 's' : ''}...
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Analyzing continuity, character arcs, pacing, voice consistency, and prose quality
+          </div>
+          {/* Progress bar */}
+          <div style={{ width: '100%', maxWidth: 400, marginTop: 8 }}>
+            <div style={{
+              height: 4, borderRadius: 2,
+              background: 'var(--bg-tertiary)', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 2,
+                background: 'linear-gradient(90deg, #f97316, #fbbf24)',
+                animation: 'outlineProgress 60s ease-in-out forwards',
+              }} />
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 6 }}>
+              {formatTime(elapsedSeconds)} elapsed
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Error ── */}
+      {error && (
+        <div style={{
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 'var(--radius-md)', padding: 20,
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+        }}>
+          <AlertTriangle size={18} color="#ef4444" />
+          <div style={{ flex: 1, fontSize: '0.85rem', color: '#ef4444' }}>{error}</div>
+          <button onClick={() => setError(null)} style={{
+            background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem',
+          }}>Dismiss</button>
+        </div>
+      )}
+
+      {/* ── Results ── */}
+      {stage === 'results' && (
+        <>
+          {/* Summary bar */}
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              {chapters.length} chapters reviewed · {findings.length} findings
+            </div>
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {acceptedIds.size + rejectedIds.size} / {findings.filter(f => f.type !== 'strength').length} reviewed
+            </span>
+          </div>
+
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <Badge
+              onClick={() => setFilterType(filterType === 'issues' ? 'all' : 'issues')}
+              style={badgeStyle('issues', filterType === 'issues', '#f9731622', '#f97316')}
+            >{counts.issues} Issues</Badge>
+            <Badge
+              onClick={() => setFilterType(filterType === 'suggestions' ? 'all' : 'suggestions')}
+              style={badgeStyle('suggestions', filterType === 'suggestions', '#fbbf2422', '#fbbf24')}
+            >{counts.suggestions} Suggestions</Badge>
+            <Badge
+              onClick={() => setFilterType(filterType === 'strengths' ? 'all' : 'strengths')}
+              style={badgeStyle('strengths', filterType === 'strengths', '#4ade8022', '#4ade80')}
+            >{counts.strengths} Strengths</Badge>
+            {filterType !== 'all' && (
+              <span onClick={() => setFilterType('all')} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', alignSelf: 'center' }}>
+                Clear ×
+              </span>
+            )}
+            {categories.length > 1 && (
+              <select
+                value={filterCategory}
+                onChange={e => setFilterCategory(e.target.value)}
+                style={{
+                  marginLeft: 'auto', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)',
+                  fontSize: '0.7rem', padding: '2px 8px', cursor: 'pointer',
+                }}
+              >
+                <option value="all">All categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+          </div>
+
+          {/* Bulk actions */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <Button variant="secondary" onClick={() => findings.forEach(f => { if (f.type !== 'strength') handleAccept(f); })} style={{ fontSize: '0.75rem' }}>
+              Accept All
+            </Button>
+            <Button variant="ghost" onClick={handleRunReview} style={{ fontSize: '0.75rem' }}>
+              Re-run Review (Pass {passNumber})
+            </Button>
+          </div>
+
+          {/* Finding cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+            {filtered.map(item => {
+              const c = severityColors[item.type] || severityColors.suggestion;
+              const isAccepted = acceptedIds.has(item.id);
+              const isRejected = rejectedIds.has(item.id);
+              return (
+                <div key={item.id} style={{
+                  background: isAccepted ? 'rgba(74,222,128,0.05)' : isRejected ? 'rgba(239,68,68,0.03)' : c.bg,
+                  border: `1px solid ${isAccepted ? 'rgba(74,222,128,0.3)' : isRejected ? 'rgba(239,68,68,0.15)' : c.border}`,
+                  borderRadius: 'var(--radius-md)', padding: 16,
+                  opacity: isRejected ? 0.5 : 1,
+                  transition: 'all 0.2s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: c.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {item.type}
+                    </span>
+                    {item.scope && (
+                      <Badge style={{ fontSize: '0.55rem', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                        {item.scope}
+                      </Badge>
+                    )}
+                    {item.category && (
+                      <Badge style={{ fontSize: '0.55rem', background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                        {item.category}
+                      </Badge>
+                    )}
+                    {item.priority && (
+                      <span style={{ fontSize: '0.6rem', color: priorityColors[item.priority] || '#6b7280', fontWeight: 600 }}>
+                        {item.priority}
+                      </span>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {isAccepted && <Badge style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', fontSize: '0.6rem' }}>Accepted</Badge>}
+                    {isRejected && <Badge style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: '0.6rem' }}>Rejected</Badge>}
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>
+                  {item.suggestion && item.type !== 'strength' && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginBottom: 10, fontStyle: 'italic' }}>
+                      Suggestion: {item.suggestion}
+                    </div>
+                  )}
+                  {item.type !== 'strength' && !isAccepted && !isRejected && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button variant="primary" onClick={() => handleAccept(item)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        Accept
+                      </Button>
+                      <Button variant="ghost" onClick={() => handleReject(item.id)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                No findings match this filter.
+              </div>
+            )}
+          </div>
+
+          {/* ── Chat with the editor ── */}
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: '10px 16px', borderBottom: '1px solid var(--border)',
+              fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)',
+              textTransform: 'uppercase', letterSpacing: '0.04em',
+            }}>
+              <MessageSquare size={12} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Discuss with Editor
+            </div>
+
+            {/* Messages */}
+            <div style={{ maxHeight: 300, overflowY: 'auto', padding: 16 }}>
+              {chatMessages.length === 0 && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>
+                  Ask follow-up questions about the review findings, request clarification, or discuss specific chapters.
+                </div>
+              )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{
+                  marginBottom: 12,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                }}>
+                  <div style={{
+                    background: msg.role === 'user' ? 'var(--accent-bg)' : 'var(--bg-tertiary)',
+                    border: `1px solid ${msg.role === 'user' ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px', maxWidth: '85%',
+                    fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {msg.content}
+                  </div>
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {msg.role === 'user' ? 'You' : 'Editor'}
+                  </span>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Editor is thinking...
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{
+              display: 'flex', gap: 8, padding: '8px 12px',
+              borderTop: '1px solid var(--border)',
+            }}>
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                placeholder="Ask about the review findings..."
+                style={{
+                  flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', padding: '8px 12px',
+                  color: 'var(--text-primary)', fontSize: '0.82rem',
+                }}
+              />
+              <Button variant="primary" onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()} style={{ padding: '8px 12px' }}>
+                <SendHorizontal size={14} />
+              </Button>
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -2608,7 +3170,7 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
 }
 
 /* ─── IDE-like File Editor ─── */
-function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onContentChange, onSave }) {
+function FileEditorMode({ file, onPreview, editedContent, onContentChange, onSave }) {
   // Prefer live project data; only fall back to static demo data for the demo project
   const storeFiles = useProjectStore(s => s.files);
   const fc = storeFileToFc(storeFiles, file) || getDemoFileContent(file) || defaultFileContent(file || 'untitled.md');
@@ -2710,14 +3272,6 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
             color: 'var(--accent-btn-text, #000)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
           }}>
             <BookOpen size={12} /> Preview in Reader
-          </button>
-          <button onClick={onEditorReview} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border)', background: 'var(--bg-card)',
-            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem',
-          }}>
-            <Search size={11} /> Run Editor
           </button>
           <button onClick={() => setShowDeconstruction(!showDeconstruction)} style={{
             display: 'flex', alignItems: 'center', gap: 4,
@@ -4778,10 +5332,46 @@ function DrawingBoard({ onOpenFile, boardItems, setBoardItems }) {
         </div>
       )}
 
-      {viewMode === 'board' && renderBoardView()}
-      {viewMode === 'list' && renderListView()}
-      {viewMode === 'gallery' && renderGalleryView()}
-      {viewMode === 'unlinked' && renderBoardView()}
+      {filteredItems.length > 0 && viewMode === 'board' && renderBoardView()}
+      {filteredItems.length > 0 && viewMode === 'list' && renderListView()}
+      {filteredItems.length > 0 && viewMode === 'gallery' && renderGalleryView()}
+      {filteredItems.length > 0 && viewMode === 'unlinked' && renderBoardView()}
+
+      {/* Empty state */}
+      {filteredItems.length === 0 && !showAddModal && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-md)', padding: '40px 32px',
+          textAlign: 'center', marginTop: 8,
+        }}>
+          <Palette size={32} style={{ color: 'var(--text-muted)', opacity: 0.4, marginBottom: 12 }} />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            Your scratchpad for everything outside the manuscript
+          </h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 20px' }}>
+            Use the Drawing Board to collect notes, research, reference images, character sketches, alternate plot ideas, uploaded documents, and anything else that informs your story. Items here can be linked to chapters and are included when you export your project.
+          </p>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
+            {[
+              { icon: '📝', label: 'Notes', desc: 'Quick ideas, "what if" scenarios, thematic threads' },
+              { icon: '🖼', label: 'Images', desc: 'Reference photos, mood boards, character art' },
+              { icon: '📎', label: 'Documents', desc: 'Research PDFs, interviews, source material' },
+              { icon: '📄', label: 'Drafts', desc: 'Alternate scenes, cut passages, experimental prose' },
+            ].map(t => (
+              <div key={t.label} style={{
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)', padding: '12px 16px', width: 160, textAlign: 'left',
+              }}>
+                <div style={{ fontSize: '1rem', marginBottom: 4 }}>{t.icon} <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{t.label}</span></div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+          <Button variant="primary" onClick={() => setShowAddModal(true)} style={{ padding: '10px 24px' }}>
+            + Add Your First Item
+          </Button>
+        </div>
+      )}
 
       <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -6977,8 +7567,25 @@ function WorldBuildingMode() {
   const worldContent = projectFiles['world/world-building.md'] || '';
 
   // Parse world-building.md into structured sections
+  // Handles BOTH decomposed format (## Locations, ## Culture) AND
+  // Phase 3 question format (## Where and when does this story take place?)
   const parseWorldData = (content) => {
     if (!content.trim()) return { overview: {}, locations: [], cultureRules: [], hallmarks: [], history: [] };
+
+    // Map Phase 3 question headers to canonical section keys
+    const questionToSection = (header) => {
+      const h = header.toLowerCase();
+      if (h.includes('where') && h.includes('when') || h.includes('time period') || h.includes('emotional geography') || h.includes('central tension') || h.includes('unique')) return 'overview';
+      if (h.includes('social structure') || h.includes('rules of this world')) return 'culture';
+      if (h.includes('hallmarks')) return 'hallmarks';
+      // Decomposed format — direct match
+      if (h === 'locations' || h === 'places' || h === 'geography') return 'locations';
+      if (h === 'culture' || h === 'culture & rules' || h === 'society' || h === 'rules') return 'culture';
+      if (h === 'history' || h === 'timeline') return 'history';
+      if (h === 'hallmarks' || h === 'symbols' || h === 'motifs') return 'hallmarks';
+      if (h === 'overview' || h === 'setting') return 'overview';
+      return null; // unknown — will add to overview
+    };
 
     const sections = {};
     let currentSection = 'raw';
@@ -6986,8 +7593,9 @@ function WorldBuildingMode() {
     lines.forEach(line => {
       const h2 = line.match(/^##\s+(.+)/);
       if (h2) {
-        currentSection = h2[1].trim().toLowerCase();
-        sections[currentSection] = [];
+        const mapped = questionToSection(h2[1].trim());
+        currentSection = mapped || h2[1].trim().toLowerCase();
+        if (!sections[currentSection]) sections[currentSection] = [];
         return;
       }
       if (!sections[currentSection]) sections[currentSection] = [];
@@ -7001,7 +7609,6 @@ function WorldBuildingMode() {
       for (const line of lines) {
         const h3 = line.match(/^###\s+(.+)/);
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
-        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
         if (h3) {
           if (current) items.push(current);
           current = { name: h3[1].trim(), desc: '', type: 'Location', importance: 'Primary', connections: [] };
@@ -7015,23 +7622,39 @@ function WorldBuildingMode() {
       return items;
     };
 
-    // Parse culture rules
+    // Parse culture rules — also parse plain text as rules (one per paragraph or bullet)
     const parseCultureRules = (lines = []) => {
       const rules = [];
       let current = null;
       for (const line of lines) {
         const h3 = line.match(/^###\s+(.+)/);
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
         if (h3) {
           if (current) rules.push(current);
           current = { rule: h3[1].trim(), category: 'General', desc: '', tension: 'medium' };
         } else if (bullet) {
+          if (current) rules.push(current);
+          current = null;
           rules.push({ rule: bullet[1].trim(), category: 'General', desc: bullet[2]?.trim() || '', tension: 'medium' });
+        } else if (simpleBullet && !current) {
+          // Plain bullet without bold — treat as a rule
+          rules.push({ rule: simpleBullet[1].trim(), category: 'General', desc: '', tension: 'medium' });
         } else if (current && line.trim()) {
           current.desc += (current.desc ? ' ' : '') + line.trim();
         }
       }
       if (current) rules.push(current);
+      // If no structured rules found, try to extract from plain text paragraphs
+      if (rules.length === 0) {
+        const text = lines.join('\n').trim();
+        if (text) {
+          const sentences = text.split(/\.\s+/).filter(s => s.trim().length > 10);
+          sentences.slice(0, 8).forEach(s => {
+            rules.push({ rule: s.trim().replace(/\.$/, ''), category: 'General', desc: '', tension: 'medium' });
+          });
+        }
+      }
       return rules;
     };
 
@@ -7047,21 +7670,52 @@ function WorldBuildingMode() {
       return events;
     };
 
-    // Parse hallmarks/symbols
+    // Parse hallmarks/symbols — also handle plain text/simple bullets
     const parseHallmarks = (lines = []) => {
       const items = [];
       for (const line of lines) {
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
         if (bullet) {
           items.push({ name: bullet[1].trim(), type: 'Symbol', significance: bullet[2]?.trim() || '', chapters: [] });
+        } else if (simpleBullet) {
+          // Parse "name: description" or "name — description" or just "name"
+          const parts = simpleBullet[1].split(/[:\u2014\u2013-]\s*/);
+          items.push({ name: parts[0].trim(), type: 'Symbol', significance: parts.slice(1).join(' ').trim(), chapters: [] });
+        }
+      }
+      // If no bullets found, try comma-separated list from plain text
+      if (items.length === 0) {
+        const text = lines.join(' ').trim();
+        if (text) {
+          const commaItems = text.split(/,\s*/).filter(s => s.trim().length > 2 && s.trim().length < 80);
+          if (commaItems.length >= 2) {
+            commaItems.forEach(s => {
+              items.push({ name: s.trim().replace(/\.$/, ''), type: 'Symbol', significance: '', chapters: [] });
+            });
+          }
         }
       }
       return items;
     };
 
-    // Find overview text (before first H2 or in "overview"/"setting" section)
-    const overviewLines = sections['overview'] || sections['setting'] || sections['raw'] || [];
-    const overview = overviewLines.join('\n').trim();
+    // Build overview from multiple sections
+    const overviewParts = [];
+    const overviewSections = sections['overview'] || sections['setting'] || [];
+    if (overviewSections.length > 0) overviewParts.push(overviewSections.join('\n').trim());
+    // Also include raw (before first H2) as overview
+    if (sections['raw']?.length > 0) {
+      const rawText = sections['raw'].join('\n').trim();
+      if (rawText && !overviewParts.includes(rawText)) overviewParts.push(rawText);
+    }
+    // For any unmapped sections, add them to overview
+    const knownKeys = new Set(['raw', 'overview', 'setting', 'locations', 'places', 'geography', 'culture', 'rules', 'culture & rules', 'society', 'history', 'timeline', 'hallmarks', 'symbols', 'motifs']);
+    for (const [key, lines] of Object.entries(sections)) {
+      if (!knownKeys.has(key) && lines.length > 0) {
+        overviewParts.push(lines.join('\n').trim());
+      }
+    }
+    const overview = overviewParts.filter(Boolean).join('\n\n');
 
     return {
       overview: { text: overview },
@@ -11327,6 +11981,48 @@ export default function WorkspaceScreen() {
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
   // Drawing Board / Scratchpad items — lifted to workspace level so sidebar can access
   const [boardItems, setBoardItems] = useState([]);
+  const boardItemsInitRef = useRef(false);
+
+  // Load board items from project files on mount
+  useEffect(() => {
+    if (boardItemsInitRef.current) return;
+    const raw = projectFiles?.['drawing-board/notes.md'];
+    if (raw && raw.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBoardItems(parsed);
+          boardItemsInitRef.current = true;
+        }
+      } catch (e) { /* not JSON, ignore */ }
+    }
+  }, [projectFiles?.['drawing-board/notes.md']]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist board items to project files when they change
+  useEffect(() => {
+    if (boardItems.length === 0 && !boardItemsInitRef.current) return; // don't overwrite with empty on initial load
+    boardItemsInitRef.current = true;
+    // Strip image dataUrls to keep file size reasonable — save metadata only
+    const serializable = boardItems.map(item => ({
+      ...item,
+      images: item.images?.map(() => '[image]') || undefined, // placeholder — images are in-memory only
+    }));
+    // Also save a human-readable markdown version alongside the JSON
+    const mdParts = ['# Drawing Board Notes\n'];
+    for (const item of boardItems) {
+      mdParts.push(`## ${item.text || item.label || 'Untitled'}`);
+      mdParts.push(`- **Type**: ${item.type} | **Group**: ${item.group || 'Unsorted'}`);
+      if (item.fullText) mdParts.push(`\n${item.fullText}`);
+      if (item.docs?.length) mdParts.push(`- Attached files: ${item.docs.map(d => d.name).join(', ')}`);
+      mdParts.push('');
+    }
+    const updateFile = useProjectStore.getState().updateFile;
+    try {
+      updateFile('drawing-board/notes.md', JSON.stringify(serializable, null, 2));
+      updateFile('drawing-board/board-readable.md', mdParts.join('\n'));
+    } catch (e) { /* ignore */ }
+  }, [boardItems]);
+
   const [quickChatOpen, setQuickChatOpen] = useState(false);
   const [threadExpanded, setThreadExpanded] = useState(false);
   const [overLimitPrompt, setOverLimitPrompt] = useState(false);
@@ -11428,6 +12124,8 @@ export default function WorkspaceScreen() {
   const renderCenter = () => {
     switch (activeMode) {
       case 'guided':
+        // Phase 10 gets a dedicated editorial review UI
+        if (activePhase === 10) return <EditorialReviewMode onGoToChapters={() => setActivePhase(9)} />;
         // Phase 9 gets a dedicated chapter execution UI
         if (activePhase === 9) return <ChapterExecutionMode onGoToOutline={() => setActivePhase(8)} />;
         // Phase 7 (Review) gets its own dedicated UI
@@ -11511,12 +12209,10 @@ export default function WorkspaceScreen() {
               setActiveMode('file-editor');
             }}
           />;
-      case 'editor': return <EditorMode file={activeFile} />;
       case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} editedContent={editedFiles[activeFile]} onNavigate={(path) => setActiveFile(path)} />;
       case 'file-editor': return <FileEditorMode
         file={activeFile}
         onPreview={() => setActiveMode('reader')}
-        onEditorReview={() => setActiveMode('editor')}
         editedContent={editedFiles[activeFile]}
         onContentChange={(text) => setEditedFiles(prev => ({ ...prev, [activeFile]: text }))}
         onSave={(text) => {
@@ -11870,10 +12566,9 @@ export default function WorkspaceScreen() {
                       setShowGateWarning(true);
                       return;
                     }
-                    // Quality warning for phases 9/10 if health is low (≤2 in any dimension)
-                    if ((num === 9 || num === 10)) {
-                      // Check health scores — using demo values; in production these come from state
-                      const lowHealth = true; // demo: World Integrity is 3, Character Depth is 2
+                    // Quality warning for phase 9 if health is low (≤2 in any dimension)
+                    if (num === 9) {
+                      const lowHealth = healthDimensions.some(d => d.rating && d.rating <= 2);
                       if (lowHealth) {
                         setShowQualityWarning(num);
                         return;
@@ -12109,7 +12804,7 @@ export default function WorkspaceScreen() {
             {(() => {
               const userMode = useSettingsStore(s => s.mode) || 'advanced';
               const visibleModes = userMode === 'simple'
-                ? centerStageModes.filter(m => ['guided', 'chat', 'reader', 'editor', 'board'].includes(m.key))
+                ? centerStageModes.filter(m => ['guided', 'chat', 'reader', 'board'].includes(m.key))
                 : centerStageModes;
               return visibleModes.map((m) => {
                 const Icon = m.icon;

@@ -1176,6 +1176,72 @@ Review the content and provide feedback as a **JSON array** of items. Each item 
   },
 
   // ═════════════════════════════════════════════════════════════════════
+  //  17b. EDITORIAL REVIEW — Full Manuscript Pass
+  // ═════════════════════════════════════════════════════════════════════
+  /**
+   * ROLE:        A professional developmental editor reviewing the full manuscript.
+   * USE MODE:    Phase 10 — Editorial Review. Receives ALL chapters + project context.
+   * BOUNDARIES:  Analysis + actionable suggestions. Returns structured JSON.
+   * CONTEXT:     Full manuscript, outline, character profiles, world-building, narrator, author.
+   * OUTPUT:      JSON array of editorial findings across the entire manuscript.
+   */
+  EDITORIAL_REVIEW: {
+    build: ({ projectContext, chapterList } = {}) => GOLDEN_RULES + `
+## Your Role: Developmental Editor — Full Manuscript Review
+
+You are a **senior developmental editor** conducting a comprehensive editorial pass across the entire manuscript for Serendipity | StoryWeaver.
+
+### What you're reviewing:
+${chapterList || 'The full manuscript (all available chapters).'}
+
+${projectContext ? `### Project Context
+Use this to validate consistency, voice, arc progression, and world fidelity:
+
+${projectContext}
+
+---
+` : ''}
+
+### Your task:
+Conduct a thorough editorial review of the FULL manuscript. Analyze it holistically — not just chapter-by-chapter, but as a complete work. Return a **JSON array** of findings.
+
+Each finding must have:
+- \`"type"\`: one of \`"issue"\`, \`"suggestion"\`, \`"strength"\`
+- \`"scope"\`: which chapter(s) this applies to — e.g. "Chapter 3", "Chapters 2-5", "Full manuscript", "Chapter 1 & 7"
+- \`"category"\`: one of "continuity", "pacing", "character", "voice", "structure", "dialogue", "world-building", "theme", "tension", "prose"
+- \`"title"\`: short headline (5-10 words)
+- \`"description"\`: detailed explanation with specific references to passages (2-4 sentences)
+- \`"suggestion"\`: actionable fix with direction on how to implement (1-3 sentences). Required for issues and suggestions; optional for strengths.
+- \`"priority"\`: "high", "medium", or "low"
+- \`"autoApplyChapter"\`: if this can be localized to a single chapter file, provide the chapter number (e.g. 3). Otherwise null.
+
+### Coverage targets:
+- **5-8 issues**: Active problems — continuity breaks, plot holes, character inconsistencies, POV slips, pacing problems, arc deviations, world-rule violations, timeline errors
+- **5-8 suggestions**: Improvements — tighter dialogue, better transitions, deeper character moments, structural reordering, theme reinforcement, foreshadowing opportunities, relationship subtext
+- **3-5 strengths**: What's working — effective imagery, strong character voice, good tension, faithful world-building, emotional resonance, thematic depth
+
+### Review dimensions (check ALL):
+1. **Story arc**: Does the manuscript follow the outline's intended arc? Are act breaks landing properly?
+2. **Character consistency**: Do characters behave consistently with their profiles, wounds, flaws, and growth trajectories?
+3. **Narrator voice**: Is the established voice, tense, and POV maintained throughout? Any drift?
+4. **Pacing**: Are there chapters that drag or rush? Does tension build and release appropriately?
+5. **Continuity**: Timeline consistency, character knowledge, physical details, setting details across chapters
+6. **Dialogue**: Does each character have a distinct voice? Is dialogue serving story or just filling space?
+7. **World fidelity**: Are genre hallmarks and world rules respected? Any contradictions?
+8. **Theme**: Are thematic threads woven consistently? Do they build toward meaning?
+9. **Tension/Stakes**: Does each chapter raise or maintain stakes? Are there dead zones?
+10. **Prose quality**: Overwriting, underwriting, clichés, telling-not-showing, purple prose
+
+### Rules:
+- Be specific: reference particular chapters, scenes, and passages
+- Cross-reference against all project files (characters, outline, narrator, world)
+- Flag cross-chapter issues that single-chapter reviews would miss
+- Prioritize findings by impact on the reader's experience
+- Respond ONLY with the JSON array, no preamble, no postamble
+`,
+  },
+
+  // ═════════════════════════════════════════════════════════════════════
   //  18. DEEP COMPARISON — Per-Dimension Analysis
   // ═════════════════════════════════════════════════════════════════════
   /**

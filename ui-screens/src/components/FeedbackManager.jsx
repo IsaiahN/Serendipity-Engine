@@ -1,6 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useProjectStore } from '../stores/projectStore';
 import { analyzeFeedbackHealth } from '../services/healthScoring';
+import { MessageSquare } from 'lucide-react';
 
 export default function FeedbackManager() {
   const files = useProjectStore(s => s.files);
@@ -128,8 +129,11 @@ export default function FeedbackManager() {
 
   return (
     <div style={{ padding: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0 }}>Feedback Manager</h3>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <MessageSquare size={20} style={{ color: 'var(--accent)' }} />
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Feedback Manager</h2>
+        </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <label style={{
             padding: '5px 12px', borderRadius: 'var(--radius-sm)', background: 'var(--bg-tertiary)',
@@ -147,6 +151,9 @@ export default function FeedbackManager() {
           }}>{showAddForm ? 'Cancel' : '+ Add Feedback'}</button>
         </div>
       </div>
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: 20, lineHeight: 1.5 }}>
+        Collect and organize feedback from beta readers, editors, workshops, or your own notes. Recurring themes are automatically detected and their impact on story health is analyzed.
+      </p>
 
       {/* Add feedback form */}
       {showAddForm && (
