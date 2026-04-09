@@ -18,7 +18,7 @@ export const phases = [
   { num: 4, name: 'Characters', gated: false },
   { num: 5, name: 'Relationships', gated: false },
   { num: 6, name: 'Story Foundation', gated: false },
-  { num: 7, name: 'AI Review', gated: false },
+  { num: 7, name: 'Review', gated: false },
   { num: '⟡', name: 'Outline', gated: false },
   { num: 8, name: 'Chapter Execution', gated: true },  // Unlock when decomposed or all prereqs complete
   { num: 9, name: 'Editor', gated: true },              // Unlock when decomposed or all prereqs complete

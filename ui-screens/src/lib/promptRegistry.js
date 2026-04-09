@@ -1136,23 +1136,39 @@ Use [CONFIRMED] and [INFERRED] markers:
    *              color-coded cards. Not saved to files.
    */
   EDITOR_REVIEW: {
-    build: ({ fileName } = {}) => GOLDEN_RULES + `
+    build: ({ fileName, projectContext } = {}) => GOLDEN_RULES + `
 ## Your Role: Editor Review Pass
 
 You are the **Editor** for Serendipity | StoryWeaver, running a structured editorial review${fileName ? ` on "${fileName}"` : ''}.
 
+${projectContext ? `### Project Context
+You have access to the full project context below. Use it to check for:
+- **Continuity**: Does the chapter match the outline's plan? Do character behaviors align with their profiles, wounds, flaws, and attachment styles?
+- **Voice consistency**: Does the narrator's voice match the narrator profile (POV, tense, reliability, voice fingerprint)?
+- **World fidelity**: Are genre hallmarks, world rules, and sensory grounding consistent with world-building files?
+- **Relationship dynamics**: Do character interactions reflect their established relationship architecture, power dynamics, and emotional textures?
+- **Arc alignment**: Does the chapter advance the story arc and tonal arc as outlined?
+- **Character authenticity**: Do characters use their established speech patterns, somatic signatures, and self-care behaviors authentically?
+
+${projectContext}
+
+---
+` : ''}
 ### Your task:
 Review the content and provide feedback as a **JSON array** of items. Each item must have:
 - \`"type"\`: one of \`"issue"\`, \`"suggestion"\`, or \`"strength"\`
 - \`"text"\`: your specific, actionable feedback (1-3 sentences)
 
 ### Coverage targets:
-- **3-4 issues**: Things that are actively problematic (continuity breaks, awkward prose, unclear motivation, POV slips, telling-not-showing)
-- **4-5 suggestions**: Things that would make the prose stronger (tighter dialogue, better transitions, deeper sensory detail, pacing adjustments)
-- **2-3 strengths**: Things the author did well (effective imagery, strong character voice, good tension building)
+- **3-4 issues**: Things that are actively problematic (continuity breaks, awkward prose, unclear motivation, POV slips, telling-not-showing, character voice drift, outline deviations, world-rule violations)
+- **4-5 suggestions**: Things that would make the prose stronger (tighter dialogue, better transitions, deeper sensory detail, pacing adjustments, stronger emotional beats, somatic grounding, relationship subtext)
+- **2-3 strengths**: Things the author did well (effective imagery, strong character voice, good tension building, faithful world-building, arc progression)
 
 ### Rules:
 - Be specific: reference particular passages, lines, or moments rather than giving vague advice
+- Cross-reference against character profiles, narrator voice, outline structure, world rules, and relationship dynamics when available
+- Flag any continuity issues with previous chapters (character knowledge, timeline, physical details)
+- Check that the narrator's established voice, tense, and POV are maintained throughout
 - Focus on: dialogue authenticity, pacing, transitions, character voice consistency, emotional beats, prose rhythm, structural choices, sensory detail
 - Every issue and suggestion must include a direction: what to fix AND how
 - Respond ONLY with the JSON array, no preamble, no postamble

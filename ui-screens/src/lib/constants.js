@@ -10,7 +10,7 @@ export const PHASES = [
   { id: 4, name: 'Characters', key: 'characters', description: 'Design the cast: attributes, palettes, somatic signatures' },
   { id: 5, name: 'Relationships', key: 'relationships', description: 'Map dynamics, attachment styles, emotional textures' },
   { id: 6, name: 'Story Foundation', key: 'story', description: 'Ending-first: title, abstract, arc, outline, tonal arc' },
-  { id: 7, name: 'AI Review', key: 'review', description: 'AI-driven audit of all phases with actionable suggestions' },
+  { id: 7, name: 'Review', key: 'review', description: 'AI-driven audit of all phases with actionable suggestions' },
   { id: '⟡', name: 'Outline', key: 'outline', description: 'Generate, review, and finalize the story outline' },
   { id: 8, name: 'Execution', key: 'execution', description: 'Chapter-by-chapter drafting with pre/post-flight checks' },
 ];

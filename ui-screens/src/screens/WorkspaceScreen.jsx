@@ -261,7 +261,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   const [aiError, setAiError] = useState(null);
   const questions = phaseQuestions[phase] || [];
   const phaseAnswerMap = answers[phase] || {};
-  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'AI Review', '⟡': 'Outline', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
+  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Review', '⟡': 'Outline', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
 
@@ -462,9 +462,10 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
 }
 
 /* ─── Chapter Execution Mode (Phase 8) ─── */
-function ChapterExecutionMode() {
+function ChapterExecutionMode({ onGoToOutline }) {
   const [chapterNum, setChapterNum] = useState(1);
   const [stage, setStage] = useState('idle'); // idle | preflight | generating | postflight | complete | error
+  const [outlineWarningDismissed, setOutlineWarningDismissed] = useState(false);
   const [preflight, setPreflight] = useState(null);
   const [postflight, setPostflight] = useState(null);
   const [generatedContent, setGeneratedContent] = useState('');
@@ -554,6 +555,48 @@ function ChapterExecutionMode() {
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Chapter Execution</h2>
         <Badge variant="accent">Phase 8</Badge>
       </div>
+
+      {/* Outline quality warning */}
+      {!outlineWarningDismissed && (() => {
+        const outlineContent = (files?.['outline.md'] || '').trim();
+        const isMissing = !outlineContent;
+        const isTooShort = outlineContent && outlineContent.length < 200;
+        const isOneLiner = outlineContent && outlineContent.split('\n').filter(l => l.trim()).length <= 2;
+        const hasIssue = isMissing || isTooShort || isOneLiner;
+        if (!hasIssue) return null;
+        return (
+          <div style={{
+            background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251, 191, 36, 0.3)',
+            borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20,
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <AlertTriangle size={18} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                  {isMissing ? 'No outline found' : isTooShort ? 'Outline appears too brief' : 'Outline may be incomplete'}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {isMissing
+                    ? 'Chapter generation works best with a detailed outline. Without one, the AI has no structural guidance for your story.'
+                    : 'Your outline is very short. A detailed, chapter-by-chapter outline helps the AI generate content that matches your vision for pacing, plot, and character arcs.'
+                  }
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {onGoToOutline && (
+                <Button variant="primary" onClick={onGoToOutline} style={{ fontSize: '0.8rem', padding: '8px 16px' }}>
+                  Go to Outline Phase
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => setOutlineWarningDismissed(true)} style={{ fontSize: '0.8rem', padding: '8px 16px', border: '1px solid var(--border)' }}>
+                Continue Anyway
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Existing chapters */}
       {existingChapters.length > 0 && (
@@ -831,7 +874,74 @@ function EditorMode({ file }) {
         return;
       }
 
-      const systemPrompt = PROMPTS.EDITOR_REVIEW.build({ fileName: file });
+      // ── Build comprehensive project context for the editor ──
+      const contextParts = [];
+
+      // Author & Narrator profiles
+      if (files?.['author.md']?.trim()) contextParts.push(`## Author Profile\n${files['author.md']}`);
+      if (files?.['narrator.md']?.trim()) contextParts.push(`## Narrator Profile\n${files['narrator.md']}`);
+
+      // Outline
+      if (files?.['outline.md']?.trim()) contextParts.push(`## Story Outline\n${files['outline.md']}`);
+
+      // Story arc
+      if (files?.['story/arc.md']?.trim()) contextParts.push(`## Story Arc\n${files['story/arc.md']}`);
+
+      // World building & hallmarks
+      if (files?.['world/world-building.md']?.trim()) contextParts.push(`## World Building\n${files['world/world-building.md']}`);
+
+      // Relationships
+      if (files?.['relationships/questions-answered.md']?.trim()) contextParts.push(`## Relationships\n${files['relationships/questions-answered.md']}`);
+
+      // Character files — include all characters that appear in the chapter being reviewed
+      const charFiles = Object.entries(files || {})
+        .filter(([path]) => path.startsWith('characters/') && path.endsWith('.md') && path !== 'characters/questions-answered.md');
+      if (chapterNum) {
+        // For chapter files, try to detect which characters appear in the content
+        const chapterText = fileContent.toLowerCase();
+        for (const [path, content] of charFiles) {
+          if (!content?.trim()) continue;
+          const charName = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+          // Include character if their name appears in the chapter, or include all if we can't determine
+          if (chapterText.includes(charName.toLowerCase()) || charFiles.length <= 8) {
+            contextParts.push(`## Character: ${charName}\n${content}`);
+          }
+        }
+      } else {
+        // Non-chapter file — include all characters
+        for (const [path, content] of charFiles) {
+          if (!content?.trim()) continue;
+          const charName = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+          contextParts.push(`## Character: ${charName}\n${content}`);
+        }
+      }
+
+      // All generated chapters (so editor can check continuity)
+      const allChapterFiles = Object.entries(files || {})
+        .filter(([path]) => path.match(/^story\/chapter-\d+\.md$/))
+        .sort(([a], [b]) => {
+          const numA = parseInt(a.match(/chapter-(\d+)/)[1]);
+          const numB = parseInt(b.match(/chapter-(\d+)/)[1]);
+          return numA - numB;
+        });
+      for (const [path, content] of allChapterFiles) {
+        if (!content?.trim() || path === `story/chapter-${chapterNum}.md`) continue; // skip the file being reviewed
+        const num = path.match(/chapter-(\d+)/)[1];
+        // For chapters far from the one being reviewed, include summary if available
+        if (chapterNum && Math.abs(parseInt(num) - chapterNum) > 2) {
+          const summaryPath = `story/chapter-${num}-summary.md`;
+          if (files?.[summaryPath]?.trim()) {
+            contextParts.push(`## Chapter ${num} (Summary)\n${files[summaryPath]}`);
+          } else {
+            contextParts.push(`## Chapter ${num} (Summary)\n[Full text available but summarized for context limits — ${content.split(/\s+/).length} words]`);
+          }
+        } else {
+          contextParts.push(`## Chapter ${num}\n${content}`);
+        }
+      }
+
+      const projectContext = contextParts.join('\n\n---\n\n');
+      const systemPrompt = PROMPTS.EDITOR_REVIEW.build({ fileName: file, projectContext });
 
       // Build messages with previous feedback context for multi-pass
       const userContent = `## File: ${file}\n\n${fileContent}`;
@@ -1452,7 +1562,7 @@ function AIReviewMode({ onNextPhase }) {
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 750, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>AI Review</h2>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Review</h2>
         <Badge variant="accent">Phase 7</Badge>
       </div>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
@@ -1462,12 +1572,12 @@ function AIReviewMode({ onNextPhase }) {
 
       {/* Idle state — run or skip */}
       {stage === 'idle' && (
-        <div style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
-          <Button variant="primary" onClick={handleRunReview} style={{ padding: '14px 0', fontSize: '0.9rem' }}>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Button variant="primary" onClick={handleRunReview} style={{ flex: 1, padding: '14px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Brain size={16} style={{ marginRight: 8 }} /> Run AI Review
           </Button>
-          <Button variant="ghost" onClick={onNextPhase} style={{ fontSize: '0.8rem' }}>
-            Skip AI Review — go directly to Outline →
+          <Button variant="ghost" onClick={onNextPhase} style={{ flex: 1, padding: '14px 0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
+            Skip to Outline →
           </Button>
         </div>
       )}
@@ -11228,7 +11338,7 @@ export default function WorkspaceScreen() {
     switch (activeMode) {
       case 'guided':
         // Phase 8 gets a dedicated chapter execution UI
-        if (activePhase === 8) return <ChapterExecutionMode />;
+        if (activePhase === 8) return <ChapterExecutionMode onGoToOutline={() => setActivePhase('⟡')} />;
         // Phase 7 (AI Review) gets its own dedicated UI
         if (activePhase === 7) return <AIReviewMode
           onNextPhase={() => {
