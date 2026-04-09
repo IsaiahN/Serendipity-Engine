@@ -11017,6 +11017,7 @@ export default function WorkspaceScreen() {
   // Compute phase percentages dynamically from answers vs questions
   // Decomposed projects have all phases pre-marked as complete
   // Projects explicitly set to 'create' mode (e.g., via Paradigm Shift) are NOT decomposed
+  const projectFiles = useProjectStore(s => s.files);
   const explicitMode = activeProject?.metadata?.mode || activeProject?.mode;
   const isDecomposed = explicitMode === 'decompose' || (
     explicitMode !== 'create' &&
@@ -11072,7 +11073,6 @@ export default function WorkspaceScreen() {
   }, [activeProject?.id, isDecomposed, derivedCurrentPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute health dimensions from real project data
-  const projectFiles = useProjectStore(s => s.files);
   const [healthDimensions, setHealthDimensions] = useState(defaultHealthDimensions.map(d => ({ ...d, rating: 0 })));
   const [overallHealthRating, setOverallHealthRating] = useState(0);
 
