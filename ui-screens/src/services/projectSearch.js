@@ -66,7 +66,7 @@ function categorizeFile(path) {
   if (path.startsWith('story/') || path.match(/chapter-\d+/)) return 'Story';
   if (path.startsWith('relationships/')) return 'Relationships';
   if (path.startsWith('feedback/')) return 'Feedback';
-  if (path.startsWith('quality-control/')) return 'Quality Control';
+  if (path.startsWith('quality-control/')) return 'Review';
   if (path === 'author.md') return 'Author';
   if (path === 'narrator.md') return 'Narrator';
   if (path === 'outline.md') return 'Outline';

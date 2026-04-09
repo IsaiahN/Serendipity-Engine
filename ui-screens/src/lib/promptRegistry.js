@@ -2041,15 +2041,29 @@ ${projectFiles}
    * DESTINATION: Saved as outline.md in the project.
    */
   OUTLINE_GENERATION: {
-    build: ({ phaseAnswers, projectFiles, medium, mediumUnit, wordRange, genre, authorProfile, narratorProfile, worldBuilding, characters, relationships, storyFoundation }) => GOLDEN_RULES + `
+    build: ({ phaseAnswers, projectFiles, medium, mediumUnit, wordRange, genre, authorProfile, narratorProfile, worldBuilding, characters, relationships, storyFoundation, outlineProfile }) => {
+      // Use the medium-specific outline profile for structure guidance
+      const p = outlineProfile || {};
+      const unit = p.primaryUnit || mediumUnit?.charAt(0).toUpperCase() + mediumUnit?.slice(1) || 'Chapter';
+      const unitPlural = p.primaryUnitPlural || (mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapters');
+      const countRange = p.typicalCount || [15, 30];
+
+      // Build the per-unit field template from the profile
+      const unitFields = (p.unitContent || [
+        'Word Count Target', 'Dominant Tone', 'Chapter Summary', 'Emotional Arc', 'Key Moments', 'Active Threads', 'Hook / Transition',
+      ]).map(f => `- **${f.split(' — ')[0]}**: ${f.includes(' — ') ? f.split(' — ').slice(1).join(' — ') : '[fill in]'}`).join('\n');
+
+      return GOLDEN_RULES + `
 ## Your Role: Story Architect — Outline Generator
 
 Generate a **complete, detailed outline** for this story based on everything the author has built across all phases.
 
 ### Story Parameters:
 - **Medium**: ${medium || 'Novel'}
-- **Unit**: ${mediumUnit || 'chapters'} (this is how the story is divided — chapters, scenes, acts, episodes, etc.)
-- **Target Word Range**: ${wordRange ? `${wordRange[0].toLocaleString()} - ${wordRange[1].toLocaleString()} words` : '50,000 - 120,000 words'}
+- **Primary Segmentation**: ${unitPlural} (the story is divided into ${unitPlural.toLowerCase()}, NOT scenes or sub-units unless the medium specifically calls for it)
+- **Target Word Range**: ${wordRange ? `${wordRange[0].toLocaleString()} – ${wordRange[1].toLocaleString()} words` : '50,000 – 120,000 words'}
+- **Expected ${unit} Count**: ${countRange[0]}–${countRange[1]} ${unitPlural.toLowerCase()}
+- **Typical Structure**: ${p.structure || '3-act'}
 - **Genre**: ${genre || 'Not specified'}
 
 ### Author Profile:
@@ -2073,9 +2087,20 @@ ${storyFoundation || '(Not yet written)'}
 ### Phase Answers:
 ${phaseAnswers || '(No phase answers)'}
 
-### OUTLINE FORMAT — Follow this structure exactly:
+---
 
-# Outline
+## CRITICAL: Medium-Specific Formatting Rules
+
+${p.doNot || `Do NOT break ${unitPlural.toLowerCase()} into numbered scenes unless the medium specifically uses scenes as its primary unit.`}
+
+${p.formatNote || `Each ${unit.toLowerCase()} should be its own clearly separated section with a narrative summary of what happens.`}
+
+---
+
+## OUTLINE FORMAT — Follow this structure exactly:
+
+Use plain markdown. Use ## for the story title, ### for section headings, and #### for each ${unit.toLowerCase()} heading. Do NOT use # (h1) — it renders too large. Keep formatting clean and readable.
+
 ## *[Story Title]*
 
 ---
@@ -2083,63 +2108,54 @@ ${phaseAnswers || '(No phase answers)'}
 ### Story Parameters
 - **Medium**: ${medium || 'Novel'}
 - **Target Length**: [total word count target]
-- **Structure**: [3-act, 5-act, episodic, etc. — match the medium]
+- **Structure**: [${p.structure || '3-act'} — match the medium]
+- **${unit} Count**: [number of ${unitPlural.toLowerCase()}]
 - **POV**: [from narrator profile]
 - **Tense**: [from narrator profile]
 - **Tonal Arc**: [overall emotional trajectory, e.g. "Intimate → Tense → Devastating → Quietly hopeful"]
 
 ---
 
-### ${mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapter'}-by-${mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapter'} Outline
+### ${unit}-by-${unit} Outline
 
-For EACH ${mediumUnit || 'chapter'}, include:
+For EACH ${unit.toLowerCase()}, provide its own section:
 
-#### ${mediumUnit ? mediumUnit.charAt(0).toUpperCase() + mediumUnit.slice(1) : 'Chapter'} [N]: [Working Title]
-- **Word Count Target**: [target for this unit]
-- **Dominant Tone**: [e.g. "Suspenseful with undercurrent of grief"]
-- **Visual Register**: [e.g. "Claustrophobic interiors, dim lighting, close-up emotional detail"]
-- **POV Character**: [whose perspective, if applicable]
-- **Scene Breakdown**:
-  - Scene 1: [Brief description — setting, characters present, what happens]
-  - Scene 2: [Brief description]
-  - [etc.]
-- **Active Subproblem Threads**: [Which story threads are being advanced in this unit]
-- **Subplot Status**: [Which subplots appear, their current state]
-- **Emotional Arc**: [How the emotional register moves within this unit — start → middle → end]
-- **Key Moments**: [1-3 pivotal moments that happen in this unit]
-- **Cliffhanger / Hook**: [What propels the reader into the next unit]
+#### ${unit} [N]: [Working Title]
+${unitFields}
+
+Separate each ${unit.toLowerCase()} with a --- divider.
 
 ---
 
 ### Thread Tracker
 | Thread | Planted | Advanced | Resolved |
 |--------|---------|----------|----------|
-| [Thread name] | [Unit #] | [Unit #s] | [Unit # or "Open"] |
+| [Thread name] | [${unit} #] | [${unit} #s] | [${unit} # or "Open"] |
 
 ---
 
 ### Act Structure Summary
-- **Act 1** (Setup): [Units covered, word count, what's established]
-- **Act 2** (Confrontation): [Units covered, word count, what escalates]
-- **Act 3** (Resolution): [Units covered, word count, how it resolves]
+- **Act 1** (Setup): [${unitPlural} covered, word count, what's established]
+- **Act 2** (Confrontation): [${unitPlural} covered, word count, what escalates]
+- **Act 3** (Resolution): [${unitPlural} covered, word count, how it resolves]
 
 ---
 
-### Chapter Summary Table
+### ${unit} Summary Table
 | # | Working Title | Word Target | Tone | Key Event |
 |---|--------------|-------------|------|-----------|
 | 1 | [Title] | [words] | [tone] | [event] |
 
 ### Rules:
-- Generate enough ${mediumUnit || 'chapter'}s to fill the target word range. For a novel, this is typically 15-30 chapters.
-- Word count targets per ${mediumUnit || 'chapter'} should sum to approximately the overall target.
+- Generate ${countRange[0]}–${countRange[1]} ${unitPlural.toLowerCase()} to fill the target word range.
+- Word count targets per ${unit.toLowerCase()} should sum to approximately the overall target.
 - Every character with an arc must appear in the outline. Track their progression.
 - Every planted story thread must be resolved or explicitly left open.
 - The tonal arc must be coherent — no random tone shifts without narrative justification.
-- Match the medium: screenplays get scenes with visual direction; novels get chapter beats; TV shows get episode arcs with A/B plots.
 - The ending must answer the Central Dramatic Question from the Story Foundation.
-- Output ONLY the markdown outline. No preamble, no commentary.
-`,
+- Output ONLY the markdown outline. No preamble, no commentary, no explanations before or after.
+`;
+    },
   },
 
   // ═════════════════════════════════════════════════════════════════════

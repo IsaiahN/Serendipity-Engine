@@ -207,7 +207,7 @@ export function auditProject(files, project, options = {}) {
       }
     }
 
-    if (spec.dynamicCheck === 'chapters' && currentPhase >= 8) {
+    if (spec.dynamicCheck === 'chapters' && currentPhase >= 9) {
       const chapters = Object.keys(files).filter(f => /^story\/(chapter|act|scene|episode|passage|section)-\d+\.md$/.test(f));
       if (chapters.length === 0) {
         findings.push({

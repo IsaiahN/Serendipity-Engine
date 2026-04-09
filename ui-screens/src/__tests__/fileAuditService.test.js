@@ -170,19 +170,19 @@ describe('auditProject — character file checks', () => {
 });
 
 // ---------------------------------------------------------------
-//  Dynamic checks: chapters (phase 8+)
+//  Dynamic checks: chapters (phase 9+)
 // ---------------------------------------------------------------
-describe('auditProject — chapter checks at phase 8+', () => {
-  it('flags missing chapters when project is at phase 8', () => {
+describe('auditProject — chapter checks at phase 9+', () => {
+  it('flags missing chapters when project is at phase 9', () => {
     const files = fullHealthyFiles();
-    const project = makeProject({ currentPhase: 8 });
+    const project = makeProject({ currentPhase: 9 });
     const report = auditProject(files, project);
     const finding = report.findings.find(f => f.file === 'story/chapter-*.md');
     expect(finding).toBeDefined();
     expect(finding.severity).toBe(SEV.HIGH);
   });
 
-  it('does not flag missing chapters before phase 8', () => {
+  it('does not flag missing chapters before phase 9', () => {
     const files = fullHealthyFiles();
     const project = makeProject({ currentPhase: 6 });
     const report = auditProject(files, project);
@@ -190,9 +190,9 @@ describe('auditProject — chapter checks at phase 8+', () => {
     expect(finding).toBeUndefined();
   });
 
-  it('passes when chapter files exist at phase 8', () => {
+  it('passes when chapter files exist at phase 9', () => {
     const files = { ...fullHealthyFiles(), 'story/chapter-1.md': '# Chapter 1\nOnce upon...' };
-    const project = makeProject({ currentPhase: 8 });
+    const project = makeProject({ currentPhase: 9 });
     const report = auditProject(files, project);
     const finding = report.findings.find(f => f.file === 'story/chapter-*.md');
     expect(finding).toBeUndefined();

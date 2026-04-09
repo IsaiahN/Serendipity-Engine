@@ -44,7 +44,7 @@ import GenreShiftDashboard from '../components/GenreShiftDashboard';
 import FileAuditBanner from '../components/FileAuditBanner';
 import { auditProject as runFileAudit } from '../services/fileAuditService';
 import { countWords } from '../services/exportEngine';
-import { STORY_MEDIUMS } from '../lib/constants';
+import { STORY_MEDIUMS, getOutlineProfile } from '../lib/constants';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
 /* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
@@ -184,13 +184,13 @@ const defaultHealthDimensions = [
   { name: 'Narrative Arc', key: 'narrativeArc', phase: 6, tip: 'Measures outline quality and story structure.' },
   { name: 'Character Depth', key: 'characterDepth', phase: 4, tip: 'Character file completeness and differentiation.' },
   { name: 'World Building', key: 'worldBuilding', phase: 3, tip: 'World-building detail and consistency.' },
-  { name: 'Dialogue Quality', key: 'dialogueQuality', phase: 8, tip: 'Dialogue presence, variety, and naturalism.' },
-  { name: 'Pacing', key: 'pacing', phase: 8, tip: 'Chapter length consistency and act structure.' },
+  { name: 'Dialogue Quality', key: 'dialogueQuality', phase: 9, tip: 'Dialogue presence, variety, and naturalism.' },
+  { name: 'Pacing', key: 'pacing', phase: 9, tip: 'Chapter length consistency and act structure.' },
   { name: 'Thematic Coherence', key: 'thematicCoherence', phase: 1, tip: 'Theme consistency across the project.' },
-  { name: 'Prose Quality', key: 'proseQuality', phase: 8, tip: 'Vocabulary diversity and sentence variety.' },
-  { name: 'Emotional Resonance', key: 'emotionalResonance', phase: 8, tip: 'Emotional language density in chapters.' },
+  { name: 'Prose Quality', key: 'proseQuality', phase: 9, tip: 'Vocabulary diversity and sentence variety.' },
+  { name: 'Emotional Resonance', key: 'emotionalResonance', phase: 9, tip: 'Emotional language density in chapters.' },
   { name: 'Plot Consistency', key: 'plotConsistency', phase: 7, tip: 'Character and event continuity across chapters.' },
-  { name: 'Reader Engagement', key: 'readerEngagement', phase: 8, tip: 'Hooks, tension, and cliffhangers.' },
+  { name: 'Reader Engagement', key: 'readerEngagement', phase: 9, tip: 'Hooks, tension, and cliffhangers.' },
 ];
 
 /* ─── Center Stage Content ─── */
@@ -232,12 +232,12 @@ const phaseQuestions = {
     { id: 2, q: 'What is the narrative arc?', desc: 'Three-act structure, five-act, nonlinear? Where are the major turns?', placeholder: 'Outline the story structure...' },
     { id: 3, q: 'What is the story death?', desc: 'The specific way this story could fail to live — the pattern that would kill it.', placeholder: 'What would make this story hollow...' },
   ],
-  7: [], // Phase 7 (AI Review) has its own dedicated UI — no manual questions
-  '⟡': [], // Outline phase has its own dedicated UI — no manual questions
-  8: [
+  7: [], // Phase 7 (Review) has its own dedicated UI — no manual questions
+  8: [], // Phase 8 (Outline) has its own dedicated UI — no manual questions
+  9: [
     { id: 1, q: 'Chapter outline and execution begins here.', desc: 'Generate chapter-by-chapter content based on your completed story foundation.', placeholder: 'Chapter generation notes...' },
   ],
-  9: [
+  10: [
     { id: 1, q: 'Editor review and refinement.', desc: 'Review generated content, run quality checks, and refine.', placeholder: 'Editor notes...' },
   ],
 };
@@ -251,7 +251,7 @@ const DECOMPOSED_FILE_MAP = {
   5: 'relationships/questions-answered.md',
   6: 'story/arc.md',
   7: 'dry-run-audit.md',
-  '⟡': 'outline.md',
+  8: 'outline.md',
 };
 
 function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDecomposed, onOpenFile }) {
@@ -261,7 +261,7 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   const [aiError, setAiError] = useState(null);
   const questions = phaseQuestions[phase] || [];
   const phaseAnswerMap = answers[phase] || {};
-  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Review', '⟡': 'Outline', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
+  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Review', 8: 'Outline', 9: 'Chapter Execution', 10: 'Editor' }[phase] || '';
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
 
@@ -553,7 +553,7 @@ function ChapterExecutionMode({ onGoToOutline }) {
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 700, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Chapter Execution</h2>
-        <Badge variant="accent">Phase 8</Badge>
+        <Badge variant="accent">Phase 9</Badge>
       </div>
 
       {/* Outline quality warning */}
@@ -678,7 +678,7 @@ function ChapterExecutionMode({ onGoToOutline }) {
       {stage === 'idle' && (
         <div>
           <TokenEstimate files={files} chapterNum={chapterNum} model={providers[activeProviders?.[0]]?.model || 'claude-sonnet-4-5-20250514'} showDetails={true} />
-          <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem' }}>
+          <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem', justifyContent: 'center' }}>
             <Sparkles size={16} style={{ marginRight: 8 }} />
             Generate Chapter {chapterNum}
           </Button>
@@ -1576,7 +1576,10 @@ function AIReviewMode({ onNextPhase }) {
           <Button variant="primary" onClick={handleRunReview} style={{ flex: 1, padding: '14px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Brain size={16} style={{ marginRight: 8 }} /> Run AI Review
           </Button>
-          <Button variant="ghost" onClick={onNextPhase} style={{ flex: 1, padding: '14px 0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
+          <Button variant="ghost" onClick={() => {
+            useProjectStore.getState().updatePhaseAnswers(7, { 1: 'Skipped', _reviewComplete: true });
+            onNextPhase();
+          }} style={{ flex: 1, padding: '14px 0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
             Skip to Outline →
           </Button>
         </div>
@@ -1773,6 +1776,8 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
   const [promptLoading, setPromptLoading] = useState(false);
   const [diffView, setDiffView] = useState(false);
   const [previousContent, setPreviousContent] = useState('');
+  const [generationStartTime, setGenerationStartTime] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const files = useProjectStore(s => s.files);
   const phaseAnswers = useProjectStore(s => s.phaseAnswers) || {};
@@ -1781,12 +1786,18 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
 
+  const autoTriggeredRef = useRef(false);
+
   // Load existing outline on mount
   useEffect(() => {
     const existing = files?.['outline.md'] || '';
     if (existing.trim()) {
-      setOutlineContent(existing);
-      setStage('editing');
+      const lines = existing.trim().split('\n').filter(l => l.trim());
+      // Only enter editing if outline is substantive (more than a one-liner)
+      if (lines.length > 2 && existing.trim().length > 100) {
+        setOutlineContent(existing);
+        setStage('editing');
+      }
     }
   }, [files?.['outline.md']]);
 
@@ -1805,6 +1816,7 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
     }
 
     const mediumDef = STORY_MEDIUMS.find(m => m.key === activeProject?.medium);
+    const mediumKey = activeProject?.medium || 'novel';
 
     return {
       phaseAnswers: answersText,
@@ -1819,8 +1831,22 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
         .map(f => files[f]?.slice(0, 800)).join('\n\n---\n\n') || '',
       relationships: files?.['relationships/questions-answered.md']?.slice(0, 2000) || '',
       storyFoundation: (files?.['story/arc.md']?.slice(0, 2000) || '') + '\n' + (files?.['story/questions-answered.md']?.slice(0, 1500) || ''),
+      outlineProfile: getOutlineProfile(mediumKey),
     };
   };
+
+  // Timer effect for generation elapsed time
+  useEffect(() => {
+    if (stage !== 'generating' && stage !== 'reviewing') {
+      setGenerationStartTime(null);
+      return;
+    }
+    if (!generationStartTime) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - generationStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [stage, generationStartTime]);
 
   const handleGenerate = async () => {
     if (activeProviders.length === 0) {
@@ -1829,6 +1855,8 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
     }
     setStage('generating');
     setError(null);
+    setGenerationStartTime(Date.now());
+    setElapsedSeconds(0);
 
     try {
       const ctx = buildContext();
@@ -1850,12 +1878,30 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
       const cleaned = removeEmdashes(result.content);
       setOutlineContent(cleaned);
       updateFile('outline.md', cleaned);
+      // Auto-mark outline complete when substantive content is generated
+      if (cleaned.trim().length > 100) {
+        useProjectStore.getState().updatePhaseAnswers(8, { 1: 'Outline generated', _outlineComplete: true });
+      }
       setStage('editing');
     } catch (err) {
       setError(err.message);
       setStage('idle');
     }
   };
+
+  // Auto-trigger outline generation if outline is empty or a trivial one-liner
+  useEffect(() => {
+    if (autoTriggeredRef.current) return;
+    if (stage !== 'idle') return;
+    if (activeProviders.length === 0) return;
+    const existing = (files?.['outline.md'] || '').trim();
+    const lines = existing.split('\n').filter(l => l.trim());
+    const isEmpty = !existing || existing.length < 100 || lines.length <= 2;
+    if (isEmpty) {
+      autoTriggeredRef.current = true;
+      handleGenerate();
+    }
+  }, [stage, activeProviders.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleReview = async () => {
     if (activeProviders.length === 0) {
@@ -1927,6 +1973,9 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
         const cleaned = removeEmdashes(result.content);
         setOutlineContent(cleaned);
         updateFile('outline.md', cleaned);
+        if (cleaned.trim().length > 100) {
+          useProjectStore.getState().updatePhaseAnswers(8, { 1: 'Outline updated', _outlineComplete: true });
+        }
         setDiffView(true);
       } else {
         setError(result.error || 'Update failed.');
@@ -1961,7 +2010,7 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 750, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Outline</h2>
-        <Badge variant="muted">Phase ⟡</Badge>
+        <Badge variant="muted">Phase 8</Badge>
       </div>
       <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
         Generate your story outline from all the blueprint data, or paste your own. You can prompt the AI to make changes, submit for review, and iterate until you are satisfied.
@@ -1988,12 +2037,56 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
         </div>
       )}
 
-      {/* Generating */}
+      {/* Generating — with progress bar and timer */}
       {stage === 'generating' && (
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 32, textAlign: 'center' }}>
-          <Sparkles size={28} style={{ color: 'var(--accent)', animation: 'spin 1.5s linear infinite', marginBottom: 12 }} />
-          <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 6 }}>Generating your outline...</div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Building from author, narrator, world, characters, relationships, and story foundation data</div>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 32 }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <Loader2 size={28} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite', marginBottom: 12 }} />
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 6 }}>Generating your outline...</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Building from author, narrator, world, characters, relationships, and story foundation data</div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{
+              height: 6, background: 'var(--bg-tertiary)', borderRadius: 100, overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, var(--accent), #f97316)',
+                borderRadius: 100,
+                animation: 'outlineProgress 45s ease-out forwards',
+              }} />
+            </div>
+          </div>
+
+          {/* Timer and status */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {elapsedSeconds < 10
+                ? 'Assembling project context...'
+                : elapsedSeconds < 25
+                  ? 'Structuring chapter-by-chapter outline...'
+                  : elapsedSeconds < 45
+                    ? 'Writing detailed chapter summaries...'
+                    : 'Finalizing thread tracker and act structure...'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+              {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')} elapsed
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes outlineProgress {
+              0% { width: 0%; }
+              10% { width: 15%; }
+              30% { width: 40%; }
+              50% { width: 60%; }
+              70% { width: 75%; }
+              90% { width: 88%; }
+              100% { width: 95%; }
+            }
+          `}</style>
         </div>
       )}
 
@@ -2092,6 +2185,7 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
               }}
               placeholder="Paste or write your outline here..."
               minHeight={300}
+              defaultMode="source"
             />
           </div>
 
@@ -2138,7 +2232,7 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
             <Button variant="ghost" onClick={onPrevPhase}>← Back to AI Review</Button>
             <Button variant="primary" onClick={() => {
               // Mark outline phase complete
-              useProjectStore.getState().updatePhaseAnswers('⟡', { 1: outlineContent ? 'Outline accepted' : 'Skipped', _outlineComplete: true });
+              useProjectStore.getState().updatePhaseAnswers(8, { 1: outlineContent ? 'Outline accepted' : 'Skipped', _outlineComplete: true });
               onNextPhase();
             }} disabled={!outlineContent.trim()}>
               Accept Outline & Continue →
@@ -8790,22 +8884,16 @@ const phaseColors = {
   4: '#f472b6', // Characters — pink
   5: '#f9a8d4', // Relationships — rose
   6: '#fbbf24', // Story Foundation — amber
-  7: '#60a5fa', // Quality Control — blue
-  8: '#f97316', // Chapter Execution — orange
-  9: '#4ade80', // Editor — green
+  7: '#60a5fa', // Review — blue
+  8: '#a3e635', // Outline — lime
+  9: '#f97316', // Chapter Execution — orange
+  10: '#4ade80', // Editor — green
 };
 
-const phaseNames = {
-  1: 'Phase 1 — Author',
-  2: 'Phase 2 — Narrator',
-  3: 'Phase 3 — World',
-  4: 'Phase 4 — Characters',
-  5: 'Phase 5 — Relationships',
-  6: 'Phase 6 — Story Foundation',
-  7: 'Phase 7 — Quality Control',
-  8: 'Phase 8 — Chapter Execution',
-  9: 'Phase 9 — Editor',
-};
+// Build phaseNames dynamically from the phases array so renames propagate automatically
+const phaseNames = Object.fromEntries(
+  phases.map(p => [p.num, `Phase ${p.num} — ${p.name}`])
+);
 
 function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onOverLimitClick, isDecomposed, healthRevealed, projectMeta }) {
   const pColor = phaseColors[currentPhase] || 'var(--text-muted)';
@@ -10952,7 +11040,7 @@ export default function WorkspaceScreen() {
   };
   // Phase answers — tracks user input per phase per question (hydrated from store below)
   const [phaseAnswers, setPhaseAnswers] = useState({
-    1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, '⟡': {}, 8: {}, 9: {},
+    1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, 8: {}, 9: {}, 10: {},
   });
 
   // Hydrate phaseAnswers from active project in the store (if available)
@@ -10992,17 +11080,20 @@ export default function WorkspaceScreen() {
     }
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync phaseAnswers from store → local state whenever the store updates
+  // (e.g. when child components call updatePhaseAnswers for sentinels like _reviewComplete, _outlineComplete)
+  const storePhaseAnswers = activeProject?.phaseAnswers;
   useEffect(() => {
-    if (activeProject?.phaseAnswers && Object.keys(activeProject.phaseAnswers).length > 0) {
+    if (storePhaseAnswers && Object.keys(storePhaseAnswers).length > 0) {
       setPhaseAnswers(prev => {
         const merged = { ...prev };
-        for (const [key, answers] of Object.entries(activeProject.phaseAnswers)) {
+        for (const [key, answers] of Object.entries(storePhaseAnswers)) {
           merged[key] = { ...(merged[key] || {}), ...answers };
         }
         return merged;
       });
     }
-  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [storePhaseAnswers]); // re-sync whenever store phaseAnswers changes
 
   // Hydrate decomposed phase answers from actual file content
   useEffect(() => {
@@ -11135,22 +11226,22 @@ export default function WorkspaceScreen() {
   );
   const phasePcts = {};
   phases.forEach(p => {
-    if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === '⟡')) {
+    if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === 10)) {
       phasePcts[p.num] = 100;
     } else if (p.num === 7) {
-      // Phase 7 (AI Review) — complete when _reviewComplete sentinel is set or skipped
+      // Phase 7 (Review) — complete when _reviewComplete sentinel is set or skipped
       phasePcts[p.num] = phaseAnswers[7]?._reviewComplete ? 100 : 0;
-    } else if (p.num === '⟡') {
-      // Outline phase — complete when _outlineComplete sentinel is set and outline.md exists
+    } else if (p.num === 8) {
+      // Phase 8 (Outline) — complete when _outlineComplete sentinel is set and outline.md exists
       const hasOutline = (projectFiles?.['outline.md'] || '').trim().length > 50;
-      phasePcts[p.num] = (phaseAnswers['⟡']?._outlineComplete && hasOutline) ? 100 : 0;
+      phasePcts[p.num] = (phaseAnswers[8]?._outlineComplete && hasOutline) ? 100 : 0;
     } else {
       const qs = phaseQuestions[p.num] || [];
       const answered = Object.keys(phaseAnswers[p.num] || {}).filter(k => !k.startsWith('_')).length;
       phasePcts[p.num] = qs.length > 0 ? Math.round((answered / qs.length) * 100) : 0;
     }
   });
-  // Author/narrator completeness flags — used for gating phases 8-9
+  // Author/narrator completeness flags — used for gating phases 9-10
   const hasAuthor = (projectFiles?.['author.md'] || '').trim().length > 20;
   const hasNarrator = (projectFiles?.['narrator.md'] || '').trim().length > 20;
   const prereqFlags = { hasAuthor, hasNarrator };
@@ -11168,7 +11259,7 @@ export default function WorkspaceScreen() {
     if (isDecomposed) {
       // Last completed phase — walk backwards to find the last one at 100%
       const completed = phases.filter(p => (phasePcts[p.num] || 0) === 100);
-      const lastDone = completed.length > 0 ? completed[completed.length - 1].num : 8;
+      const lastDone = completed.length > 0 ? completed[completed.length - 1].num : 9;
       setActivePhase(lastDone);
       // Default to StoryAssistant for decomposed projects (unless URL param overrides)
       if (!searchParams.get('mode')) {
@@ -11337,26 +11428,26 @@ export default function WorkspaceScreen() {
   const renderCenter = () => {
     switch (activeMode) {
       case 'guided':
-        // Phase 8 gets a dedicated chapter execution UI
-        if (activePhase === 8) return <ChapterExecutionMode onGoToOutline={() => setActivePhase('⟡')} />;
-        // Phase 7 (AI Review) gets its own dedicated UI
+        // Phase 9 gets a dedicated chapter execution UI
+        if (activePhase === 9) return <ChapterExecutionMode onGoToOutline={() => setActivePhase(8)} />;
+        // Phase 7 (Review) gets its own dedicated UI
         if (activePhase === 7) return <AIReviewMode
           onNextPhase={() => {
-            setActivePhase('⟡');
+            setActivePhase(8);
           }}
         />;
-        // Outline phase gets its own dedicated UI
-        if (activePhase === '⟡') return <OutlineMode
+        // Phase 8 (Outline) gets its own dedicated UI
+        if (activePhase === 8) return <OutlineMode
           onNextPhase={() => {
-            // Check author/narrator completeness before unlocking phases 8-9
+            // Check author/narrator completeness before unlocking phases 9-10
             const authorContent = (projectFiles?.['author.md'] || '').trim();
             const narratorContent = (projectFiles?.['narrator.md'] || '').trim();
             if (!authorContent || !narratorContent) {
-              setGateTargetPhase(8);
+              setGateTargetPhase(9);
               setShowGateWarning(true);
               return;
             }
-            setActivePhase(8);
+            setActivePhase(9);
           }}
           onPrevPhase={() => setActivePhase(7)}
           onOpenFile={(filePath) => {
@@ -11779,8 +11870,8 @@ export default function WorkspaceScreen() {
                       setShowGateWarning(true);
                       return;
                     }
-                    // Quality warning for phases 8/9 if health is low (≤2 in any dimension)
-                    if ((num === 8 || num === 9)) {
+                    // Quality warning for phases 9/10 if health is low (≤2 in any dimension)
+                    if ((num === 9 || num === 10)) {
                       // Check health scores — using demo values; in production these come from state
                       const lowHealth = true; // demo: World Integrity is 3, Character Depth is 2
                       if (lowHealth) {
@@ -12201,56 +12292,86 @@ export default function WorkspaceScreen() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
                   {(() => {
                     const steps = [];
-                    // Find ALL phases that are partially complete — finish those first
-                    const partials = phases.filter(p => {
-                      const pct = phasePcts[p.num] || 0;
-                      return pct > 0 && pct < 100;
-                    });
-                    partials.forEach(partial => {
-                      const qs = phaseQuestions[partial.num] || [];
-                      const answered = Object.keys(phaseAnswers[partial.num] || {}).length;
-                      const remaining = qs.length - answered;
-                      steps.push({
-                        label: `Finish ${partial.name} questions (${remaining} remaining)`,
-                        action: () => { setActivePhase(partial.num); setActiveMode('guided'); setLeftTab('phases'); },
+                    const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed, prereqFlags);
+
+                    // --- Chapter execution mode: once prereqs are done, focus on writing workflow ---
+                    if (prereqsDone) {
+                      // Find how many chapters exist
+                      const chapterFiles = Object.keys(projectFiles || {}).filter(f => /^story\/chapter-\d+\.md$/.test(f) && (projectFiles[f] || '').trim().length > 100);
+                      const chapterCount = chapterFiles.length;
+                      const outlineExists = (projectFiles?.['outline.md'] || '').trim().length > 50;
+
+                      if (!outlineExists) {
+                        steps.push({
+                          label: 'Generate your outline before writing chapters',
+                          action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      } else if (chapterCount === 0) {
+                        steps.push({
+                          label: 'Start writing — generate Chapter 1',
+                          action: () => { setActivePhase(9); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      } else {
+                        const nextChapter = chapterCount + 1;
+                        steps.push({
+                          label: `Continue writing — generate Chapter ${nextChapter}`,
+                          action: () => { setActivePhase(9); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                        steps.push({
+                          label: `Review Chapter ${chapterCount} with the Editor`,
+                          action: () => { setActivePhase(10); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      }
+                      // Always offer outline review as a secondary step
+                      if (outlineExists && chapterCount > 0) {
+                        steps.push({
+                          label: 'Revisit or refine your outline',
+                          action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      }
+                    } else {
+                      // --- Pre-execution mode: standard phase progression ---
+                      // Find ALL phases that are partially complete — finish those first
+                      const partials = phases.filter(p => {
+                        const pct = phasePcts[p.num] || 0;
+                        return pct > 0 && pct < 100;
                       });
-                    });
-                    // Find the next phase that has 0% progress
-                    const nextEmpty = phases.find(p => (phasePcts[p.num] || 0) === 0 && !p.gated);
-                    if (nextEmpty) {
-                      const label = typeof nextEmpty.num === 'number'
-                        ? `Begin Phase ${nextEmpty.num} — ${nextEmpty.name}`
-                        : `Begin ${nextEmpty.name} phase`;
-                      steps.push({
-                        label,
-                        action: () => { setActivePhase(nextEmpty.num); setActiveMode('guided'); setLeftTab('phases'); },
+                      partials.forEach(partial => {
+                        const qs = phaseQuestions[partial.num] || [];
+                        const answered = Object.keys(phaseAnswers[partial.num] || {}).length;
+                        const remaining = qs.length - answered;
+                        steps.push({
+                          label: `Finish ${partial.name} questions (${remaining} remaining)`,
+                          action: () => { setActivePhase(partial.num); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
                       });
-                    }
-                    // Quality check — if any health dimension has a flag
-                    const flagged = healthDimensions.filter(d => d.flag);
-                    flagged.forEach(d => {
-                      steps.push({
-                        label: `Resolve: ${d.flag}`,
-                        action: () => { setActivePhase(7); setActiveMode('guided'); setLeftTab('phases'); },
+                      // Find the next phase that has 0% progress
+                      const nextEmpty = phases.find(p => (phasePcts[p.num] || 0) === 0 && !p.gated);
+                      if (nextEmpty) {
+                        steps.push({
+                          label: `Begin Phase ${nextEmpty.num} — ${nextEmpty.name}`,
+                          action: () => { setActivePhase(nextEmpty.num); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      }
+                      // Quality check — if any health dimension has a flag
+                      const flagged = healthDimensions.filter(d => d.flag);
+                      flagged.forEach(d => {
+                        steps.push({
+                          label: `Resolve: ${d.flag}`,
+                          action: () => { setActivePhase(7); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
                       });
-                    });
-                    // Missing files — show contextual link to audit modal
-                    if (fileAuditReport && fileAuditReport.status !== 'healthy' && fileAuditReport.findings?.length > 0) {
-                      const ct = fileAuditReport.summary?.critical || 0;
-                      const label = ct > 0
-                        ? `${ct} critical file${ct > 1 ? 's' : ''} missing — view details`
-                        : 'Some optional files missing — view details';
-                      steps.push({
-                        label,
-                        action: () => setShowAuditModal(true),
-                      });
-                    }
-                    // If all non-gated phases done, suggest content generation
-                    if (allPrereqsComplete(phasePcts, isDecomposed, prereqFlags)) {
-                      steps.push({
-                        label: 'All structure complete — begin content generation',
-                        action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
-                      });
+                      // Missing files — show contextual link to audit modal
+                      if (fileAuditReport && fileAuditReport.status !== 'healthy' && fileAuditReport.findings?.length > 0) {
+                        const ct = fileAuditReport.summary?.critical || 0;
+                        const label = ct > 0
+                          ? `${ct} critical file${ct > 1 ? 's' : ''} missing — view details`
+                          : 'Some optional files missing — view details';
+                        steps.push({
+                          label,
+                          action: () => setShowAuditModal(true),
+                        });
+                      }
                     }
                     return steps.slice(0, 4).map((step, i) => (
                       <div key={i} onClick={step.action} style={{

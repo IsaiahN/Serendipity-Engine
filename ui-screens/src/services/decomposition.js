@@ -39,7 +39,7 @@ export const DECOMPOSITION_STEPS = [
   { key: 'structure', label: 'Story Structure', phase: 6, description: 'Extract plot arc and structure' },
   { key: 'story-detail', label: 'Story Detail', phase: 6, description: 'Story questions and abstract' },
   { key: 'review', label: 'Structural Review', phase: 7, description: 'Analyze and review structure' },
-  { key: 'chapters', label: 'Chapter Split', phase: 8, description: 'Split manuscript into chapters' },
+  { key: 'chapters', label: 'Chapter Split', phase: 9, description: 'Split manuscript into chapters' },
 ];
 
 /**
