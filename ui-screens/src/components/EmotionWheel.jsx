@@ -125,16 +125,18 @@ export default function EmotionWheel({
   }));
 
   // Get secondaries for current primary
-  const secondaries = selectedPrimary
-    ? Object.entries(EMOTION_TAXONOMY[selectedPrimary].children).map(([key, data]) => ({
+  const primaryData = selectedPrimary ? EMOTION_TAXONOMY[selectedPrimary] : null;
+  const secondaries = primaryData
+    ? Object.entries(primaryData.children || {}).map(([key, data]) => ({
         key,
         ...data,
       }))
     : [];
 
   // Get tertiaries for current secondary
-  const tertiaries = selectedSecondary
-    ? EMOTION_TAXONOMY[selectedPrimary].children[selectedSecondary].children.map(e => e)
+  const secondaryData = (primaryData && selectedSecondary) ? primaryData.children?.[selectedSecondary] : null;
+  const tertiaries = secondaryData
+    ? (secondaryData.children || []).map(e => e)
     : [];
 
   const handleSelectTertiary = (emotion) => {
@@ -369,32 +371,39 @@ export default function EmotionWheel({
         </div>
       )}
 
-      {/* Primary Level — Grid 4x2 */}
+      {/* Primary Level — Grid 4x2, alignment-chart style */}
       {level === 'primary' && (
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))',
-          gap: 8,
+          gap: 6,
         }}>
           {primaries.map(primary => (
             <button
               key={primary.key}
               onClick={() => handleSelectPrimary(primary.key)}
               style={{
-                padding: 12,
+                padding: '10px 8px',
                 borderRadius: 'var(--radius-sm)',
-                border: 'none',
-                background: primary.color,
-                color: '#000',
-                fontWeight: 600,
-                fontSize: '0.85rem',
+                border: `1px solid var(--border)`,
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-muted)',
+                fontWeight: 500,
+                fontSize: '0.82rem',
                 cursor: 'pointer',
-                transition: 'var(--transition)',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                opacity: 0.9,
+                transition: 'all 0.15s ease',
+                textAlign: 'center',
               }}
-              onMouseEnter={e => (e.target.style.opacity = '1')}
-              onMouseLeave={e => (e.target.style.opacity = '0.9')}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = primary.color;
+                e.currentTarget.style.color = primary.color;
+                e.currentTarget.style.background = `${primary.color}18`;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--text-muted)';
+                e.currentTarget.style.background = 'var(--bg-tertiary)';
+              }}
             >
               {primary.label}
             </button>
@@ -497,7 +506,7 @@ export default function EmotionWheel({
               fontWeight: 600,
               color: EMOTION_TAXONOMY[selectedPrimary]?.color,
             }}>
-              {EMOTION_TAXONOMY[selectedPrimary]?.children[selectedSecondary]?.label}
+              {EMOTION_TAXONOMY[selectedPrimary]?.children?.[selectedSecondary]?.label}
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6 }}>

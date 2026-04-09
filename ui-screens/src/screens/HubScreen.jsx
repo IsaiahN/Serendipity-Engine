@@ -51,6 +51,7 @@ const quickStartPills = [
 export default function HubScreen() {
   const navigate = useNavigate();
   const projects = useProjectStore(s => s.projects);
+  const authorName = useSettingsStore(s => s.authorName);
   const setActiveProject = useProjectStore(s => s.setActiveProject);
   const deleteProject = useProjectStore(s => s.deleteProject);
   const updateProject = useProjectStore(s => s.updateProject);
@@ -154,7 +155,7 @@ export default function HubScreen() {
         }
       } else if (file.name.endsWith('.zip')) {
         // ── ZIP backup: folder with files + _project-meta.json ──
-        // Read as ArrayBuffer for reliable cross-browser JSZip parsing
+        // Read as ArrayBuffer first for reliable cross-browser JSZip parsing
         const buf = await file.arrayBuffer();
         const zip = await JSZip.loadAsync(buf);
         const entries = Object.entries(zip.files).filter(([, f]) => !f.dir);
@@ -562,9 +563,13 @@ export default function HubScreen() {
       {/* Right Column — Detail Panel */}
       <div style={{ flex: 1, padding: 40, overflowY: 'auto' }}>
         <div style={{ maxWidth: 620, animation: 'fadeIn 0.3s ease forwards' }}>
-          {/* Welcome Back */}
+          {/* Welcome */}
           <p style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', marginBottom: 24 }}>
-            Welcome Back.
+            {projects.length === 0
+              ? 'Welcome!'
+              : authorName
+                ? `Welcome back, ${authorName}.`
+                : 'Welcome Back.'}
           </p>
 
           {selectedProject ? (

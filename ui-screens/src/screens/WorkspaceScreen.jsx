@@ -1,10 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import ProductTour from '../components/ProductTour';
 import PhaseProgress, { phases, allPrereqsComplete, overallProgress, currentActivePhase } from '../components/PhaseProgress';
 import CastRoster from '../components/CastRoster';
 import fileContents from '../data/fileData';
+import { FIELD_OPTIONS_MAP, LABEL_TO_FIELD_MAP, FIELD_DESCRIPTIONS } from '../data/characterOptions';
 import HealthBar from '../components/HealthBar';
 import MarkdownEditor from '../components/MarkdownEditor';
 import Button from '../components/Button';
@@ -43,7 +44,7 @@ import GenreShiftDashboard from '../components/GenreShiftDashboard';
 import FileAuditBanner from '../components/FileAuditBanner';
 import { auditProject as runFileAudit } from '../services/fileAuditService';
 import { countWords } from '../services/exportEngine';
-import { STORY_MEDIUMS } from '../lib/constants';
+import { STORY_MEDIUMS, getOutlineProfile } from '../lib/constants';
 
 /* ─── Smooth Auto-Scroll Utility ─── */
 /* Drop <ScrollIntoView /> at the end of content that appears after a wizard selection. */
@@ -91,7 +92,6 @@ const centerStageModes = [
   { key: 'guided', icon: Compass, label: 'Guide' },
   { key: 'chat', icon: MessageSquare, label: 'Story Assistant' },
   { key: 'reader', icon: BookOpen, label: 'Reader' },
-  { key: 'editor', icon: Edit3, label: 'Editor' },
   { key: 'comparison', icon: GitCompare, label: 'Comparison' },
   { key: 'genre-shift', icon: Sparkles, label: 'Paradigm Shift' },
   { key: 'timeline', icon: Clock, label: 'Timeline' },
@@ -183,13 +183,13 @@ const defaultHealthDimensions = [
   { name: 'Narrative Arc', key: 'narrativeArc', phase: 6, tip: 'Measures outline quality and story structure.' },
   { name: 'Character Depth', key: 'characterDepth', phase: 4, tip: 'Character file completeness and differentiation.' },
   { name: 'World Building', key: 'worldBuilding', phase: 3, tip: 'World-building detail and consistency.' },
-  { name: 'Dialogue Quality', key: 'dialogueQuality', phase: 8, tip: 'Dialogue presence, variety, and naturalism.' },
-  { name: 'Pacing', key: 'pacing', phase: 8, tip: 'Chapter length consistency and act structure.' },
+  { name: 'Dialogue Quality', key: 'dialogueQuality', phase: 9, tip: 'Dialogue presence, variety, and naturalism.' },
+  { name: 'Pacing', key: 'pacing', phase: 9, tip: 'Chapter length consistency and act structure.' },
   { name: 'Thematic Coherence', key: 'thematicCoherence', phase: 1, tip: 'Theme consistency across the project.' },
-  { name: 'Prose Quality', key: 'proseQuality', phase: 8, tip: 'Vocabulary diversity and sentence variety.' },
-  { name: 'Emotional Resonance', key: 'emotionalResonance', phase: 8, tip: 'Emotional language density in chapters.' },
+  { name: 'Prose Quality', key: 'proseQuality', phase: 9, tip: 'Vocabulary diversity and sentence variety.' },
+  { name: 'Emotional Resonance', key: 'emotionalResonance', phase: 9, tip: 'Emotional language density in chapters.' },
   { name: 'Plot Consistency', key: 'plotConsistency', phase: 7, tip: 'Character and event continuity across chapters.' },
-  { name: 'Reader Engagement', key: 'readerEngagement', phase: 8, tip: 'Hooks, tension, and cliffhangers.' },
+  { name: 'Reader Engagement', key: 'readerEngagement', phase: 9, tip: 'Hooks, tension, and cliffhangers.' },
 ];
 
 /* ─── Center Stage Content ─── */
@@ -231,17 +231,12 @@ const phaseQuestions = {
     { id: 2, q: 'What is the narrative arc?', desc: 'Three-act structure, five-act, nonlinear? Where are the major turns?', placeholder: 'Outline the story structure...' },
     { id: 3, q: 'What is the story death?', desc: 'The specific way this story could fail to live — the pattern that would kill it.', placeholder: 'What would make this story hollow...' },
   ],
-  7: [
-    { id: 1, q: 'Story Structure Audit', desc: 'Review all your decisions across Author, Narrator, World, Characters, Relationships, and Story Foundation for internal consistency and completeness.', hint: 'This is where the system checks that your world rules don\'t contradict your character motivations, your narrator voice fits your genre, and your story death is properly guarded against.', placeholder: 'Notes on quality control findings...' },
-    { id: 2, q: 'Consistency Review', desc: 'Are there any contradictions between your world rules, character motivations, and narrative voice?', hint: 'Example: If your world forbids electricity but your character texts someone, that\'s a contradiction to resolve.', placeholder: 'List any inconsistencies found...' },
-  ],
-  '⟡': [
-    { id: 1, q: 'Bridge Review', desc: 'Before generating content, review all phases and confirm your story foundation is solid. This is your last chance to make structural changes before content generation.', placeholder: 'Final notes before generation...' },
-  ],
-  8: [
+  7: [], // Phase 7 (Review) has its own dedicated UI — no manual questions
+  8: [], // Phase 8 (Outline) has its own dedicated UI — no manual questions
+  9: [
     { id: 1, q: 'Chapter outline and execution begins here.', desc: 'Generate chapter-by-chapter content based on your completed story foundation.', placeholder: 'Chapter generation notes...' },
   ],
-  9: [
+  10: [
     { id: 1, q: 'Editor review and refinement.', desc: 'Review generated content, run quality checks, and refine.', placeholder: 'Editor notes...' },
   ],
 };
@@ -253,8 +248,9 @@ const DECOMPOSED_FILE_MAP = {
   3: 'world/world-building.md',
   4: null, // characters — multiple files
   5: 'relationships/questions-answered.md',
-  6: 'outline.md',
+  6: 'story/arc.md',
   7: 'dry-run-audit.md',
+  8: 'outline.md',
 };
 
 function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDecomposed, onOpenFile }) {
@@ -264,9 +260,13 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   const [aiError, setAiError] = useState(null);
   const questions = phaseQuestions[phase] || [];
   const phaseAnswerMap = answers[phase] || {};
-  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Quality Control', '⟡': 'Bridge', 8: 'Chapter Execution', 9: 'Editor' }[phase] || '';
+  const phaseName = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation', 7: 'Review', 8: 'Outline', 9: 'Chapter Execution', 10: 'Editor' }[phase] || '';
   const sendMessage = useLlmStore.getState().sendMessage;
   const activeProviders = useLlmStore(s => s.activeProviders);
+  const projectFiles = useProjectStore(s => s.files);
+
+  // Reset question index when phase changes so we start at Q1
+  useEffect(() => { setCurrentQ(0); }, [phase]);
 
   // Reset question index when phase changes so we start at Q1
   useEffect(() => { setCurrentQ(0); }, [phase]);
@@ -300,9 +300,19 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
       .filter(Boolean)
       .join('\n\n');
 
+    // Gather existing project context for richer, more consistent AI guidance
+    const projectCtx = [];
+    if (projectFiles?.['author.md']?.trim()) projectCtx.push(`## Author Profile\n${projectFiles['author.md'].slice(0, 1500)}`);
+    if (projectFiles?.['narrator.md']?.trim()) projectCtx.push(`## Narrator\n${projectFiles['narrator.md'].slice(0, 1500)}`);
+    if (projectFiles?.['world/world-building.md']?.trim()) projectCtx.push(`## World Building\n${projectFiles['world/world-building.md'].slice(0, 2000)}`);
+    if (projectFiles?.['world/hallmarks.md']?.trim()) projectCtx.push(`## World Hallmarks\n${projectFiles['world/hallmarks.md'].slice(0, 1500)}`);
+    if (projectFiles?.['story/arc.md']?.trim()) projectCtx.push(`## Story Arc\n${projectFiles['story/arc.md'].slice(0, 1500)}`);
+    if (projectFiles?.['outline.md']?.trim()) projectCtx.push(`## Outline\n${projectFiles['outline.md'].slice(0, 1500)}`);
+    const projectContext = projectCtx.length > 0 ? `\n\nHere is existing project context to ground your answer:\n\n${projectCtx.join('\n\n')}` : '';
+
     const result = await sendMessage({
       messages: [
-        { role: 'system', content: PROMPTS.PHASE_GUIDE.build({ phaseNum: phase, phaseName, question: q.q, description: q.desc || '', hint: q.hint || '', previousAnswers: existingAnswers || null }) },
+        { role: 'system', content: PROMPTS.PHASE_GUIDE.build({ phaseNum: phase, phaseName, question: q.q, description: q.desc || '', hint: q.hint || '', previousAnswers: existingAnswers || null }) + projectContext },
         ...(existingAnswers ? [{ role: 'user', content: `Here are the author's answers so far in this phase:\n\n${existingAnswers}` }, { role: 'assistant', content: 'Got it. I have context from your previous answers. How can I help with the current question?' }] : []),
         { role: 'user', content: `Help me answer this question: "${q.q}"\n\n${q.desc || ''}\n\n${q.hint ? `Hint: ${q.hint}` : ''}\n\nGenerate a thoughtful, detailed answer I can use as a starting point. Be specific and creative.` },
       ],
@@ -465,9 +475,10 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
 }
 
 /* ─── Chapter Execution Mode (Phase 8) ─── */
-function ChapterExecutionMode() {
+function ChapterExecutionMode({ onGoToOutline }) {
   const [chapterNum, setChapterNum] = useState(1);
   const [stage, setStage] = useState('idle'); // idle | preflight | generating | postflight | complete | error
+  const [outlineWarningDismissed, setOutlineWarningDismissed] = useState(false);
   const [preflight, setPreflight] = useState(null);
   const [postflight, setPostflight] = useState(null);
   const [generatedContent, setGeneratedContent] = useState('');
@@ -504,7 +515,6 @@ function ChapterExecutionMode() {
 
     try {
       const { runChapterPipeline } = await import('../services/chapterPipeline.js');
-
       // Get the generator model name for smart context budgeting
       const generatorKey = await useLlmStore.getState().selectProvider('generator');
       const generatorModel = generatorKey ? useLlmStore.getState().providers[generatorKey]?.model || '' : '';
@@ -556,8 +566,50 @@ function ChapterExecutionMode() {
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 700, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Chapter Execution</h2>
-        <Badge variant="accent">Phase 8</Badge>
+        <Badge variant="accent">Phase 9</Badge>
       </div>
+
+      {/* Outline quality warning */}
+      {!outlineWarningDismissed && (() => {
+        const outlineContent = (files?.['outline.md'] || '').trim();
+        const isMissing = !outlineContent;
+        const isTooShort = outlineContent && outlineContent.length < 200;
+        const isOneLiner = outlineContent && outlineContent.split('\n').filter(l => l.trim()).length <= 2;
+        const hasIssue = isMissing || isTooShort || isOneLiner;
+        if (!hasIssue) return null;
+        return (
+          <div style={{
+            background: 'rgba(251, 191, 36, 0.08)', border: '1px solid rgba(251, 191, 36, 0.3)',
+            borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20,
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <AlertTriangle size={18} style={{ color: '#fbbf24', flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 4 }}>
+                  {isMissing ? 'No outline found' : isTooShort ? 'Outline appears too brief' : 'Outline may be incomplete'}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  {isMissing
+                    ? 'Chapter generation works best with a detailed outline. Without one, the AI has no structural guidance for your story.'
+                    : 'Your outline is very short. A detailed, chapter-by-chapter outline helps the AI generate content that matches your vision for pacing, plot, and character arcs.'
+                  }
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {onGoToOutline && (
+                <Button variant="primary" onClick={onGoToOutline} style={{ fontSize: '0.8rem', padding: '8px 16px' }}>
+                  Go to Outline Phase
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => setOutlineWarningDismissed(true)} style={{ fontSize: '0.8rem', padding: '8px 16px', border: '1px solid var(--border)' }}>
+                Continue Anyway
+              </Button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Existing chapters */}
       {existingChapters.length > 0 && (
@@ -639,7 +691,7 @@ function ChapterExecutionMode() {
       {stage === 'idle' && (
         <div>
           <TokenEstimate files={files} chapterNum={chapterNum} model={providers[activeProviders?.[0]]?.model || 'claude-sonnet-4-5-20250514'} showDetails={true} />
-          <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem' }}>
+          <Button variant="primary" onClick={handleGenerate} style={{ width: '100%', padding: '12px 0', fontSize: '0.9rem', justifyContent: 'center' }}>
             <Sparkles size={16} style={{ marginRight: 8 }} />
             Generate Chapter {chapterNum}
           </Button>
@@ -835,7 +887,74 @@ function EditorMode({ file }) {
         return;
       }
 
-      const systemPrompt = PROMPTS.EDITOR_REVIEW.build({ fileName: file });
+      // ── Build comprehensive project context for the editor ──
+      const contextParts = [];
+
+      // Author & Narrator profiles
+      if (files?.['author.md']?.trim()) contextParts.push(`## Author Profile\n${files['author.md']}`);
+      if (files?.['narrator.md']?.trim()) contextParts.push(`## Narrator Profile\n${files['narrator.md']}`);
+
+      // Outline
+      if (files?.['outline.md']?.trim()) contextParts.push(`## Story Outline\n${files['outline.md']}`);
+
+      // Story arc
+      if (files?.['story/arc.md']?.trim()) contextParts.push(`## Story Arc\n${files['story/arc.md']}`);
+
+      // World building & hallmarks
+      if (files?.['world/world-building.md']?.trim()) contextParts.push(`## World Building\n${files['world/world-building.md']}`);
+
+      // Relationships
+      if (files?.['relationships/questions-answered.md']?.trim()) contextParts.push(`## Relationships\n${files['relationships/questions-answered.md']}`);
+
+      // Character files — include all characters that appear in the chapter being reviewed
+      const charFiles = Object.entries(files || {})
+        .filter(([path]) => path.startsWith('characters/') && path.endsWith('.md') && path !== 'characters/questions-answered.md');
+      if (chapterNum) {
+        // For chapter files, try to detect which characters appear in the content
+        const chapterText = fileContent.toLowerCase();
+        for (const [path, content] of charFiles) {
+          if (!content?.trim()) continue;
+          const charName = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+          // Include character if their name appears in the chapter, or include all if we can't determine
+          if (chapterText.includes(charName.toLowerCase()) || charFiles.length <= 8) {
+            contextParts.push(`## Character: ${charName}\n${content}`);
+          }
+        }
+      } else {
+        // Non-chapter file — include all characters
+        for (const [path, content] of charFiles) {
+          if (!content?.trim()) continue;
+          const charName = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+          contextParts.push(`## Character: ${charName}\n${content}`);
+        }
+      }
+
+      // All generated chapters (so editor can check continuity)
+      const allChapterFiles = Object.entries(files || {})
+        .filter(([path]) => path.match(/^story\/chapter-\d+\.md$/))
+        .sort(([a], [b]) => {
+          const numA = parseInt(a.match(/chapter-(\d+)/)[1]);
+          const numB = parseInt(b.match(/chapter-(\d+)/)[1]);
+          return numA - numB;
+        });
+      for (const [path, content] of allChapterFiles) {
+        if (!content?.trim() || path === `story/chapter-${chapterNum}.md`) continue; // skip the file being reviewed
+        const num = path.match(/chapter-(\d+)/)[1];
+        // For chapters far from the one being reviewed, include summary if available
+        if (chapterNum && Math.abs(parseInt(num) - chapterNum) > 2) {
+          const summaryPath = `story/chapter-${num}-summary.md`;
+          if (files?.[summaryPath]?.trim()) {
+            contextParts.push(`## Chapter ${num} (Summary)\n${files[summaryPath]}`);
+          } else {
+            contextParts.push(`## Chapter ${num} (Summary)\n[Full text available but summarized for context limits — ${content.split(/\s+/).length} words]`);
+          }
+        } else {
+          contextParts.push(`## Chapter ${num}\n${content}`);
+        }
+      }
+
+      const projectContext = contextParts.join('\n\n---\n\n');
+      const systemPrompt = PROMPTS.EDITOR_REVIEW.build({ fileName: file, projectContext });
 
       // Build messages with previous feedback context for multi-pass
       const userContent = `## File: ${file}\n\n${fileContent}`;
@@ -1035,6 +1154,571 @@ function EditorMode({ file }) {
           </div>
           {/* Reader Experience Report integrated below editor review */}
           {file && <ReaderExperienceReport chapterPath={file} />}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─── Phase 10: Editorial Review Mode ─── */
+function EditorialReviewMode({ onGoToChapters }) {
+  const [stage, setStage] = useState('idle'); // idle | running | results
+  const [findings, setFindings] = useState([]);
+  const [error, setError] = useState(null);
+  const [passNumber, setPassNumber] = useState(1);
+  const [acceptedIds, setAcceptedIds] = useState(new Set());
+  const [rejectedIds, setRejectedIds] = useState(new Set());
+  const [filterType, setFilterType] = useState('all'); // all | issues | suggestions | strengths
+  const [filterCategory, setFilterCategory] = useState('all');
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [startTime, setStartTime] = useState(null);
+  const chatEndRef = useRef(null);
+
+  const files = useProjectStore(s => s.files);
+  const updateFile = useProjectStore(s => s.updateFile);
+
+  // Discover all chapters
+  const chapters = useMemo(() => {
+    if (!files) return [];
+    return Object.entries(files)
+      .filter(([path, content]) => /^story\/chapter-\d+\.md$/.test(path) && (content || '').trim().length > 50)
+      .sort(([a], [b]) => {
+        const numA = parseInt(a.match(/chapter-(\d+)/)[1]);
+        const numB = parseInt(b.match(/chapter-(\d+)/)[1]);
+        return numA - numB;
+      })
+      .map(([path, content]) => ({
+        path,
+        num: parseInt(path.match(/chapter-(\d+)/)[1]),
+        wordCount: (content || '').split(/\s+/).length,
+        content,
+      }));
+  }, [files]);
+
+  const totalWords = chapters.reduce((sum, ch) => sum + ch.wordCount, 0);
+
+  // Timer
+  useEffect(() => {
+    if (stage !== 'running') return;
+    const iv = setInterval(() => setElapsedSeconds(s => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [stage]);
+
+  const buildProjectContext = () => {
+    const parts = [];
+    if (files?.['author.md']?.trim()) parts.push(`## Author Profile\n${files['author.md']}`);
+    if (files?.['narrator.md']?.trim()) parts.push(`## Narrator Profile\n${files['narrator.md']}`);
+    if (files?.['outline.md']?.trim()) parts.push(`## Story Outline\n${files['outline.md']}`);
+    if (files?.['story/arc.md']?.trim()) parts.push(`## Story Arc\n${files['story/arc.md']}`);
+    if (files?.['world/world-building.md']?.trim()) parts.push(`## World Building\n${files['world/world-building.md']}`);
+    if (files?.['world/hallmarks.md']?.trim()) parts.push(`## World Hallmarks\n${files['world/hallmarks.md']}`);
+    if (files?.['world/questions-answered.md']?.trim()) parts.push(`## World Questions\n${files['world/questions-answered.md']}`);
+    if (files?.['relationships/questions-answered.md']?.trim()) parts.push(`## Relationships\n${files['relationships/questions-answered.md']}`);
+
+    // All character files
+    const charFiles = Object.entries(files || {})
+      .filter(([path]) => path.startsWith('characters/') && path.endsWith('.md') && path !== 'characters/questions-answered.md');
+    for (const [path, content] of charFiles) {
+      if (!content?.trim()) continue;
+      const charName = path.replace('characters/', '').replace('.md', '').replace(/-/g, ' ');
+      parts.push(`## Character: ${charName}\n${content}`);
+    }
+
+    return parts.join('\n\n---\n\n');
+  };
+
+  const handleRunReview = async () => {
+    if (chapters.length === 0) {
+      setError('No chapters found. Generate some chapters first before running an editorial review.');
+      return;
+    }
+
+    setStage('running');
+    setError(null);
+    setElapsedSeconds(0);
+    setStartTime(Date.now());
+
+    try {
+      const projectContext = buildProjectContext();
+      const chapterList = chapters.map(ch => `- Chapter ${ch.num} (${ch.wordCount.toLocaleString()} words)`).join('\n');
+
+      // Build the full manuscript text
+      const manuscriptParts = chapters.map(ch =>
+        `## Chapter ${ch.num}\n\n${ch.content}`
+      );
+      const manuscriptText = manuscriptParts.join('\n\n---\n\n');
+
+      const systemPrompt = PROMPTS.EDITORIAL_REVIEW.build({ projectContext, chapterList });
+
+      const msgs = [
+        { role: 'system', content: systemPrompt },
+      ];
+
+      // Multi-pass: include previous findings as context
+      if (passNumber > 1 && findings.length > 0) {
+        const prevSummary = findings.map(f =>
+          `[${f.type.toUpperCase()}] [${f.scope}] ${f.title}: ${f.description} ${acceptedIds.has(f.id) ? '(ACCEPTED)' : rejectedIds.has(f.id) ? '(REJECTED)' : '(UNREVIEWED)'}`
+        ).join('\n');
+        msgs.push(
+          { role: 'user', content: manuscriptText },
+          { role: 'assistant', content: `Previous editorial review (Pass ${passNumber - 1}):\n${prevSummary}` },
+          { role: 'user', content: `This is Pass ${passNumber}. Re-analyze the manuscript, focusing on issues that remain unresolved (rejected items should be re-examined), newly introduced problems, and deeper craft issues that a second pass might reveal. Note which previous accepted changes improve the work.` }
+        );
+      } else {
+        msgs.push({ role: 'user', content: manuscriptText });
+      }
+
+      const result = await useLlmStore.getState().sendMessage({
+        messages: msgs,
+        role: 'editor',
+        maxTokens: 4000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Editorial review failed');
+        setStage('idle');
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+
+      if (jsonMatch) {
+        const items = JSON.parse(jsonMatch[0]);
+        const withIds = items.map((item, i) => ({ ...item, id: `er-${passNumber}-${i}` }));
+        setFindings(withIds);
+        setStage('results');
+        setPassNumber(p => p + 1);
+        setAcceptedIds(new Set());
+        setRejectedIds(new Set());
+
+        // Save editorial report
+        const reportContent = [
+          `# Editorial Review — Pass ${passNumber}`,
+          `*Generated: ${new Date().toLocaleString()}*`,
+          `*Chapters reviewed: ${chapters.length} (${totalWords.toLocaleString()} words)*\n`,
+          ...withIds.map(item =>
+            `## [${(item.type || '').toUpperCase()}] ${item.title}\n**Scope**: ${item.scope || 'Full manuscript'} | **Category**: ${item.category || 'general'} | **Priority**: ${item.priority || 'medium'}\n\n${item.description}\n${item.suggestion ? `\n**Suggestion**: ${item.suggestion}` : ''}\n`
+          ),
+        ].join('\n');
+        try { updateFile(`feedback/editorial-v${passNumber}.md`, reportContent); } catch (e) { /* ignore */ }
+      } else {
+        setFindings([{ id: 'er-fallback-0', type: 'suggestion', scope: 'Full manuscript', category: 'general', title: 'Editorial Feedback', description: cleaned, priority: 'medium' }]);
+        setStage('results');
+      }
+    } catch (err) {
+      setError(err.message || 'Editorial review failed');
+      setStage('idle');
+    }
+  };
+
+  const handleAccept = (item) => {
+    setAcceptedIds(prev => { const s = new Set(prev); s.add(item.id); return s; });
+    setRejectedIds(prev => { const s = new Set(prev); s.delete(item.id); return s; });
+  };
+
+  const handleReject = (id) => {
+    setRejectedIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    setAcceptedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+  };
+
+  // Chat for follow-up questions
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || chatLoading) return;
+    const userMsg = chatInput.trim();
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+    setChatLoading(true);
+
+    try {
+      const context = findings.length > 0
+        ? findings.map(f => `[${f.type}] [${f.scope}] ${f.title}: ${f.description}`).join('\n')
+        : 'No editorial review has been run yet.';
+
+      const msgs = [
+        { role: 'system', content: `You are the editorial reviewer for this manuscript. You previously identified these findings:\n${context}\n\nThe author is asking follow-up questions. Be specific, reference chapters and passages, and give actionable advice. Keep responses concise but helpful.` },
+        ...chatMessages.map(m => ({ role: m.role, content: m.content })),
+        { role: 'user', content: userMsg },
+      ];
+
+      const result = await useLlmStore.getState().sendMessage({
+        messages: msgs,
+        role: 'editor',
+        maxTokens: 1500,
+      });
+
+      if (result.success) {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: removeEmdashes(result.content) }]);
+      } else {
+        setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${result.error}` }]);
+      }
+    } catch (err) {
+      setChatMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const severityColors = {
+    issue: { bg: 'rgba(249,115,22,0.06)', border: 'rgba(249,115,22,0.2)', text: '#f97316' },
+    suggestion: { bg: 'rgba(251,191,36,0.06)', border: 'rgba(251,191,36,0.2)', text: '#fbbf24' },
+    strength: { bg: 'rgba(74,222,128,0.06)', border: 'rgba(74,222,128,0.2)', text: '#4ade80' },
+  };
+
+  const priorityColors = { high: '#ef4444', medium: '#f97316', low: '#6b7280' };
+
+  const counts = {
+    issues: findings.filter(f => f.type === 'issue').length,
+    suggestions: findings.filter(f => f.type === 'suggestion').length,
+    strengths: findings.filter(f => f.type === 'strength').length,
+  };
+
+  const categories = [...new Set(findings.map(f => f.category).filter(Boolean))];
+
+  const filtered = findings.filter(f => {
+    if (filterType !== 'all' && f.type !== filterType.replace(/s$/, '')) return false;
+    if (filterCategory !== 'all' && f.category !== filterCategory) return false;
+    return true;
+  });
+
+  const badgeStyle = (key, active, bg, fg) => ({
+    background: active ? fg + '33' : bg,
+    color: fg,
+    cursor: 'pointer',
+    border: active ? `1px solid ${fg}` : '1px solid transparent',
+    transition: 'var(--transition)',
+  });
+
+  const formatTime = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Editorial Review</h2>
+        {stage === 'results' && <Badge variant="accent">Pass {passNumber - 1}</Badge>}
+      </div>
+
+      {/* ── Idle: show manuscript summary & launch ── */}
+      {stage === 'idle' && !error && (
+        <div style={{
+          background: '#1a1410', border: '1px solid #3d2e1a',
+          borderRadius: 'var(--radius-md)', padding: 32,
+        }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, textAlign: 'center', marginBottom: 24 }}>
+            <Edit3 size={36} style={{ color: '#f97316', opacity: 0.6 }} />
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#d4a574' }}>
+              Full Manuscript Editorial Review
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', maxWidth: 500 }}>
+              Submit all your chapters for a comprehensive developmental edit. The editor will analyze continuity, pacing, character consistency, voice, structure, and prose quality across the entire manuscript.
+            </div>
+          </div>
+
+          {/* Chapter inventory */}
+          <div style={{
+            background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)',
+            padding: 16, marginBottom: 20,
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 10 }}>
+              Manuscript Summary
+            </div>
+            {chapters.length === 0 ? (
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                No chapters found. Generate chapters in Phase 9 first.
+                <div style={{ marginTop: 8 }}>
+                  <Button variant="secondary" onClick={onGoToChapters} style={{ fontSize: '0.8rem' }}>
+                    Go to Chapter Execution →
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8, marginBottom: 12 }}>
+                  {chapters.map(ch => (
+                    <div key={ch.num} style={{
+                      background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+                      borderRadius: 'var(--radius-sm)', padding: '8px 10px',
+                      fontSize: '0.8rem',
+                    }}>
+                      <span style={{ fontWeight: 600 }}>Ch. {ch.num}</span>
+                      <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>{ch.wordCount.toLocaleString()}w</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {chapters.length} chapter{chapters.length !== 1 ? 's' : ''} · {totalWords.toLocaleString()} words total
+                </div>
+              </>
+            )}
+          </div>
+
+          {chapters.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <Button variant="primary" onClick={handleRunReview} style={{ padding: '12px 32px', fontSize: '0.9rem' }}>
+                <Search size={14} style={{ marginRight: 8 }} /> Run Editorial Review
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Running ── */}
+      {stage === 'running' && (
+        <div style={{
+          background: '#1a1410', border: '1px solid #3d2e1a',
+          borderRadius: 'var(--radius-md)', padding: 40,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+          textAlign: 'center',
+        }}>
+          <div style={{ animation: 'pulse 1.5s ease-in-out infinite' }}>
+            <Edit3 size={36} style={{ color: '#f97316' }} />
+          </div>
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#d4a574' }}>
+            Reviewing {chapters.length} chapter{chapters.length !== 1 ? 's' : ''}...
+          </div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            Analyzing continuity, character arcs, pacing, voice consistency, and prose quality
+          </div>
+          {/* Progress bar */}
+          <div style={{ width: '100%', maxWidth: 400, marginTop: 8 }}>
+            <div style={{
+              height: 4, borderRadius: 2,
+              background: 'var(--bg-tertiary)', overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 2,
+                background: 'linear-gradient(90deg, #f97316, #fbbf24)',
+                animation: 'outlineProgress 60s ease-in-out forwards',
+              }} />
+            </div>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: 6 }}>
+              {formatTime(elapsedSeconds)} elapsed
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Error ── */}
+      {error && (
+        <div style={{
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: 'var(--radius-md)', padding: 20,
+          display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16,
+        }}>
+          <AlertTriangle size={18} color="#ef4444" />
+          <div style={{ flex: 1, fontSize: '0.85rem', color: '#ef4444' }}>{error}</div>
+          <button onClick={() => setError(null)} style={{
+            background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75rem',
+          }}>Dismiss</button>
+        </div>
+      )}
+
+      {/* ── Results ── */}
+      {stage === 'results' && (
+        <>
+          {/* Summary bar */}
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap',
+          }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              {chapters.length} chapters reviewed · {findings.length} findings
+            </div>
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {acceptedIds.size + rejectedIds.size} / {findings.filter(f => f.type !== 'strength').length} reviewed
+            </span>
+          </div>
+
+          {/* Filters */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+            <Badge
+              onClick={() => setFilterType(filterType === 'issues' ? 'all' : 'issues')}
+              style={badgeStyle('issues', filterType === 'issues', '#f9731622', '#f97316')}
+            >{counts.issues} Issues</Badge>
+            <Badge
+              onClick={() => setFilterType(filterType === 'suggestions' ? 'all' : 'suggestions')}
+              style={badgeStyle('suggestions', filterType === 'suggestions', '#fbbf2422', '#fbbf24')}
+            >{counts.suggestions} Suggestions</Badge>
+            <Badge
+              onClick={() => setFilterType(filterType === 'strengths' ? 'all' : 'strengths')}
+              style={badgeStyle('strengths', filterType === 'strengths', '#4ade8022', '#4ade80')}
+            >{counts.strengths} Strengths</Badge>
+            {filterType !== 'all' && (
+              <span onClick={() => setFilterType('all')} style={{ fontSize: '0.7rem', color: 'var(--text-muted)', cursor: 'pointer', alignSelf: 'center' }}>
+                Clear ×
+              </span>
+            )}
+            {categories.length > 1 && (
+              <select
+                value={filterCategory}
+                onChange={e => setFilterCategory(e.target.value)}
+                style={{
+                  marginLeft: 'auto', background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-secondary)',
+                  fontSize: '0.7rem', padding: '2px 8px', cursor: 'pointer',
+                }}
+              >
+                <option value="all">All categories</option>
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            )}
+          </div>
+
+          {/* Bulk actions */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <Button variant="secondary" onClick={() => findings.forEach(f => { if (f.type !== 'strength') handleAccept(f); })} style={{ fontSize: '0.75rem' }}>
+              Accept All
+            </Button>
+            <Button variant="ghost" onClick={handleRunReview} style={{ fontSize: '0.75rem' }}>
+              Re-run Review (Pass {passNumber})
+            </Button>
+          </div>
+
+          {/* Finding cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
+            {filtered.map(item => {
+              const c = severityColors[item.type] || severityColors.suggestion;
+              const isAccepted = acceptedIds.has(item.id);
+              const isRejected = rejectedIds.has(item.id);
+              return (
+                <div key={item.id} style={{
+                  background: isAccepted ? 'rgba(74,222,128,0.05)' : isRejected ? 'rgba(239,68,68,0.03)' : c.bg,
+                  border: `1px solid ${isAccepted ? 'rgba(74,222,128,0.3)' : isRejected ? 'rgba(239,68,68,0.15)' : c.border}`,
+                  borderRadius: 'var(--radius-md)', padding: 16,
+                  opacity: isRejected ? 0.5 : 1,
+                  transition: 'all 0.2s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: c.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {item.type}
+                    </span>
+                    {item.scope && (
+                      <Badge style={{ fontSize: '0.55rem', background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                        {item.scope}
+                      </Badge>
+                    )}
+                    {item.category && (
+                      <Badge style={{ fontSize: '0.55rem', background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                        {item.category}
+                      </Badge>
+                    )}
+                    {item.priority && (
+                      <span style={{ fontSize: '0.6rem', color: priorityColors[item.priority] || '#6b7280', fontWeight: 600 }}>
+                        {item.priority}
+                      </span>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {isAccepted && <Badge style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', fontSize: '0.6rem' }}>Accepted</Badge>}
+                    {isRejected && <Badge style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: '0.6rem' }}>Rejected</Badge>}
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>
+                  {item.suggestion && item.type !== 'strength' && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginBottom: 10, fontStyle: 'italic' }}>
+                      Suggestion: {item.suggestion}
+                    </div>
+                  )}
+                  {item.type !== 'strength' && !isAccepted && !isRejected && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button variant="primary" onClick={() => handleAccept(item)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        Accept
+                      </Button>
+                      <Button variant="ghost" onClick={() => handleReject(item.id)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+                No findings match this filter.
+              </div>
+            )}
+          </div>
+
+          {/* ── Chat with the editor ── */}
+          <div style={{
+            background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)', overflow: 'hidden',
+          }}>
+            <div style={{
+              padding: '10px 16px', borderBottom: '1px solid var(--border)',
+              fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)',
+              textTransform: 'uppercase', letterSpacing: '0.04em',
+            }}>
+              <MessageSquare size={12} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Discuss with Editor
+            </div>
+
+            {/* Messages */}
+            <div style={{ maxHeight: 300, overflowY: 'auto', padding: 16 }}>
+              {chatMessages.length === 0 && (
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontStyle: 'italic', textAlign: 'center', padding: 20 }}>
+                  Ask follow-up questions about the review findings, request clarification, or discuss specific chapters.
+                </div>
+              )}
+              {chatMessages.map((msg, i) => (
+                <div key={i} style={{
+                  marginBottom: 12,
+                  display: 'flex', flexDirection: 'column',
+                  alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                }}>
+                  <div style={{
+                    background: msg.role === 'user' ? 'var(--accent-bg)' : 'var(--bg-tertiary)',
+                    border: `1px solid ${msg.role === 'user' ? 'var(--accent)' : 'var(--border)'}`,
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '8px 12px', maxWidth: '85%',
+                    fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.6,
+                    whiteSpace: 'pre-wrap',
+                  }}>
+                    {msg.content}
+                  </div>
+                  <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    {msg.role === 'user' ? 'You' : 'Editor'}
+                  </span>
+                </div>
+              ))}
+              {chatLoading && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> Editor is thinking...
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input */}
+            <div style={{
+              display: 'flex', gap: 8, padding: '8px 12px',
+              borderTop: '1px solid var(--border)',
+            }}>
+              <input
+                type="text"
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleChatSend(); } }}
+                placeholder="Ask about the review findings..."
+                style={{
+                  flex: 1, background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', padding: '8px 12px',
+                  color: 'var(--text-primary)', fontSize: '0.82rem',
+                }}
+              />
+              <Button variant="primary" onClick={handleChatSend} disabled={chatLoading || !chatInput.trim()} style={{ padding: '8px 12px' }}>
+                <SendHorizontal size={14} />
+              </Button>
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -1324,6 +2008,819 @@ function MarkdownBlock({ text, isMarkdown }) {
   flushList();
 
   return <>{elements}</>;
+}
+
+/* ─── Phase 7: AI Review Mode ─── */
+function AIReviewMode({ onNextPhase }) {
+  const [stage, setStage] = useState('idle'); // idle | loading | results | error
+  const [suggestions, setSuggestions] = useState([]);
+  const [error, setError] = useState(null);
+  const [acceptedIds, setAcceptedIds] = useState(new Set());
+  const [rejectedIds, setRejectedIds] = useState(new Set());
+  const [filterSeverity, setFilterSeverity] = useState('all');
+  const [filterPhase, setFilterPhase] = useState('all');
+  const [manualNotes, setManualNotes] = useState('');
+
+  const files = useProjectStore(s => s.files);
+  const phaseAnswers = useProjectStore(s => s.phaseAnswers) || {};
+  const activeProject = useProjectStore(s => s.activeProject);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const sendMessage = useLlmStore.getState().sendMessage;
+  const activeProviders = useLlmStore(s => s.activeProviders);
+
+  const handleRunReview = async () => {
+    if (activeProviders.length === 0) {
+      setError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setStage('loading');
+    setError(null);
+    setSuggestions([]);
+    setAcceptedIds(new Set());
+    setRejectedIds(new Set());
+
+    try {
+      // Build phase answers summary
+      const phaseNames = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation' };
+      let answersText = '';
+      for (const [pNum, pName] of Object.entries(phaseNames)) {
+        const answers = phaseAnswers[pNum] || {};
+        const qs = phaseQuestions[pNum] || [];
+        const entries = qs.map(q => {
+          const a = answers[q.id];
+          return a ? `Q: ${q.q}\nA: ${a}` : null;
+        }).filter(Boolean);
+        if (entries.length) answersText += `\n### Phase ${pNum}: ${pName}\n${entries.join('\n\n')}\n`;
+      }
+
+      // Build project files summary (truncated)
+      let filesText = '';
+      const importantFiles = ['author.md', 'narrator.md', 'outline.md', 'world/world-building.md', 'story/arc.md', 'relationships/questions-answered.md'];
+      for (const f of importantFiles) {
+        if (files[f]?.trim()) filesText += `\n### ${f}\n${files[f].slice(0, 2000)}\n`;
+      }
+      // Add character summaries (first 500 chars each)
+      Object.keys(files).filter(f => f.startsWith('characters/') && f.endsWith('.md')).forEach(f => {
+        filesText += `\n### ${f}\n${files[f].slice(0, 500)}\n`;
+      });
+
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: PROMPTS.PHASE_7_AUDIT.build({
+            phaseAnswers: answersText,
+            projectFiles: filesText,
+            medium: activeProject?.medium || 'novel',
+            genre: activeProject?.genre || '',
+          })},
+          { role: 'user', content: 'Run a comprehensive audit of this story blueprint. Return JSON suggestions.' },
+        ],
+        role: 'editor',
+        maxTokens: 4000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'AI review failed.');
+        setStage('error');
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      const jsonMatch = cleaned.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const items = JSON.parse(jsonMatch[0]).map((item, i) => ({ ...item, id: i }));
+        setSuggestions(items);
+        setStage('results');
+      } else {
+        setError('Could not parse AI response. Try again.');
+        setStage('error');
+      }
+    } catch (err) {
+      setError(err.message);
+      setStage('error');
+    }
+  };
+
+  const handleAccept = (item) => {
+    setAcceptedIds(prev => { const s = new Set(prev); s.add(item.id); return s; });
+    setRejectedIds(prev => { const s = new Set(prev); s.delete(item.id); return s; });
+    // Auto-apply if possible
+    if (item.autoApplyTarget && item.autoApplyContent) {
+      const existing = files[item.autoApplyTarget] || '';
+      updateFile(item.autoApplyTarget, existing + '\n\n' + item.autoApplyContent);
+    }
+  };
+
+  const handleReject = (id) => {
+    setRejectedIds(prev => { const s = new Set(prev); s.add(id); return s; });
+    setAcceptedIds(prev => { const s = new Set(prev); s.delete(id); return s; });
+  };
+
+  const handleAcceptAll = () => {
+    suggestions.forEach(item => {
+      if (item.severity !== 'strength') handleAccept(item);
+    });
+  };
+
+  const filteredSuggestions = suggestions.filter(s => {
+    if (filterSeverity !== 'all' && s.severity !== filterSeverity) return false;
+    if (filterPhase !== 'all' && String(s.phase) !== filterPhase) return false;
+    return true;
+  });
+
+  const severityColors = {
+    critical: { bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.25)', text: '#f87171', icon: '!!' },
+    warning: { bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.25)', text: '#fbbf24', icon: '!' },
+    suggestion: { bg: 'rgba(96,165,250,0.08)', border: 'rgba(96,165,250,0.25)', text: '#60a5fa', icon: '~' },
+    strength: { bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.25)', text: '#4ade80', icon: '✓' },
+  };
+
+  const phaseComplete = stage === 'results' && suggestions.length > 0 &&
+    suggestions.filter(s => s.severity !== 'strength').every(s => acceptedIds.has(s.id) || rejectedIds.has(s.id));
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 750, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Review</h2>
+        <Badge variant="accent">Phase 7</Badge>
+      </div>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
+        The AI will audit your entire story blueprint across all phases and produce actionable suggestions.
+        You can accept, reject, or skip each suggestion. You can also skip the AI review entirely and proceed to the Outline phase.
+      </p>
+
+      {/* Idle state — run or skip */}
+      {stage === 'idle' && (
+        <div style={{ display: 'flex', gap: 12 }}>
+          <Button variant="primary" onClick={handleRunReview} style={{ flex: 1, padding: '14px 0', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Brain size={16} style={{ marginRight: 8 }} /> Run AI Review
+          </Button>
+          <Button variant="ghost" onClick={() => {
+            useProjectStore.getState().updatePhaseAnswers(7, { 1: 'Skipped', _reviewComplete: true });
+            onNextPhase();
+          }} style={{ flex: 1, padding: '14px 0', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border)' }}>
+            Skip to Outline →
+          </Button>
+        </div>
+      )}
+
+      {/* Loading */}
+      {stage === 'loading' && (
+        <div style={{
+          background: 'var(--bg-card)', border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)', padding: 32, textAlign: 'center',
+        }}>
+          <Sparkles size={28} style={{ color: 'var(--accent)', animation: 'spin 1.5s linear infinite', marginBottom: 12 }} />
+          <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 6 }}>Auditing your story blueprint...</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Reviewing all 6 phases for consistency, completeness, and craft</div>
+        </div>
+      )}
+
+      {/* Error */}
+      {stage === 'error' && (
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-md)', padding: 20, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <AlertTriangle size={18} color="#ef4444" />
+            <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#ef4444' }}>Review Failed</span>
+          </div>
+          <div style={{ fontSize: '0.85rem', color: '#f87171', marginBottom: 12 }}>{error}</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" onClick={handleRunReview}>Try Again</Button>
+            <Button variant="ghost" onClick={onNextPhase}>Skip to Outline →</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {stage === 'results' && (
+        <>
+          {/* Summary bar */}
+          <div style={{
+            display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center',
+          }}>
+            {['critical', 'warning', 'suggestion', 'strength'].map(sev => {
+              const count = suggestions.filter(s => s.severity === sev).length;
+              if (!count) return null;
+              const c = severityColors[sev];
+              return (
+                <Badge key={sev} style={{ background: c.bg, color: c.text, cursor: 'pointer', border: filterSeverity === sev ? `1px solid ${c.text}` : 'none' }}
+                  onClick={() => setFilterSeverity(filterSeverity === sev ? 'all' : sev)}>
+                  {count} {sev}{count !== 1 ? 's' : ''}
+                </Badge>
+              );
+            })}
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+              {acceptedIds.size + rejectedIds.size} / {suggestions.filter(s => s.severity !== 'strength').length} reviewed
+            </span>
+          </div>
+
+          {/* Phase filter pills */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+            {['all', '1', '2', '3', '4', '5', '6', '7'].map(p => {
+              const label = p === 'all' ? 'All Phases' : p === '7' ? 'Cross-Phase' : `Phase ${p}`;
+              const count = p === 'all' ? suggestions.length : suggestions.filter(s => String(s.phase) === p).length;
+              if (p !== 'all' && !count) return null;
+              return (
+                <div key={p} onClick={() => setFilterPhase(p)} style={{
+                  padding: '4px 10px', borderRadius: 100, fontSize: '0.7rem', cursor: 'pointer',
+                  background: filterPhase === p ? 'var(--accent)' : 'var(--bg-tertiary)',
+                  color: filterPhase === p ? '#000' : 'var(--text-muted)',
+                  fontWeight: filterPhase === p ? 600 : 400,
+                }}>
+                  {label} {count ? `(${count})` : ''}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bulk actions */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <Button variant="secondary" onClick={handleAcceptAll} style={{ fontSize: '0.75rem' }}>
+              Accept All Auto-Applicable
+            </Button>
+            <Button variant="ghost" onClick={handleRunReview} style={{ fontSize: '0.75rem' }}>
+              Re-run Review
+            </Button>
+          </div>
+
+          {/* Suggestion cards */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {filteredSuggestions.map(item => {
+              const c = severityColors[item.severity] || severityColors.suggestion;
+              const isAccepted = acceptedIds.has(item.id);
+              const isRejected = rejectedIds.has(item.id);
+              return (
+                <div key={item.id} style={{
+                  background: isAccepted ? 'rgba(74,222,128,0.05)' : isRejected ? 'rgba(239,68,68,0.03)' : c.bg,
+                  border: `1px solid ${isAccepted ? 'rgba(74,222,128,0.3)' : isRejected ? 'rgba(239,68,68,0.15)' : c.border}`,
+                  borderRadius: 'var(--radius-md)', padding: 16,
+                  opacity: isRejected ? 0.5 : 1,
+                  transition: 'all 0.2s ease',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.65rem', fontWeight: 700, color: c.text, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {item.severity}
+                    </span>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      Phase {item.phase}: {item.phaseName}
+                    </span>
+                    {item.category && (
+                      <Badge style={{ fontSize: '0.55rem', background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>
+                        {item.category}
+                      </Badge>
+                    )}
+                    <div style={{ flex: 1 }} />
+                    {isAccepted && <Badge style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80', fontSize: '0.6rem' }}>Accepted</Badge>}
+                    {isRejected && <Badge style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', fontSize: '0.6rem' }}>Rejected</Badge>}
+                  </div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 600, marginBottom: 4 }}>{item.title}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 6 }}>{item.description}</div>
+                  {item.suggestion && item.severity !== 'strength' && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--accent)', marginBottom: 10, fontStyle: 'italic' }}>
+                      Suggestion: {item.suggestion}
+                    </div>
+                  )}
+                  {item.severity !== 'strength' && !isAccepted && !isRejected && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Button variant="primary" onClick={() => handleAccept(item)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        {item.autoApplyContent ? 'Accept & Apply' : 'Accept'}
+                      </Button>
+                      <Button variant="ghost" onClick={() => handleReject(item.id)} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Manual notes area */}
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Your Notes (optional)
+            </div>
+            <textarea
+              value={manualNotes}
+              onChange={e => setManualNotes(e.target.value)}
+              placeholder="Add your own notes about the review, things you want to revisit, or reminders for the outline phase..."
+              style={{
+                width: '100%', minHeight: 80, padding: 12, boxSizing: 'border-box',
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                fontFamily: 'var(--font-sans)', fontSize: '0.85rem', resize: 'vertical',
+              }}
+            />
+          </div>
+
+          {/* Proceed */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+            <Button variant="ghost" onClick={() => { setStage('idle'); }}>← Back</Button>
+            <Button variant="primary" onClick={() => {
+              // Save review results as a file
+              if (suggestions.length > 0) {
+                const reviewMd = [
+                  '# AI Review Results',
+                  `*Generated: ${new Date().toLocaleString()}*\n`,
+                  ...suggestions.map(s => {
+                    const status = acceptedIds.has(s.id) ? 'ACCEPTED' : rejectedIds.has(s.id) ? 'REJECTED' : 'UNREVIEWED';
+                    return `## [${s.severity.toUpperCase()}] ${s.title} (Phase ${s.phase})\n**Status**: ${status}\n${s.description}\n${s.suggestion ? `**Suggestion**: ${s.suggestion}` : ''}\n`;
+                  }),
+                  manualNotes ? `\n## Author Notes\n${manualNotes}\n` : '',
+                ].join('\n');
+                updateFile('dry-run-audit.md', reviewMd);
+              }
+              // Mark phase 7 as complete by storing a sentinel answer
+              useProjectStore.getState().updatePhaseAnswers(7, { 1: suggestions.length > 0 ? 'AI Review completed' : 'Skipped', _reviewComplete: true });
+              onNextPhase();
+            }}>
+              Proceed to Outline →
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─── Outline Phase (replaces Bridge) ─── */
+function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
+  const [stage, setStage] = useState('idle'); // idle | generating | editing | reviewing | review-results
+  const [outlineContent, setOutlineContent] = useState('');
+  const [error, setError] = useState(null);
+  const [reviewResults, setReviewResults] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [promptText, setPromptText] = useState('');
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [diffView, setDiffView] = useState(false);
+  const [previousContent, setPreviousContent] = useState('');
+  const [generationStartTime, setGenerationStartTime] = useState(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  const files = useProjectStore(s => s.files);
+  const phaseAnswers = useProjectStore(s => s.phaseAnswers) || {};
+  const activeProject = useProjectStore(s => s.activeProject);
+  const updateFile = useProjectStore(s => s.updateFile);
+  const sendMessage = useLlmStore.getState().sendMessage;
+  const activeProviders = useLlmStore(s => s.activeProviders);
+
+  const autoTriggeredRef = useRef(false);
+
+  // Load existing outline on mount
+  useEffect(() => {
+    const existing = files?.['outline.md'] || '';
+    if (existing.trim()) {
+      const lines = existing.trim().split('\n').filter(l => l.trim());
+      // Only enter editing if outline is substantive (more than a one-liner)
+      if (lines.length > 2 && existing.trim().length > 100) {
+        setOutlineContent(existing);
+        setStage('editing');
+      }
+    }
+  }, [files?.['outline.md']]);
+
+  // Build context from all phase data
+  const buildContext = () => {
+    const phaseNames = { 1: 'Author', 2: 'Narrator', 3: 'World', 4: 'Characters', 5: 'Relationships', 6: 'Story Foundation' };
+    let answersText = '';
+    for (const [pNum, pName] of Object.entries(phaseNames)) {
+      const answers = phaseAnswers[pNum] || {};
+      const qs = phaseQuestions[pNum] || [];
+      const entries = qs.map(q => {
+        const a = answers[q.id];
+        return a ? `Q: ${q.q}\nA: ${a}` : null;
+      }).filter(Boolean);
+      if (entries.length) answersText += `\n### Phase ${pNum}: ${pName}\n${entries.join('\n\n')}\n`;
+    }
+
+    const mediumDef = STORY_MEDIUMS.find(m => m.key === activeProject?.medium);
+    const mediumKey = activeProject?.medium || 'novel';
+
+    return {
+      phaseAnswers: answersText,
+      medium: mediumDef?.label || activeProject?.medium || 'Novel',
+      mediumUnit: mediumDef?.unit || 'chapters',
+      wordRange: mediumDef?.wordRange || [50000, 120000],
+      genre: activeProject?.genre || '',
+      authorProfile: files?.['author.md']?.slice(0, 3000) || '',
+      narratorProfile: files?.['narrator.md']?.slice(0, 2000) || '',
+      worldBuilding: (files?.['world/world-building.md']?.slice(0, 3000) || '') +
+        (files?.['world/hallmarks.md'] ? '\n\n## World Hallmarks\n' + files['world/hallmarks.md'].slice(0, 2000) : ''),
+      characters: Object.keys(files || {}).filter(f => f.startsWith('characters/') && f.endsWith('.md'))
+        .map(f => files[f]?.slice(0, 800)).join('\n\n---\n\n') || '',
+      relationships: files?.['relationships/questions-answered.md']?.slice(0, 2000) || '',
+      storyFoundation: (files?.['story/arc.md']?.slice(0, 2000) || '') + '\n' + (files?.['story/questions-answered.md']?.slice(0, 1500) || ''),
+      outlineProfile: getOutlineProfile(mediumKey),
+    };
+  };
+
+  // Timer effect for generation elapsed time
+  useEffect(() => {
+    if (stage !== 'generating' && stage !== 'reviewing') {
+      setGenerationStartTime(null);
+      return;
+    }
+    if (!generationStartTime) return;
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - generationStartTime) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [stage, generationStartTime]);
+
+  const handleGenerate = async () => {
+    if (activeProviders.length === 0) {
+      setError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setStage('generating');
+    setError(null);
+    setGenerationStartTime(Date.now());
+    setElapsedSeconds(0);
+
+    try {
+      const ctx = buildContext();
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: PROMPTS.OUTLINE_GENERATION.build(ctx) },
+          { role: 'user', content: 'Generate a complete, detailed outline for this story following the exact format specified.' },
+        ],
+        role: 'generator',
+        maxTokens: 8192,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Outline generation failed.');
+        setStage('idle');
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      setOutlineContent(cleaned);
+      updateFile('outline.md', cleaned);
+      // Auto-mark outline complete when substantive content is generated
+      if (cleaned.trim().length > 100) {
+        useProjectStore.getState().updatePhaseAnswers(8, { 1: 'Outline generated', _outlineComplete: true });
+      }
+      setStage('editing');
+    } catch (err) {
+      setError(err.message);
+      setStage('idle');
+    }
+  };
+
+  // Auto-trigger outline generation if outline is empty or a trivial one-liner
+  useEffect(() => {
+    if (autoTriggeredRef.current) return;
+    if (stage !== 'idle') return;
+    if (activeProviders.length === 0) return;
+    const existing = (files?.['outline.md'] || '').trim();
+    const lines = existing.split('\n').filter(l => l.trim());
+    const isEmpty = !existing || existing.length < 100 || lines.length <= 2;
+    if (isEmpty) {
+      autoTriggeredRef.current = true;
+      handleGenerate();
+    }
+  }, [stage, activeProviders.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleReview = async () => {
+    if (activeProviders.length === 0) {
+      setError('No AI model connected. Go to Settings to add one.');
+      return;
+    }
+    setReviewLoading(true);
+    setReviewResults(null);
+
+    try {
+      // Build abbreviated project context
+      let projectCtx = '';
+      const importantFiles = ['author.md', 'narrator.md', 'world/world-building.md', 'story/arc.md'];
+      for (const f of importantFiles) {
+        if (files[f]?.trim()) projectCtx += `\n### ${f}\n${files[f].slice(0, 1500)}\n`;
+      }
+
+      const mediumDef = STORY_MEDIUMS.find(m => m.key === activeProject?.medium);
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: PROMPTS.OUTLINE_REVIEW.build({
+            outline: outlineContent,
+            projectFiles: projectCtx,
+            medium: mediumDef?.label || 'Novel',
+            genre: activeProject?.genre || '',
+          })},
+          { role: 'user', content: 'Review and grade this outline. Return structured JSON feedback.' },
+        ],
+        role: 'editor',
+        maxTokens: 4000,
+      });
+
+      if (!result.success) {
+        setError(result.error || 'Review failed.');
+        setReviewLoading(false);
+        return;
+      }
+
+      const cleaned = removeEmdashes(result.content);
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        setReviewResults(JSON.parse(jsonMatch[0]));
+        setStage('review-results');
+      } else {
+        setError('Could not parse review response.');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+    setReviewLoading(false);
+  };
+
+  const handlePromptUpdate = async () => {
+    if (!promptText.trim() || activeProviders.length === 0) return;
+    setPromptLoading(true);
+    setPreviousContent(outlineContent);
+
+    try {
+      const result = await sendMessage({
+        messages: [
+          { role: 'system', content: GOLDEN_RULES + `\n## Your Role: Outline Editor\n\nYou are editing an existing story outline based on the author's instructions. Make the requested changes while preserving the overall structure and format. Output the COMPLETE updated outline (not just the changed parts).\n\n### Current Outline:\n${outlineContent}` },
+          { role: 'user', content: promptText },
+        ],
+        role: 'generator',
+        maxTokens: 8192,
+      });
+
+      if (result.success) {
+        const cleaned = removeEmdashes(result.content);
+        setOutlineContent(cleaned);
+        updateFile('outline.md', cleaned);
+        if (cleaned.trim().length > 100) {
+          useProjectStore.getState().updatePhaseAnswers(8, { 1: 'Outline updated', _outlineComplete: true });
+        }
+        setDiffView(true);
+      } else {
+        setError(result.error || 'Update failed.');
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+    setPromptLoading(false);
+    setPromptText('');
+  };
+
+  const handleAcceptDiff = () => {
+    setDiffView(false);
+    setPreviousContent('');
+  };
+
+  const handleRejectDiff = () => {
+    setOutlineContent(previousContent);
+    updateFile('outline.md', previousContent);
+    setDiffView(false);
+    setPreviousContent('');
+  };
+
+  const gradeColors = {
+    'A+': '#4ade80', 'A': '#4ade80', 'A-': '#86efac',
+    'B+': '#fbbf24', 'B': '#fbbf24', 'B-': '#fcd34d',
+    'C+': '#f97316', 'C': '#f97316', 'C-': '#fb923c',
+    'D': '#ef4444', 'F': '#ef4444',
+  };
+
+  return (
+    <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', maxWidth: 750, margin: '0 auto' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0 }}>Outline</h2>
+        <Badge variant="muted">Phase 8</Badge>
+      </div>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24, lineHeight: 1.6 }}>
+        Generate your story outline from all the blueprint data, or paste your own. You can prompt the AI to make changes, submit for review, and iterate until you are satisfied.
+      </p>
+
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 'var(--radius-md)', padding: 12, marginBottom: 16, fontSize: '0.8rem', color: '#f87171', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <AlertTriangle size={14} /> {error}
+          <div style={{ flex: 1 }} />
+          <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}><X size={14} /></button>
+        </div>
+      )}
+
+      {/* Idle — generate or paste */}
+      {stage === 'idle' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Button variant="primary" onClick={handleGenerate} style={{ padding: '14px 0', fontSize: '0.9rem' }}>
+            <Sparkles size={16} style={{ marginRight: 8 }} /> Auto-Generate Outline
+          </Button>
+          <div style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>or</div>
+          <Button variant="secondary" onClick={() => setStage('editing')} style={{ fontSize: '0.85rem' }}>
+            <Pencil size={14} style={{ marginRight: 6 }} /> Write / Paste My Own Outline
+          </Button>
+        </div>
+      )}
+
+      {/* Generating — with progress bar and timer */}
+      {stage === 'generating' && (
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: 32 }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <Loader2 size={28} style={{ color: 'var(--accent)', animation: 'spin 1s linear infinite', marginBottom: 12 }} />
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: 6 }}>Generating your outline...</div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Building from author, narrator, world, characters, relationships, and story foundation data</div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ marginBottom: 12 }}>
+            <div style={{
+              height: 6, background: 'var(--bg-tertiary)', borderRadius: 100, overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, var(--accent), #f97316)',
+                borderRadius: 100,
+                animation: 'outlineProgress 45s ease-out forwards',
+              }} />
+            </div>
+          </div>
+
+          {/* Timer and status */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+              {elapsedSeconds < 10
+                ? 'Assembling project context...'
+                : elapsedSeconds < 25
+                  ? 'Structuring chapter-by-chapter outline...'
+                  : elapsedSeconds < 45
+                    ? 'Writing detailed chapter summaries...'
+                    : 'Finalizing thread tracker and act structure...'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+              {Math.floor(elapsedSeconds / 60)}:{String(elapsedSeconds % 60).padStart(2, '0')} elapsed
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes outlineProgress {
+              0% { width: 0%; }
+              10% { width: 15%; }
+              30% { width: 40%; }
+              50% { width: 60%; }
+              70% { width: 75%; }
+              90% { width: 88%; }
+              100% { width: 95%; }
+            }
+          `}</style>
+        </div>
+      )}
+
+      {/* Editing state — main editing view */}
+      {(stage === 'editing' || stage === 'review-results') && (
+        <>
+          {/* Diff view bar */}
+          {diffView && previousContent && (
+            <div style={{
+              background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)',
+              borderRadius: 'var(--radius-md)', padding: 12, marginBottom: 16,
+              display: 'flex', alignItems: 'center', gap: 12,
+            }}>
+              <GitCompare size={16} color="#fbbf24" />
+              <span style={{ fontSize: '0.8rem', color: '#fbbf24', flex: 1 }}>AI made changes to your outline. Review the updated version below.</span>
+              <Button variant="primary" onClick={handleAcceptDiff} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>Accept Changes</Button>
+              <Button variant="ghost" onClick={handleRejectDiff} style={{ fontSize: '0.72rem', padding: '4px 12px' }}>Revert</Button>
+            </div>
+          )}
+
+          {/* Review results panel */}
+          {stage === 'review-results' && reviewResults && (
+            <div style={{
+              background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: `${gradeColors[reviewResults.grade] || 'var(--accent)'}22`,
+                  color: gradeColors[reviewResults.grade] || 'var(--accent)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.1rem', fontWeight: 800,
+                }}>
+                  {reviewResults.grade}
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>Outline Review</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{reviewResults.gradeExplanation}</div>
+                </div>
+                <div style={{ flex: 1 }} />
+                <Button variant="ghost" onClick={() => setStage('editing')} style={{ fontSize: '0.7rem' }}>Dismiss</Button>
+              </div>
+
+              {/* Strengths */}
+              {reviewResults.strengths?.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#4ade80', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Strengths</div>
+                  {reviewResults.strengths.map((s, i) => (
+                    <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 2, paddingLeft: 8, borderLeft: '2px solid rgba(74,222,128,0.3)' }}>{s}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Issues */}
+              {reviewResults.issues?.length > 0 && (
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#fbbf24', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Issues</div>
+                  {reviewResults.issues.map((issue, i) => (
+                    <div key={i} style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 6, paddingLeft: 8, borderLeft: `2px solid ${issue.severity === 'critical' ? 'rgba(239,68,68,0.4)' : 'rgba(251,191,36,0.4)'}` }}>
+                      <span style={{ fontWeight: 600 }}>{issue.title}</span>: {issue.description}
+                      {issue.suggestion && <div style={{ color: 'var(--accent)', fontStyle: 'italic', marginTop: 2 }}>Fix: {issue.suggestion}</div>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Suggestions with apply */}
+              {reviewResults.suggestions?.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#60a5fa', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Suggested Changes</div>
+                  {reviewResults.suggestions.map((sug, i) => (
+                    <div key={i} style={{ background: 'rgba(96,165,250,0.05)', border: '1px solid rgba(96,165,250,0.15)', borderRadius: 'var(--radius-sm)', padding: 10, marginBottom: 6 }}>
+                      <div style={{ fontSize: '0.8rem', marginBottom: 4 }}>
+                        <span style={{ fontWeight: 600 }}>{sug.type}</span> at {sug.location}: {sug.reason}
+                      </div>
+                      {sug.content && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: 8, borderRadius: 'var(--radius-sm)', marginBottom: 6, fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: 120, overflowY: 'auto' }}>
+                          {sug.content}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Editor */}
+          <div style={{ marginBottom: 16 }}>
+            <MarkdownEditor
+              value={outlineContent}
+              onChange={(val) => {
+                setOutlineContent(val);
+                updateFile('outline.md', val);
+              }}
+              placeholder="Paste or write your outline here..."
+              minHeight={300}
+              defaultMode="source"
+            />
+          </div>
+
+          {/* Prompt input for AI modifications */}
+          <div style={{
+            display: 'flex', gap: 8, marginBottom: 16, alignItems: 'flex-end',
+          }}>
+            <div style={{ flex: 1 }}>
+              <textarea
+                value={promptText}
+                onChange={e => setPromptText(e.target.value)}
+                placeholder="Tell the AI what to change... (e.g., 'Add a subplot for the mentor character', 'Extend Act 2 with more tension')"
+                style={{
+                  width: '100%', minHeight: 60, padding: 10, boxSizing: 'border-box',
+                  background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-sans)', fontSize: '0.82rem', resize: 'vertical',
+                }}
+                onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handlePromptUpdate(); }}
+              />
+            </div>
+            <Button variant="primary" onClick={handlePromptUpdate} disabled={promptLoading || !promptText.trim()} style={{ fontSize: '0.78rem', whiteSpace: 'nowrap', height: 36 }}>
+              {promptLoading ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 4 }} /> Updating...</> : <><SendHorizontal size={13} style={{ marginRight: 4 }} /> Update</>}
+            </Button>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+            <Button variant="secondary" onClick={handleReview} disabled={reviewLoading || !outlineContent.trim()} style={{ fontSize: '0.78rem' }}>
+              {reviewLoading ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite', marginRight: 4 }} /> Reviewing...</> : <><Eye size={13} style={{ marginRight: 4 }} /> Submit for Review</>}
+            </Button>
+            <Button variant="secondary" onClick={handleGenerate} style={{ fontSize: '0.78rem' }}>
+              <Sparkles size={13} style={{ marginRight: 4 }} /> Regenerate Outline
+            </Button>
+            {onOpenFile && (
+              <Button variant="ghost" onClick={() => onOpenFile('outline.md')} style={{ fontSize: '0.78rem' }}>
+                <Edit3 size={13} style={{ marginRight: 4 }} /> Open in Full Editor
+              </Button>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+            <Button variant="ghost" onClick={onPrevPhase}>← Back to AI Review</Button>
+            <Button variant="primary" onClick={() => {
+              // Mark outline phase complete
+              useProjectStore.getState().updatePhaseAnswers(8, { 1: outlineContent ? 'Outline accepted' : 'Skipped', _outlineComplete: true });
+              onNextPhase();
+            }} disabled={!outlineContent.trim()}>
+              Accept Outline & Continue →
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
@@ -1690,7 +3187,7 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
 }
 
 /* ─── IDE-like File Editor ─── */
-function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onContentChange, onSave }) {
+function FileEditorMode({ file, onPreview, editedContent, onContentChange, onSave }) {
   // Prefer live project data; only fall back to static demo data for the demo project
   const storeFiles = useProjectStore(s => s.files);
   const fc = storeFileToFc(storeFiles, file) || getDemoFileContent(file) || defaultFileContent(file || 'untitled.md');
@@ -1792,14 +3289,6 @@ function FileEditorMode({ file, onPreview, onEditorReview, editedContent, onCont
             color: 'var(--accent-btn-text, #000)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600,
           }}>
             <BookOpen size={12} /> Preview in Reader
-          </button>
-          <button onClick={onEditorReview} style={{
-            display: 'flex', alignItems: 'center', gap: 4,
-            padding: '4px 10px', borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border)', background: 'var(--bg-card)',
-            color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem',
-          }}>
-            <Search size={11} /> Run Editor
           </button>
           <button onClick={() => setShowDeconstruction(!showDeconstruction)} style={{
             display: 'flex', alignItems: 'center', gap: 4,
@@ -1952,10 +3441,9 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter, isDecomposed }
     );
 
     try {
-      const { updateFile, loadProjectFiles } = useProjectStore.getState();
-      const projectId = useProjectStore.getState().activeProjectId;
-      await updateFile(projectId, filePath, updated);
-      await loadProjectFiles(projectId);
+      const { updateFile, loadProjectFiles, activeProjectId } = useProjectStore.getState();
+      await updateFile(filePath, updated);
+      await loadProjectFiles(activeProjectId);
     } catch (err) {
       console.error('Failed to update character tier:', err);
     }
@@ -2156,7 +3644,7 @@ function FullCastMode({ onCharacterClick, onBack, onAddCharacter, isDecomposed }
   );
 }
 
-function ChatMode({ phasePcts = {} }) {
+function ChatMode({ phasePcts = {}, isDecomposed = false, prereqFlags = {} }) {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -2170,7 +3658,7 @@ function ChatMode({ phasePcts = {} }) {
   const files = useProjectStore(s => s.files);
   const project = useProjectStore(s => s.activeProject);
 
-  const gatedUnlocked = allPrereqsComplete(phasePcts);
+  const gatedUnlocked = allPrereqsComplete(phasePcts, isDecomposed, prereqFlags);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -2301,33 +3789,7 @@ function ChatMode({ phasePcts = {} }) {
         scope: 'full-project',
       });
 
-      // Check if characterGuideMode is enabled and a character is selected
-      const characterGuideModeEnabled = useSettingsStore.getState().characterGuideMode;
-      if (characterGuideModeEnabled && selectedCharacter) {
-        // Find the selected character's file content
-        const charSlug = selectedCharacter.toLowerCase().replace(/\s+/g, '-');
-        const characterPath = `characters/${charSlug}.md`;
-        let characterContent = files[characterPath];
-
-        // Try alternate path if first doesn't exist
-        if (!characterContent) {
-          const altPath = Object.keys(files || {}).find(
-            p => p.startsWith('characters/') && p.endsWith('.md') &&
-            p.replace('characters/', '').replace('.md', '').toLowerCase() === charSlug.toLowerCase()
-          );
-          if (altPath) characterContent = files[altPath];
-        }
-
-        if (characterContent) {
-          // Inject character instruction into the system message
-          const charInstruction = `You are ${selectedCharacter}, a character in a story. Respond in character, using their voice and perspective. Here is your character sheet:\n\n${characterContent}\n\nProvide guidance and responses as this character would, drawing from their personality, motivations, and knowledge. Keep responses focused and in-character.`;
-
-          // Insert character instruction as first system message if not already present
-          if (ctx.messages[0]?.role !== 'system' || !ctx.messages[0]?.content?.includes(selectedCharacter)) {
-            ctx.messages.unshift({ role: 'system', content: charInstruction });
-          }
-        }
-      }
+      // Character roleplay context is now fully handled by buildChatContext + CHARACTER_ROLEPLAY prompt
 
       // Add empty assistant message for streaming
       const assistantMsgId = Math.random();
@@ -2462,13 +3924,8 @@ function ChatMode({ phasePcts = {} }) {
                   <button
                     key={name}
                     onClick={() => {
-                      if (persona === 'character') {
-                        switchPersona('character', name);
-                      } else {
-                        // In assistant mode, just set the character
-                        setSelectedCharacter(name);
-                        setShowPersonaMenu(false);
-                      }
+                      // Always switch to character persona when selecting a character
+                      switchPersona('character', name);
                     }}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left',
@@ -3892,10 +5349,46 @@ function DrawingBoard({ onOpenFile, boardItems, setBoardItems }) {
         </div>
       )}
 
-      {viewMode === 'board' && renderBoardView()}
-      {viewMode === 'list' && renderListView()}
-      {viewMode === 'gallery' && renderGalleryView()}
-      {viewMode === 'unlinked' && renderBoardView()}
+      {filteredItems.length > 0 && viewMode === 'board' && renderBoardView()}
+      {filteredItems.length > 0 && viewMode === 'list' && renderListView()}
+      {filteredItems.length > 0 && viewMode === 'gallery' && renderGalleryView()}
+      {filteredItems.length > 0 && viewMode === 'unlinked' && renderBoardView()}
+
+      {/* Empty state */}
+      {filteredItems.length === 0 && !showAddModal && (
+        <div style={{
+          background: 'var(--bg-secondary)', border: '1px dashed var(--border)',
+          borderRadius: 'var(--radius-md)', padding: '40px 32px',
+          textAlign: 'center', marginTop: 8,
+        }}>
+          <Palette size={32} style={{ color: 'var(--text-muted)', opacity: 0.4, marginBottom: 12 }} />
+          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+            Your scratchpad for everything outside the manuscript
+          </h3>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.7, maxWidth: 480, margin: '0 auto 20px' }}>
+            Use the Drawing Board to collect notes, research, reference images, character sketches, alternate plot ideas, uploaded documents, and anything else that informs your story. Items here can be linked to chapters and are included when you export your project.
+          </p>
+          <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 20 }}>
+            {[
+              { icon: '📝', label: 'Notes', desc: 'Quick ideas, "what if" scenarios, thematic threads' },
+              { icon: '🖼', label: 'Images', desc: 'Reference photos, mood boards, character art' },
+              { icon: '📎', label: 'Documents', desc: 'Research PDFs, interviews, source material' },
+              { icon: '📄', label: 'Drafts', desc: 'Alternate scenes, cut passages, experimental prose' },
+            ].map(t => (
+              <div key={t.label} style={{
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                borderRadius: 'var(--radius-sm)', padding: '12px 16px', width: 160, textAlign: 'left',
+              }}>
+                <div style={{ fontSize: '1rem', marginBottom: 4 }}>{t.icon} <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{t.label}</span></div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>{t.desc}</div>
+              </div>
+            ))}
+          </div>
+          <Button variant="primary" onClick={() => setShowAddModal(true)} style={{ padding: '10px 24px' }}>
+            + Add Your First Item
+          </Button>
+        </div>
+      )}
 
       <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
@@ -6091,8 +7584,40 @@ function WorldBuildingMode() {
   const worldContent = projectFiles['world/world-building.md'] || '';
 
   // Parse world-building.md into structured sections
+  // Handles THREE formats:
+  // 1. Decomposed format (## Locations, ## Culture & Rules, ## History, ## Hallmarks)
+  // 2. Phase 3 question format (## Where and when does this story take place?)
+  // 3. DECOMPOSE_WORLD output format (## Setting and Geography, ## Culture and Society, ## Economics, etc.)
   const parseWorldData = (content) => {
     if (!content.trim()) return { overview: {}, locations: [], cultureRules: [], hallmarks: [], history: [] };
+
+    // Map all header variants to canonical section keys
+    const headerToSection = (header) => {
+      const h = header.toLowerCase().trim();
+      // Direct matches (decomposed format)
+      if (h === 'locations' || h === 'places' || h === 'geography') return 'locations';
+      if (h === 'culture' || h === 'culture & rules' || h === 'society' || h === 'rules') return 'culture';
+      if (h === 'history' || h === 'timeline') return 'history';
+      if (h === 'hallmarks' || h === 'symbols' || h === 'motifs') return 'hallmarks';
+      if (h === 'overview' || h === 'setting') return 'overview';
+      // DECOMPOSE_WORLD output format
+      if (h.includes('setting') && h.includes('geography')) return 'locations';
+      if (h.includes('time') && h.includes('era')) return 'overview';
+      if (h.includes('culture') && h.includes('society')) return 'culture';
+      if (h.includes('magic') || h.includes('science system')) return 'overview';
+      if (h.includes('economics') || h === 'economics') return 'overview';
+      if (h.includes('conflicts') && h.includes('tensions')) return 'overview';
+      // Phase 3 question format
+      if (h.includes('where') && h.includes('when') || h.includes('time period') || h.includes('emotional geography') || h.includes('central tension') || h.includes('unique')) return 'overview';
+      if (h.includes('social structure') || h.includes('rules of this world')) return 'culture';
+      if (h.includes('hallmarks')) return 'hallmarks';
+      // Fuzzy keyword matches for any remaining headers
+      if (h.includes('location') || h.includes('place') || h.includes('geograph')) return 'locations';
+      if (h.includes('cultur') || h.includes('rule') || h.includes('societ') || h.includes('norm') || h.includes('custom')) return 'culture';
+      if (h.includes('histor') || h.includes('timeline') || h.includes('past') || h.includes('origin')) return 'history';
+      if (h.includes('hallmark') || h.includes('symbol') || h.includes('motif') || h.includes('icon')) return 'hallmarks';
+      return null; // unknown — will add to overview
+    };
 
     const sections = {};
     let currentSection = 'raw';
@@ -6100,28 +7625,33 @@ function WorldBuildingMode() {
     lines.forEach(line => {
       const h2 = line.match(/^##\s+(.+)/);
       if (h2) {
-        currentSection = h2[1].trim().toLowerCase();
-        sections[currentSection] = [];
+        const mapped = headerToSection(h2[1].trim());
+        currentSection = mapped || h2[1].trim().toLowerCase();
+        if (!sections[currentSection]) sections[currentSection] = [];
         return;
       }
       if (!sections[currentSection]) sections[currentSection] = [];
       sections[currentSection].push(line);
     });
 
-    // Parse locations from markdown list items or subsections
+    // Parse locations from markdown list items, subsections, or bold paragraph format
     const parseListItems = (lines = []) => {
       const items = [];
       let current = null;
       for (const line of lines) {
         const h3 = line.match(/^###\s+(.+)/);
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
-        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
+        const boldParagraph = line.match(/^\*\*(.+?)\*\*\s*$/);
         if (h3) {
           if (current) items.push(current);
           current = { name: h3[1].trim(), desc: '', type: 'Location', importance: 'Primary', connections: [] };
+        } else if (boldParagraph && !bullet) {
+          // DECOMPOSE_WORLD format: **Physical Landscape** as a subsection header
+          if (current) items.push(current);
+          current = { name: boldParagraph[1].trim(), desc: '', type: 'Location', importance: 'Primary', connections: [] };
         } else if (bullet && !current) {
           items.push({ name: bullet[1].trim(), desc: bullet[2]?.trim() || '', type: 'Location', importance: 'Primary', connections: [] });
-        } else if (current && line.trim()) {
+        } else if (current && line.trim() && !line.match(/^---$/)) {
           current.desc += (current.desc ? ' ' : '') + line.trim();
         }
       }
@@ -6129,23 +7659,39 @@ function WorldBuildingMode() {
       return items;
     };
 
-    // Parse culture rules
+    // Parse culture rules — also parse plain text as rules (one per paragraph or bullet)
     const parseCultureRules = (lines = []) => {
       const rules = [];
       let current = null;
       for (const line of lines) {
         const h3 = line.match(/^###\s+(.+)/);
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
         if (h3) {
           if (current) rules.push(current);
           current = { rule: h3[1].trim(), category: 'General', desc: '', tension: 'medium' };
         } else if (bullet) {
+          if (current) rules.push(current);
+          current = null;
           rules.push({ rule: bullet[1].trim(), category: 'General', desc: bullet[2]?.trim() || '', tension: 'medium' });
+        } else if (simpleBullet && !current) {
+          // Plain bullet without bold — treat as a rule
+          rules.push({ rule: simpleBullet[1].trim(), category: 'General', desc: '', tension: 'medium' });
         } else if (current && line.trim()) {
           current.desc += (current.desc ? ' ' : '') + line.trim();
         }
       }
       if (current) rules.push(current);
+      // If no structured rules found, try to extract from plain text paragraphs
+      if (rules.length === 0) {
+        const text = lines.join('\n').trim();
+        if (text) {
+          const sentences = text.split(/\.\s+/).filter(s => s.trim().length > 10);
+          sentences.slice(0, 8).forEach(s => {
+            rules.push({ rule: s.trim().replace(/\.$/, ''), category: 'General', desc: '', tension: 'medium' });
+          });
+        }
+      }
       return rules;
     };
 
@@ -6161,21 +7707,52 @@ function WorldBuildingMode() {
       return events;
     };
 
-    // Parse hallmarks/symbols
+    // Parse hallmarks/symbols — also handle plain text/simple bullets
     const parseHallmarks = (lines = []) => {
       const items = [];
       for (const line of lines) {
         const bullet = line.match(/^\s*[-*]\s+\*\*(.+?)\*\*[:\s]*(.*)/);
+        const simpleBullet = line.match(/^\s*[-*]\s+(.+)/);
         if (bullet) {
           items.push({ name: bullet[1].trim(), type: 'Symbol', significance: bullet[2]?.trim() || '', chapters: [] });
+        } else if (simpleBullet) {
+          // Parse "name: description" or "name — description" or just "name"
+          const parts = simpleBullet[1].split(/[:\u2014\u2013-]\s*/);
+          items.push({ name: parts[0].trim(), type: 'Symbol', significance: parts.slice(1).join(' ').trim(), chapters: [] });
+        }
+      }
+      // If no bullets found, try comma-separated list from plain text
+      if (items.length === 0) {
+        const text = lines.join(' ').trim();
+        if (text) {
+          const commaItems = text.split(/,\s*/).filter(s => s.trim().length > 2 && s.trim().length < 80);
+          if (commaItems.length >= 2) {
+            commaItems.forEach(s => {
+              items.push({ name: s.trim().replace(/\.$/, ''), type: 'Symbol', significance: '', chapters: [] });
+            });
+          }
         }
       }
       return items;
     };
 
-    // Find overview text (before first H2 or in "overview"/"setting" section)
-    const overviewLines = sections['overview'] || sections['setting'] || sections['raw'] || [];
-    const overview = overviewLines.join('\n').trim();
+    // Build overview from multiple sections
+    const overviewParts = [];
+    const overviewSections = sections['overview'] || sections['setting'] || [];
+    if (overviewSections.length > 0) overviewParts.push(overviewSections.join('\n').trim());
+    // Also include raw (before first H2) as overview
+    if (sections['raw']?.length > 0) {
+      const rawText = sections['raw'].join('\n').trim();
+      if (rawText && !overviewParts.includes(rawText)) overviewParts.push(rawText);
+    }
+    // For any unmapped sections, add them to overview
+    const knownKeys = new Set(['raw', 'overview', 'setting', 'locations', 'places', 'geography', 'culture', 'rules', 'culture & rules', 'society', 'history', 'timeline', 'hallmarks', 'symbols', 'motifs']);
+    for (const [key, lines] of Object.entries(sections)) {
+      if (!knownKeys.has(key) && lines.length > 0) {
+        overviewParts.push(lines.join('\n').trim());
+      }
+    }
+    const overview = overviewParts.filter(Boolean).join('\n\n');
 
     return {
       overview: { text: overview },
@@ -6189,8 +7766,33 @@ function WorldBuildingMode() {
   const worldData = parseWorldData(worldContent);
   const locations = worldData.locations.length > 0 ? worldData.locations : [];
   const cultureRules = worldData.cultureRules.length > 0 ? worldData.cultureRules : [];
-  const hallmarks = worldData.hallmarks.length > 0 ? worldData.hallmarks : [];
   const history = worldData.history.length > 0 ? worldData.history : [];
+
+  // Hallmarks: prefer the dedicated hallmarks.md file (from enrichment), fall back to inline section
+  const parseHallmarksFile = (content) => {
+    if (!content?.trim()) return [];
+    const items = [];
+    // Parse enrichment format: **N. Name** followed by metadata bullets
+    const blocks = content.split(/\n---\n|\n(?=\*\*\d+\.\s)/);
+    for (const block of blocks) {
+      const nameMatch = block.match(/\*\*(?:\d+\.\s*)?(.+?)\*\*/);
+      if (!nameMatch) continue;
+      const name = nameMatch[1].trim();
+      if (name.toLowerCase() === 'world hallmarks' || !name) continue;
+      const catMatch = block.match(/\*\*Category:\*\*\s*(.+)/i);
+      const resMatch = block.match(/\*\*Resonance:\*\*\s*([\s\S]*?)(?=\n- \*\*|\n---|\n\*\*\d|$)/i);
+      const funcMatch = block.match(/\*\*(?:Plot function|Plot function vs\.? Identity function):\*\*\s*([\s\S]*?)(?=\n- \*\*|\n---|\n\*\*\d|$)/i);
+      const firstMatch = block.match(/\*\*First appearance:\*\*\s*(.+)/i);
+      const significance = (resMatch?.[1]?.trim() || funcMatch?.[1]?.trim() || '').split('\n')[0].trim();
+      const category = catMatch?.[1]?.trim()?.split('/')[0]?.trim() || 'Symbol';
+      items.push({ name, type: category, significance, firstAppearance: firstMatch?.[1]?.trim() || '', chapters: [] });
+    }
+    return items;
+  };
+
+  const hallmarksFileContent = projectFiles['world/hallmarks.md'] || '';
+  const hallmarksFromFile = parseHallmarksFile(hallmarksFileContent);
+  const hallmarks = hallmarksFromFile.length > 0 ? hallmarksFromFile : worldData.hallmarks;
 
   const worldTabs = [
     { key: 'overview', label: 'Overview' },
@@ -6266,6 +7868,13 @@ function WorldBuildingMode() {
         {/* Locations */}
         {activeTab === 'locations' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {locations.length === 0 && (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  No locations extracted yet. Complete Phase 3 (World) to populate locations, or ensure your world-building document includes a Locations section.
+                </p>
+              </Card>
+            )}
             {locations.map(loc => (
               <Card key={loc.name} style={{ padding: 14, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
                 <div style={{
@@ -6300,6 +7909,13 @@ function WorldBuildingMode() {
         {/* Culture & Rules */}
         {activeTab === 'culture' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {cultureRules.length === 0 && (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  No cultural rules extracted yet. Complete Phase 3 (World) to populate this section.
+                </p>
+              </Card>
+            )}
             {cultureRules.map(rule => (
               <Card key={rule.rule} style={{ padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -6318,9 +7934,16 @@ function WorldBuildingMode() {
 
         {/* History */}
         {activeTab === 'history' && (
-          <div style={{ position: 'relative', paddingLeft: 24 }}>
+          <div style={{ position: 'relative', paddingLeft: history.length > 0 ? 24 : 0 }}>
+            {history.length === 0 && (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 8 }}>
+                  No historical timeline yet. Add a History section to your world-building with dated events (e.g., "- **1600s**: Event description").
+                </p>
+              </Card>
+            )}
             {/* Vertical timeline line */}
-            <div style={{ position: 'absolute', left: 8, top: 8, bottom: 8, width: 2, background: 'var(--border)' }} />
+            {history.length > 0 && <div style={{ position: 'absolute', left: 8, top: 8, bottom: 8, width: 2, background: 'var(--border)' }} />}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {history.map((h, i) => (
                 <div key={h.year} style={{ display: 'flex', gap: 14, position: 'relative' }}>
@@ -6346,24 +7969,37 @@ function WorldBuildingMode() {
 
         {/* Hallmarks */}
         {activeTab === 'hallmarks' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            {hallmarks.map(h => (
-              <Card key={h.name} style={{ padding: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{h.name}</span>
-                  <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 100, background: 'var(--bg-tertiary)', color: 'var(--text-muted)' }}>{h.type}</span>
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{h.significance}</div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                  {h.chapters.map(ch => (
-                    <span key={ch} style={{
-                      fontSize: '0.65rem', padding: '1px 6px', borderRadius: 100,
-                      background: 'var(--accent-glow)', color: 'var(--accent)', fontWeight: 500,
-                    }}>Ch {ch}</span>
-                  ))}
-                </div>
+          <div>
+            {hallmarks.length === 0 ? (
+              <Card style={{ padding: 20, textAlign: 'center' }}>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 12 }}>
+                  No hallmarks yet. Complete Phase 3 (World) or run the enrichment to generate hallmarks.
+                </p>
               </Card>
-            ))}
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {hallmarks.map(h => (
+                  <Card key={h.name} style={{ padding: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{h.name}</span>
+                      <span style={{ fontSize: '0.6rem', padding: '1px 6px', borderRadius: 100, background: 'rgba(251,191,36,0.15)', color: '#fbbf24' }}>{h.type}</span>
+                    </div>
+                    {h.firstAppearance && (
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 4, fontStyle: 'italic' }}>{h.firstAppearance}</div>
+                    )}
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 8 }}>{h.significance}</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {h.chapters.map(ch => (
+                        <span key={ch} style={{
+                          fontSize: '0.65rem', padding: '1px 6px', borderRadius: 100,
+                          background: 'var(--accent-glow)', color: 'var(--accent)', fontWeight: 500,
+                        }}>Ch {ch}</span>
+                      ))}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -6456,13 +8092,14 @@ function buildCharacterProfiles(files) {
       return match ? match[1].trim() : null;
     };
 
-    // Helper: extract bold field from ANY section
+    // Helper: extract bold field from ANY section, then fallback to full content
     const extractFieldFromAll = (fieldName) => {
       for (const sectionContent of Object.values(sections)) {
         const val = extractField(sectionContent, fieldName);
         if (val) return val;
       }
-      return null;
+      // Fallback: search full file content (catches fields before any ## heading)
+      return extractField(content, fieldName);
     };
 
     // Clean section text — strip markdown bold/italic markers
@@ -6497,9 +8134,11 @@ function buildCharacterProfiles(files) {
     const enneagramWing = enneaMatch ? `${enneaMatch[1]}w${enneaMatch[2]}` : null;
     const enneagram = enneagramField ? clean(enneagramField) : null;
 
-    // Extract Moral Alignment
+    // Extract Moral Alignment — normalize to one of the 9 canonical values
     const alignmentField = extractFieldFromAll('Moral Alignment');
-    const alignment = alignmentField ? alignmentField.replace(/\[.*?\]/g, '').trim() : null;
+    const ALIGNMENT_LABELS = ['Lawful Good', 'Neutral Good', 'Chaotic Good', 'Lawful Neutral', 'True Neutral', 'Chaotic Neutral', 'Lawful Evil', 'Neutral Evil', 'Chaotic Evil'];
+    const alignmentRaw = alignmentField ? alignmentField.replace(/\[.*?\]/g, '').trim() : null;
+    const alignment = alignmentRaw ? (ALIGNMENT_LABELS.find(a => alignmentRaw.startsWith(a)) || alignmentRaw.split(/[.;,!]/)[0].trim()) : null;
 
     // Extract Emotional Register
     const emotionalRegister = extractFieldFromAll('Emotional Register') || clean(sections['emotional register']) || null;
@@ -6542,6 +8181,23 @@ function buildCharacterProfiles(files) {
     // Extract Life Philosophy
     const lifePhilosophy = extractFieldFromAll('Life Philosophy');
 
+    // Extract Identity fields
+    const gender = extractFieldFromAll('Gender');
+    const sexuality = extractFieldFromAll('Sexuality');
+    const religion = extractFieldFromAll('Religion') || extractFieldFromAll('Faith');
+    const relationshipStatus = extractFieldFromAll('Relationship Status');
+    const parentalStatus = extractFieldFromAll('Parental Status');
+    const livingStatus = extractFieldFromAll('Living Situation') || extractFieldFromAll('Living Status');
+    const financialUpbringing = extractFieldFromAll('Financial Upbringing');
+    const currentFinancial = extractFieldFromAll('Current Financial Status') || extractFieldFromAll('Current Financial');
+    const socialPositioning = extractFieldFromAll('Social Positioning');
+    const networkArchetype = extractFieldFromAll('Network Archetype');
+    const storyDeath = extractFieldFromAll('Story Death');
+    const zodiac = extractFieldFromAll('Zodiac');
+    const selfCareHealthy = extractFieldFromAll('Self-Care.*Healthy') || extractFieldFromAll('Healthy Self-Care');
+    const selfCareDestructive = extractFieldFromAll('Self-Care.*Destructive') || extractFieldFromAll('Destructive Self-Care');
+    const arcType = extractFieldFromAll('Arc Type') || extractFieldFromAll('Arc');
+
     // Extract Voice Fingerprint fields
     const voiceSection = sections['voice fingerprint'] || sections['voice'] || '';
     const voiceData = {
@@ -6566,6 +8222,12 @@ function buildCharacterProfiles(files) {
     const composition = extractFieldFromAll('Composition');
     const powerDynamic = extractFieldFromAll('Power Dynamic');
 
+    // Extract Group-shared fields (used by both societal and collective)
+    const cultureField = extractFieldFromAll('Culture');
+    const groupIdentity = extractFieldFromAll('Group Identity');
+    const internalTensions = extractFieldFromAll('Internal Tensions');
+    const externalPressures = extractFieldFromAll('External Pressures');
+
     // Get physical description summary
     const profileText = clean(sections['profile'] || sections['physical description'] || physSection || '');
     const profileLines = profileText.split('\n').filter(l => !l.match(/^(Role|Tier|Type):/i) && l.trim());
@@ -6575,14 +8237,31 @@ function buildCharacterProfiles(files) {
     // Build the key name — use slug-derived name to match CastRoster
     const shortName = slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 
+    const isGroup = tier === 'societal' || tier === 'collective';
     profiles[shortName] = {
       name: fullName,
       role,
       type: type || role,
       tier,
+      isGroup,
       color: profileColors[idx % profileColors.length],
       gradient: profileGradients[idx % profileGradients.length],
       // Identity
+      gender: gender || null,
+      sexuality: sexuality || null,
+      religion: religion || null,
+      relationshipStatus: relationshipStatus || null,
+      parentalStatus: parentalStatus || null,
+      livingStatus: livingStatus || null,
+      financialUpbringing: financialUpbringing || null,
+      currentFinancial: currentFinancial || null,
+      socialPositioning: socialPositioning || null,
+      networkArchetype: networkArchetype || null,
+      storyDeath: storyDeath || null,
+      zodiac: zodiac || null,
+      selfCareHealthy: selfCareHealthy || null,
+      selfCareDestructive: selfCareDestructive || null,
+      arcType: arcType || null,
       age: age || null,
       // Physical Description
       physicalDescription: profileSummary || null,
@@ -6624,6 +8303,10 @@ function buildCharacterProfiles(files) {
       collectiveVoice: collectiveVoice || null,
       composition: composition || null,
       powerDynamic: powerDynamic || null,
+      cultureField: cultureField || null,
+      groupIdentity: groupIdentity || null,
+      internalTensions: internalTensions || null,
+      externalPressures: externalPressures || null,
       // Legacy fields
       somaticSignature: clean(sections['somatic signature']) || null,
       complexity: clean(sections['complexity']) || null,
@@ -6644,6 +8327,10 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const characterProfiles = buildCharacterProfiles(cpProfileFiles);
   const [activeTab, setActiveTab] = useState('overview');
   const [zoomedChart, setZoomedChart] = useState(null); // { data, labels, colors, title }
+  const [editingField, setEditingField] = useState(null); // { label, value, options?, fieldName }
+  const [editValue, setEditValue] = useState('');
+  const [editSearch, setEditSearch] = useState('');
+  const editInputRef = useRef(null);
 
   // Build timeline data for arc intensity lookup
   const cpFiles = useProjectStore(s => s.files);
@@ -6657,10 +8344,65 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
     return () => window.removeEventListener('keydown', handleEsc);
   }, [zoomedChart]);
 
+  // Focus edit input when field changes
+  useEffect(() => {
+    if (editingField && editInputRef.current) editInputRef.current.focus();
+  }, [editingField]);
+
   const char = characterProfiles[characterName];
   if (!char) return <div style={{ padding: 40, textAlign: 'center' }}><p style={{ color: 'var(--text-muted)' }}>Character profile not found.</p></div>;
 
-  const tabs = [
+  // ── Update a field in the character's markdown file ──
+  const charSlug = characterName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  const updateCharacterField = async (uiLabel, newValue) => {
+    const filePath = `characters/${charSlug}.md`;
+    const content = cpProfileFiles[filePath];
+    if (!content || !newValue) {
+      setEditingField(null); setEditValue(''); setEditSearch('');
+      return;
+    }
+    const mdField = LABEL_TO_FIELD_MAP[uiLabel] || uiLabel;
+    let updated = content;
+    // Try replacing existing **Field**: value
+    const fieldRegex = new RegExp(`(\\*\\*${mdField.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\*\\*\\s*:\\s*).+`, 'i');
+    if (fieldRegex.test(updated)) {
+      updated = updated.replace(fieldRegex, `$1${newValue}`);
+    } else {
+      // Insert after first heading or at end of first section
+      const insertPoint = updated.indexOf('\n');
+      if (insertPoint > -1) {
+        updated = updated.slice(0, insertPoint + 1) + `- **${mdField}**: ${newValue}\n` + updated.slice(insertPoint + 1);
+      }
+    }
+    if (updated !== content) {
+      try {
+        const { updateFile, loadProjectFiles, activeProjectId } = useProjectStore.getState();
+        await updateFile(filePath, updated);
+        await loadProjectFiles(activeProjectId);
+      } catch (err) {
+        console.error('Failed to update character field:', err);
+      }
+    }
+    setEditingField(null);
+    setEditValue('');
+    setEditSearch('');
+  };
+
+  // ── Open edit for a field ──
+  const openFieldEdit = (label, currentValue) => {
+    const options = FIELD_OPTIONS_MAP[label] || null;
+    setEditingField({ label, options });
+    setEditValue(currentValue || '');
+    setEditSearch('');
+  };
+
+  const tabs = char.isGroup ? [
+    { key: 'overview', label: 'Overview' },
+    { key: 'identity', label: 'Structure' },
+    { key: 'personality', label: 'Culture' },
+    { key: 'arc', label: 'Arc & Role' },
+    { key: 'radar', label: 'Analysis' },
+  ] : [
     { key: 'overview', label: 'Overview' },
     { key: 'identity', label: 'Identity' },
     { key: 'personality', label: 'Personality' },
@@ -6761,12 +8503,30 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
   const labelStyle = { fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 };
   const valueStyle = { fontSize: '0.85rem', color: 'var(--text-primary)', lineHeight: 1.6 };
   const gridRowStyle = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 12 };
-  const attrCard = (label, value, accent) => (
-    <div style={{ padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-      <div style={labelStyle}>{label}</div>
-      <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value}</div>
-    </div>
-  );
+  const attrCard = (label, value, accent) => {
+    const fieldDesc = FIELD_DESCRIPTIONS[label];
+    return (
+      <div
+        onClick={() => openFieldEdit(label, typeof value === 'string' ? value : '')}
+        style={{
+          padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border)', cursor: 'pointer', position: 'relative',
+          transition: 'border-color 0.15s',
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+        onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={labelStyle}>{label}</div>
+          <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+        </div>
+        {fieldDesc && !value && (
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.4, marginBottom: 4, opacity: 0.7 }}>{fieldDesc}</div>
+        )}
+        <div style={{ ...valueStyle, color: accent || 'var(--text-primary)', fontWeight: 500 }}>{value || '—'}</div>
+      </div>
+    );
+  };
 
   return (
     <div style={{ padding: 24, animation: 'fadeIn 0.3s ease', height: '100%', overflowY: 'auto' }}>
@@ -6856,11 +8616,16 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
           <div>
             <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>{char.name}</h1>
             <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              <Badge variant="accent">{char.role}</Badge>
-              <Badge variant="muted">{char.type}</Badge>
-              <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>
-              <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>
-              <Badge style={{ background: '#a78bfa20', color: '#a78bfa' }}>{char.alignment}</Badge>
+              {char.isGroup && (
+                <Badge style={{ background: char.tier === 'societal' ? '#f9731620' : '#60a5fa20', color: char.tier === 'societal' ? '#f97316' : '#60a5fa', fontWeight: 700 }}>
+                  {char.tier === 'societal' ? 'Society' : 'Collective'}
+                </Badge>
+              )}
+              {char.role && <Badge variant="accent">{char.role}</Badge>}
+              {char.type && char.type !== char.role && <Badge variant="muted">{char.type}</Badge>}
+              {!char.isGroup && char.mbti && <Badge style={{ background: `${char.color}20`, color: char.color }}>{char.mbti}</Badge>}
+              {!char.isGroup && char.enneagramWing && <Badge style={{ background: '#fbbf2420', color: '#fbbf24' }}>{char.enneagramWing}</Badge>}
+              {char.alignment && <Badge style={{ background: '#a78bfa20', color: '#a78bfa' }}>{char.alignment}</Badge>}
             </div>
           </div>
         </div>
@@ -6889,44 +8654,98 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
 
       {/* ── Overview Tab ── */}
       {activeTab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: (char.strengths || char.temperament) ? '1fr 340px' : '1fr', gap: 20 }}>
           <div>
-            {/* Physical description */}
-            <Card style={{ padding: 16, marginBottom: 16 }}>
-              <h3 style={labelStyle}>Physical Description</h3>
-              <p style={{ ...valueStyle, fontStyle: 'italic', fontSize: '0.83rem' }}>{char.physicalDescription}</p>
+            {/* Physical description — editable */}
+            <Card
+              style={{ padding: 16, marginBottom: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Physical Description', char.physicalDescription || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Physical Description</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <p style={{ ...valueStyle, fontStyle: 'italic', fontSize: '0.83rem' }}>{char.physicalDescription || '—'}</p>
             </Card>
 
-            {/* Quick stats grid */}
-            <div style={gridRowStyle}>
-              {attrCard('Age', char.age)}
-              {char.zodiac ? attrCard('Zodiac', char.zodiac) : attrCard('Tier', char.tier === 'minor' ? 'Minor Character' : 'Main Character')}
-            </div>
-            <div style={gridRowStyle}>
-              {attrCard('Build', char.build)}
-              {attrCard('Height', char.height)}
-            </div>
-            <div style={gridRowStyle}>
-              {attrCard('Hair', char.hairColor)}
-              {attrCard('Eyes', char.eyeColor)}
-            </div>
+            {/* Quick stats grid — different for groups vs individuals */}
+            {char.isGroup ? (
+            <>
+              <div style={gridRowStyle}>
+                {attrCard('Composition', char.composition)}
+                {attrCard('Power Dynamic', char.powerDynamic)}
+              </div>
+              <div style={gridRowStyle}>
+                {attrCard('Collective Voice', char.collectiveVoice)}
+                {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+              </div>
+              <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(96,165,250,0.06) 100%)' }}>
+                <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Structural Forces</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  {[
+                    { label: 'Cost', value: char.societyCost, color: '#ef4444' },
+                    { label: 'Enforcement', value: char.societyEnforcement, color: '#fbbf24' },
+                    { label: 'Blind Spot', value: char.societyBlindSpot, color: '#a78bfa' },
+                  ].map(item => (
+                    <div
+                      key={item.label}
+                      onClick={() => openFieldEdit(item.label, item.value || '')}
+                      style={{ cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)', transition: 'background 0.15s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: item.color, fontWeight: 600, marginBottom: 4 }}>
+                        {item.label.toUpperCase()}
+                        <Pencil size={9} style={{ opacity: 0.4 }} />
+                      </div>
+                      <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{item.value || '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </>
+            ) : (
+            <>
+              <div style={gridRowStyle}>
+                {attrCard('Age', char.age)}
+                {attrCard('Zodiac', char.zodiac)}
+              </div>
+              <div style={gridRowStyle}>
+                {attrCard('Build', char.build)}
+                {attrCard('Height', char.height)}
+              </div>
+              <div style={gridRowStyle}>
+                {attrCard('Hair', char.hairColor)}
+                {attrCard('Eyes', char.eyeColor)}
+              </div>
+            </>
+            )}
 
-            {/* Wound / Flaw / Virtue triangle */}
+            {/* Wound / Flaw / Virtue triangle — each cell editable */}
             <Card style={{ padding: 16, marginTop: 4, background: 'linear-gradient(135deg, rgba(239,68,68,0.06) 0%, rgba(16,185,129,0.06) 100%)' }}>
               <h3 style={{ ...labelStyle, color: 'var(--accent)' }}>Wound → Flaw → Virtue</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600, marginBottom: 4 }}>WOUND</div>
-                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.wound}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.65rem', color: '#fbbf24', fontWeight: 600, marginBottom: 4 }}>FLAW</div>
-                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.flaw}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.65rem', color: '#10b981', fontWeight: 600, marginBottom: 4 }}>VIRTUE</div>
-                  <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{char.virtue}</div>
-                </div>
+                {[
+                  { label: 'Wound', value: char.wound, color: '#ef4444' },
+                  { label: 'Flaw', value: char.flaw, color: '#fbbf24' },
+                  { label: 'Virtue', value: char.virtue, color: '#10b981' },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    onClick={() => openFieldEdit(item.label, item.value || '')}
+                    style={{ cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: item.color, fontWeight: 600, marginBottom: 4 }}>
+                      {item.label.toUpperCase()}
+                      <Pencil size={9} style={{ opacity: 0.4 }} />
+                    </div>
+                    <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{item.value || '—'}</div>
+                  </div>
+                ))}
               </div>
             </Card>
 
@@ -6955,14 +8774,17 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             )}
           </div>
 
-          {/* Right column: Radar charts */}
+          {/* Right column: Radar charts — only render when data exists */}
+          {(char.strengths || char.temperament) && (
           <div>
+            {char.strengths && (
             <Card style={{ padding: 16, marginBottom: 12 }}>
-              {char.strengths && renderRadar(char.strengths, {
+              {renderRadar(char.strengths, {
                 emotional: 'Emotional', analytical: 'Analytical', social: 'Social', physical: 'Physical',
                 creative: 'Creative', resilience: 'Resilience', intuition: 'Intuition', leadership: 'Leadership',
               }, null, 'Strengths Profile')}
             </Card>
+            )}
             {char.temperament && (
               <Card style={{ padding: 16 }}>
                 {renderRadar(char.temperament, {
@@ -6972,112 +8794,223 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               </Card>
             )}
           </div>
+          )}
         </div>
       )}
 
-      {/* ── Identity Tab ── */}
+      {/* ── Identity / Structure Tab ── */}
       {activeTab === 'identity' && (
         <div style={{ width: '100%' }}>
-          <div style={gridRowStyle}>
-            {attrCard('Gender', char.gender || '—')}
-            {char.sexuality ? attrCard('Sexuality', char.sexuality) : attrCard('Emotional Register', char.emotionalRegister, char.color)}
-          </div>
-          <div style={gridRowStyle}>
-            {attrCard('Religion / Faith', char.religion || '—')}
-            {attrCard('Life Philosophy', char.lifePhilosophy || '—')}
-          </div>
-          {char.relationshipStatus && (
+          {char.isGroup ? (
+          <>
+            {/* Group Structure view */}
+            <div style={gridRowStyle}>
+              {attrCard('Composition', char.composition)}
+              {attrCard('Power Dynamic', char.powerDynamic)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Collective Voice', char.collectiveVoice)}
+              {attrCard('Emotional Register', char.emotionalRegister, char.color)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Religion / Faith', char.religion)}
+              {attrCard('Life Philosophy', char.lifePhilosophy)}
+            </div>
+
+            {/* Structural Forces */}
+            <Card style={{ padding: 16, marginTop: 8, background: 'linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(96,165,250,0.06) 100%)' }}>
+              <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Structural Forces</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                {[
+                  { label: 'Cost', value: char.societyCost, color: '#ef4444' },
+                  { label: 'Enforcement', value: char.societyEnforcement, color: '#fbbf24' },
+                  { label: 'Blind Spot', value: char.societyBlindSpot, color: '#a78bfa' },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    onClick={() => openFieldEdit(item.label, item.value || '')}
+                    style={{ cursor: 'pointer', padding: '4px 6px', borderRadius: 'var(--radius-sm)', transition: 'background 0.15s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: item.color, fontWeight: 600, marginBottom: 4 }}>
+                      {item.label.toUpperCase()}
+                      <Pencil size={9} style={{ opacity: 0.4 }} />
+                    </div>
+                    <div style={{ fontSize: '0.8rem', lineHeight: 1.5 }}>{item.value || '—'}</div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            {/* Core Values for groups */}
+            <Card
+              style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Core Values', char.coreValues || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Core Values</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              {char.coreValues ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(Array.isArray(char.coreValues) ? char.coreValues : char.coreValues.split(/[,;]+/).map(s => s.trim()).filter(Boolean)).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set core values</p>
+              )}
+            </Card>
+
+            {/* Group Identity & Culture */}
+            <div style={gridRowStyle}>
+              {attrCard('Group Identity', char.groupIdentity)}
+              {attrCard('Culture Rules', char.cultureField)}
+            </div>
+
+            {/* Tensions & Pressures */}
+            <div style={gridRowStyle}>
+              {attrCard('Internal Tensions', char.internalTensions)}
+              {attrCard('External Pressures', char.externalPressures)}
+            </div>
+
+            <div style={gridRowStyle}>
+              {attrCard('Social Positioning', char.socialPositioning)}
+              {attrCard('Network Archetype', char.networkArchetype)}
+            </div>
+          </>
+          ) : (
+          <>
+            {/* Individual Identity view */}
+            <div style={gridRowStyle}>
+              {attrCard('Gender', char.gender)}
+              {attrCard('Sexuality', char.sexuality)}
+            </div>
+            <div style={gridRowStyle}>
+              {attrCard('Religion / Faith', char.religion)}
+              {attrCard('Life Philosophy', char.lifePhilosophy)}
+            </div>
             <div style={gridRowStyle}>
               {attrCard('Relationship Status', char.relationshipStatus)}
-              {attrCard('Parental Status', char.parentalStatus || '—')}
+              {attrCard('Parental Status', char.parentalStatus)}
             </div>
-          )}
-          {char.livingStatus && (
             <div style={gridRowStyle}>
               {attrCard('Living Situation', char.livingStatus)}
               {attrCard('Emotional Register', char.emotionalRegister, char.color)}
             </div>
-          )}
-          {char.financialUpbringing && (
             <div style={gridRowStyle}>
               {attrCard('Financial Upbringing', char.financialUpbringing)}
-              {attrCard('Current Financial', char.currentFinancial || '—')}
+              {attrCard('Current Financial', char.currentFinancial)}
             </div>
-          )}
 
-          {/* Core Values & Personal Code — only for main characters */}
-          {char.coreValues && (
-            <Card style={{ padding: 16, marginTop: 8 }}>
-              <h3 style={labelStyle}>Core Values</h3>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 16 }}>
-                {(Array.isArray(char.coreValues) ? char.coreValues : [char.coreValues]).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+            {/* Core Values — editable */}
+            <Card
+              style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Core Values', char.coreValues || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Core Values</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
               </div>
-              {char.personalCode && (
-                <>
-                  <h3 style={labelStyle}>Personal Code</h3>
-                  {(Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
-                    <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
-                      "{c}"
-                    </div>
-                  ))}
-                </>
+              {char.coreValues ? (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {(Array.isArray(char.coreValues) ? char.coreValues : char.coreValues.split(/[,;]+/).map(s => s.trim()).filter(Boolean)).map(v => <Badge key={v} variant="accent">{v}</Badge>)}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set core values</p>
               )}
             </Card>
-          )}
 
-          {char.selfCareHealthy && (
+            {/* Personal Code — editable */}
+            <Card
+              style={{ padding: 16, marginTop: 8, cursor: 'pointer', transition: 'border-color 0.15s' }}
+              onClick={() => openFieldEdit('Personal Code', char.personalCode || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={labelStyle}>Personal Code</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              {char.personalCode ? (
+                (Array.isArray(char.personalCode) ? char.personalCode : [char.personalCode]).map((c, i) => (
+                  <div key={i} style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 4, paddingLeft: 12, borderLeft: '2px solid var(--accent)', opacity: 0.9 }}>
+                    "{c}"
+                  </div>
+                ))
+              ) : (
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Click to set personal code</p>
+              )}
+            </Card>
+
             <div style={{ ...gridRowStyle, marginTop: 12 }}>
-              <Card style={{ padding: 12 }}>
-                <div style={labelStyle}>Self-Care (Healthy)</div>
-                <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy}</div>
+              <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onClick={() => openFieldEdit('Self-Care (Healthy)', char.selfCareHealthy || '')}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={labelStyle}>Self-Care (Healthy)</div>
+                  <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#10b981' }}>{char.selfCareHealthy || '—'}</div>
               </Card>
-              <Card style={{ padding: 12 }}>
-                <div style={labelStyle}>Self-Care (Destructive)</div>
-                <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive}</div>
+              <Card style={{ padding: 12, cursor: 'pointer', transition: 'border-color 0.15s' }}
+                onClick={() => openFieldEdit('Self-Care (Destructive)', char.selfCareDestructive || '')}
+                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={labelStyle}>Self-Care (Destructive)</div>
+                  <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#ef4444' }}>{char.selfCareDestructive || '—'}</div>
               </Card>
             </div>
-          )}
 
-          {char.socialPositioning && (
             <div style={gridRowStyle}>
               {attrCard('Social Positioning', char.socialPositioning)}
-              {attrCard('Network Archetype', char.networkArchetype || '—')}
+              {attrCard('Network Archetype', char.networkArchetype)}
             </div>
-          )}
 
-          {char.storyDeath && (
-            <Card style={{ padding: 12, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
-              <div style={{ ...labelStyle, color: '#ef4444' }}>Story Death</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{char.storyDeath}</div>
-            </Card>
-          )}
-
-          {/* Simplified identity card for minor characters */}
-          {char.tier === 'minor' && (
-            <Card style={{ padding: 16, marginTop: 12, background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
-              <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginBottom: 8 }}>Minor Character</div>
-              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                This is a minor character with a simplified profile. Key identity details are shown above. For deeper analysis, see the Personality and Arc tabs.
-              </p>
-            </Card>
+            {/* Simplified identity card for minor characters */}
+            {char.tier === 'minor' && (
+              <Card style={{ padding: 16, marginTop: 12, background: 'var(--accent-glow)', border: '1px solid var(--accent)' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginBottom: 8 }}>Minor Character</div>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                  This is a minor character with a simplified profile. Key identity details are shown above. For deeper analysis, see the Personality and Arc tabs.
+                </p>
+              </Card>
+            )}
+          </>
           )}
         </div>
       )}
 
-      {/* ── Personality Tab ── */}
+      {/* ── Personality / Culture Tab ── */}
       {activeTab === 'personality' && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-          {/* MBTI Card */}
-          {char.mbti ? (
-          <Card style={{ padding: 20 }}>
+          {/* MBTI Card — editable (hidden for groups) */}
+          {!char.isGroup && <Card
+            style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('MBTI', char.mbti || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            {char.mbti ? (
+            <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: 'var(--radius-sm)', background: `${char.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Brain size={22} color={char.color} />
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '1.2rem', fontWeight: 700, color: char.color }}>{char.mbti}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{char.mbtiLabel}</div>
               </div>
+              <Pencil size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
             </div>
             {/* MBTI axes visualization */}
             {[
@@ -7098,25 +9031,33 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
             <div style={{ marginTop: 12, fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Variant: <span style={{ color: char.mbti.includes('-T') ? '#fbbf24' : '#10b981', fontWeight: 600 }}>{char.mbti.includes('-T') ? 'Turbulent' : 'Assertive'}</span>
             </div>
-          </Card>
-          ) : (
-          <Card style={{ padding: 20, textAlign: 'center' }}>
-            <Brain size={22} color="var(--text-muted)" />
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>MBTI not defined for this character.</p>
-          </Card>
-          )}
+            </>
+            ) : (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <Brain size={22} color="var(--text-muted)" />
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: 8 }}>Click to set MBTI type</p>
+            </div>
+            )}
+          </Card>}
 
-          {/* Enneagram Card */}
-          {char.enneagramWing ? (
-          <Card style={{ padding: 20 }}>
+          {/* Enneagram Card — editable (hidden for groups) */}
+          {!char.isGroup && <Card
+            style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Enneagram', char.enneagramWing || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#fbbf24'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            {char.enneagramWing ? (
+            <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
               <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#fbbf2420', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span style={{ fontSize: '1.3rem', fontWeight: 700, color: '#fbbf24' }}>{char.enneagramWing[0]}</span>
               </div>
-              <div>
+              <div style={{ flex: 1 }}>
                 <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#fbbf24' }}>{char.enneagramWing}</div>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{char.enneagram}</div>
               </div>
+              <Pencil size={12} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
             </div>
             {/* Enneagram circle visualization */}
             <svg width="100%" viewBox="0 0 200 200" style={{ maxHeight: 180 }}>
@@ -7140,14 +9081,33 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 );
               })}
             </svg>
-          </Card>
-          ) : (
-          <Card style={{ padding: 20, textAlign: 'center' }}>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Enneagram not defined for this character.</p>
-          </Card>
+            </>
+            ) : (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Click to set Enneagram type</p>
+            </div>
+            )}
+          </Card>}
+
+          {/* Group-specific culture description */}
+          {char.isGroup && (
+            <Card
+              style={{ padding: 20, cursor: 'pointer', transition: 'border-color 0.15s', gridColumn: 'span 2' }}
+              onClick={() => openFieldEdit('Physical Description', char.physicalDescription || '')}
+              onMouseEnter={(e) => e.currentTarget.style.borderColor = char.tier === 'societal' ? '#f97316' : '#60a5fa'}
+              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ ...labelStyle, color: char.tier === 'societal' ? '#f97316' : '#60a5fa' }}>Group Description & Culture</h3>
+                <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+              </div>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.6, fontStyle: 'italic' }}>
+                {char.physicalDescription || char.backstory || 'Click to describe this group\'s culture, appearance, and defining characteristics.'}
+              </p>
+            </Card>
           )}
 
-          {/* Alignment Card */}
+          {/* Alignment Card — clickable cells */}
           <Card style={{ padding: 16 }}>
             <h3 style={labelStyle}>Moral Alignment</h3>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
@@ -7155,22 +9115,34 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 const isActive = a === char.alignment;
                 const row = a.includes('Good') ? '#10b981' : a.includes('Evil') ? '#ef4444' : '#fbbf24';
                 return (
-                  <div key={a} style={{
+                  <div key={a} onClick={() => updateCharacterField('Moral Alignment', a)} style={{
                     padding: '6px 4px', borderRadius: 'var(--radius-sm)', textAlign: 'center',
                     fontSize: '0.65rem', fontWeight: isActive ? 700 : 400,
                     background: isActive ? `${row}20` : 'var(--bg-tertiary)',
                     border: isActive ? `2px solid ${row}` : '1px solid var(--border)',
                     color: isActive ? row : 'var(--text-muted)',
-                  }}>{a}</div>
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.borderColor = row; e.currentTarget.style.color = row; }}}
+                  onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}}
+                  >{a}</div>
                 );
               })}
             </div>
           </Card>
 
-          {/* Emotional Register */}
-          <Card style={{ padding: 16 }}>
-            <h3 style={labelStyle}>Emotional Register (Baseline)</h3>
-            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: char.color, marginBottom: 8 }}>{char.emotionalRegister}</div>
+          {/* Emotional Register — clickable to edit */}
+          <Card
+            style={{ padding: 16, cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Emotional Register', char.emotionalRegister || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={labelStyle}>Emotional Register (Baseline)</h3>
+              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            <div style={{ fontSize: '1.3rem', fontWeight: 700, color: char.color, marginBottom: 8 }}>{char.emotionalRegister || '—'}</div>
             <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', lineHeight: 1.6 }}>
               This is where {characterName} starts — not where they end. The arc is the phase shift away from and back toward this register.
             </p>
@@ -7194,23 +9166,42 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
                 { label: 'Dialogue Tic', value: char.voice?.dialogueTic },
                 { label: 'Metaphor Family', value: char.voice?.metaphorFamily },
                 { label: 'Defensive Speech', value: char.voice?.defensiveSpeech },
-              ].filter(v => v.value).map(v => (
-                <div key={v.label} style={{ padding: '10px 12px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: char.color, fontWeight: 600, marginBottom: 4 }}>{v.label}</div>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: 1.5 }}>{v.value}</div>
+              ].map(v => (
+                <div
+                  key={v.label}
+                  onClick={() => openFieldEdit(v.label, v.value || '')}
+                  style={{
+                    padding: '10px 12px', background: 'var(--bg-primary)', borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)', cursor: 'pointer', transition: 'border-color 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.04em', color: char.color, fontWeight: 600, marginBottom: 4 }}>{v.label}</div>
+                    <Pencil size={9} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+                  </div>
+                  <div style={{ fontSize: '0.82rem', color: v.value ? 'var(--text-primary)' : 'var(--text-muted)', lineHeight: 1.5 }}>{v.value || '—'}</div>
                 </div>
               ))}
             </div>
           </Card>
 
-          {char.voice?.subtextDefault && (
-            <Card style={{ padding: 16, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)' }}>
+          {/* Subtext Default — editable */}
+          <Card
+            style={{ padding: 16, background: 'rgba(239,68,68,0.04)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer', transition: 'border-color 0.15s' }}
+            onClick={() => openFieldEdit('Subtext Default', char.voice?.subtextDefault || '')}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#ef4444'}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'rgba(239,68,68,0.15)'}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h3 style={{ ...labelStyle, color: '#ef4444' }}>Subtext Default — What They Cannot Say</h3>
-              <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontStyle: 'italic' }}>
-                "{char.voice.subtextDefault}"
-              </div>
-            </Card>
-          )}
+              <Pencil size={11} style={{ color: 'var(--text-muted)', opacity: 0.4 }} />
+            </div>
+            <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', fontStyle: 'italic' }}>
+              {char.voice?.subtextDefault ? `"${char.voice.subtextDefault}"` : '—'}
+            </div>
+          </Card>
         </div>
       )}
 
@@ -7280,9 +9271,169 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
         </div>
       )}
 
+      {/* ── Field Edit Modal ── */}
+      {editingField && (
+        <div
+          onClick={() => { setEditingField(null); setEditSearch(''); }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn 0.15s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-card)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)', padding: 24,
+              width: '90vw', maxWidth: 420, maxHeight: '70vh',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: '0 16px 48px rgba(0,0,0,0.5)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', margin: 0 }}>
+                Edit: {editingField.label}
+              </h3>
+              <button onClick={() => { setEditingField(null); setEditSearch(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            {editingField.options ? (
+              <>
+                {/* Searchable dropdown */}
+                <div style={{ position: 'relative', marginBottom: 12 }}>
+                  <Search size={14} style={{ position: 'absolute', left: 10, top: 10, color: 'var(--text-muted)' }} />
+                  <input
+                    ref={editInputRef}
+                    value={editSearch}
+                    onChange={(e) => setEditSearch(e.target.value)}
+                    placeholder={`Search ${editingField.label.toLowerCase()}...`}
+                    style={{
+                      width: '100%', padding: '8px 12px 8px 32px', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                      color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                    onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                  />
+                </div>
+                {/* Field description hint */}
+                {FIELD_DESCRIPTIONS[editingField.label] && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 12, padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-sm)', lineHeight: 1.5, borderLeft: '3px solid var(--accent)' }}>
+                    {FIELD_DESCRIPTIONS[editingField.label]}
+                  </div>
+                )}
+                <div style={{ overflowY: 'auto', flex: 1, maxHeight: '45vh' }}>
+                  {editingField.options
+                    .filter(opt => {
+                      const label = typeof opt === 'object' ? opt.value : opt;
+                      const desc = typeof opt === 'object' ? (opt.desc || '') : '';
+                      return !editSearch || label.toLowerCase().includes(editSearch.toLowerCase()) || desc.toLowerCase().includes(editSearch.toLowerCase());
+                    })
+                    .map(opt => {
+                      const label = typeof opt === 'object' ? opt.value : opt;
+                      const desc = typeof opt === 'object' ? opt.desc : null;
+                      const isSelected = editValue === label || (editValue && label.toLowerCase().startsWith(editValue.toLowerCase()));
+                      return (
+                        <div
+                          key={label}
+                          onClick={() => updateCharacterField(editingField.label, label)}
+                          style={{
+                            padding: desc ? '10px 12px' : '8px 12px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
+                            fontSize: '0.82rem', transition: 'background 0.1s',
+                            background: isSelected ? 'var(--accent-glow)' : 'transparent',
+                            color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
+                            fontWeight: isSelected ? 600 : 400,
+                            borderLeft: isSelected ? '3px solid var(--accent)' : '3px solid transparent',
+                          }}
+                          onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
+                          onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          {label}
+                          {desc && <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 2, fontWeight: 400, lineHeight: 1.4 }}>{desc}</div>}
+                        </div>
+                      );
+                    })}
+                </div>
+                {/* Also allow free text input */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, marginTop: 8 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase' }}>Or enter custom value</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      placeholder="Custom value..."
+                      style={{
+                        flex: 1, padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                        color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none',
+                      }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' && editValue.trim()) updateCharacterField(editingField.label, editValue.trim()); }}
+                    />
+                    <button
+                      onClick={() => { if (editValue.trim()) updateCharacterField(editingField.label, editValue.trim()); }}
+                      style={{
+                        padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--accent)', background: 'var(--accent)',
+                        color: '#000', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                      }}
+                    >Save</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* Free text input for non-dropdown fields */
+              <div>
+                <textarea
+                  ref={editInputRef}
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  placeholder={`Enter ${editingField.label.toLowerCase()}...`}
+                  rows={editValue.length > 100 ? 5 : 2}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
+                    color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none',
+                    resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box',
+                    lineHeight: 1.5,
+                  }}
+                  onFocus={(e) => e.currentTarget.style.borderColor = 'var(--accent)'}
+                  onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && editValue.trim()) { e.preventDefault(); updateCharacterField(editingField.label, editValue.trim()); } }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
+                  <button
+                    onClick={() => { setEditingField(null); setEditSearch(''); }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border)', background: 'transparent',
+                      color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer',
+                    }}
+                  >Cancel</button>
+                  <button
+                    onClick={() => { if (editValue.trim()) updateCharacterField(editingField.label, editValue.trim()); }}
+                    style={{
+                      padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--accent)', background: 'var(--accent)',
+                      color: '#000', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >Save</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Analysis Tab (Radar Charts) ── */}
       {activeTab === 'radar' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {(char.strengths || char.temperament) ? (
+          <>
           {/* Attribute Scores — top */}
           {char.strengths && (
             <Card style={{ padding: 20 }}>
@@ -7320,6 +9471,38 @@ function CharacterProfile({ characterName, onBack, onViewArc, onViewRelationship
               </Card>
             )}
           </div>
+          </>
+          ) : (
+          /* Empty state — Generate Analysis button */
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 24px', textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: `${char.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
+              <BarChart3 size={28} color={char.color} style={{ opacity: 0.7 }} />
+            </div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 8 }}>No Analysis Data Yet</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.6, maxWidth: 360, marginBottom: 24 }}>
+              Generate a character analysis to see strength profiles, Big Five temperament scores, and radar chart visualizations.
+            </p>
+            <button
+              onClick={() => {
+                // Navigate to the AI assistant panel with a pre-filled analysis prompt
+                const event = new CustomEvent('trigger-character-analysis', { detail: { characterName, charSlug } });
+                window.dispatchEvent(event);
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '12px 24px', borderRadius: 'var(--radius-md)',
+                background: `linear-gradient(135deg, ${char.color}, ${char.color}cc)`,
+                border: 'none', color: '#000', fontSize: '0.9rem', fontWeight: 600,
+                cursor: 'pointer', transition: 'all 0.2s',
+                boxShadow: `0 4px 16px ${char.color}40`,
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = `0 6px 24px ${char.color}60`; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = `0 4px 16px ${char.color}40`; }}
+            >
+              <Sparkles size={16} /> Generate Analysis
+            </button>
+          </div>
+          )}
         </div>
       )}
     </div>
@@ -7451,22 +9634,16 @@ const phaseColors = {
   4: '#f472b6', // Characters — pink
   5: '#f9a8d4', // Relationships — rose
   6: '#fbbf24', // Story Foundation — amber
-  7: '#60a5fa', // Quality Control — blue
-  8: '#f97316', // Chapter Execution — orange
-  9: '#4ade80', // Editor — green
+  7: '#60a5fa', // Review — blue
+  8: '#a3e635', // Outline — lime
+  9: '#f97316', // Chapter Execution — orange
+  10: '#4ade80', // Editor — green
 };
 
-const phaseNames = {
-  1: 'Phase 1 — Author',
-  2: 'Phase 2 — Narrator',
-  3: 'Phase 3 — World',
-  4: 'Phase 4 — Characters',
-  5: 'Phase 5 — Relationships',
-  6: 'Phase 6 — Story Foundation',
-  7: 'Phase 7 — Quality Control',
-  8: 'Phase 8 — Chapter Execution',
-  9: 'Phase 9 — Editor',
-};
+// Build phaseNames dynamically from the phases array so renames propagate automatically
+const phaseNames = Object.fromEntries(
+  phases.map(p => [p.num, `Phase ${p.num} — ${p.name}`])
+);
 
 function BottomStatusBar({ currentPhase, wordCount, wordLimit, onPhaseClick, onOverLimitClick, isDecomposed, healthRevealed, projectMeta }) {
   const pColor = phaseColors[currentPhase] || 'var(--text-muted)';
@@ -7778,18 +9955,20 @@ function ExportModal({ onClose }) {
         downloadFile(text, `${title}.fountain`, 'text/plain');
       } else if (fmt === 'json') {
         const { exportAsJSON } = await import('../services/exportEngine.js');
+        // Build projectData in the format exportAsJSON expects: { project, files: [{ path, content }] }
         const projectData = {
           project: activeProject,
           files: Object.entries(projectFiles).map(([path, content]) => ({ path, content })),
         };
-        exportAsJSON(projectData);
+        exportAsJSON(projectData); // handles its own download
       } else if (fmt === 'zip') {
         const { exportAsZip } = await import('../services/exportEngine.js');
+        // Build projectData in the format exportAsZip expects: { project, files: [{ path, content }] }
         const projectData = {
           project: activeProject,
           files: Object.entries(projectFiles).map(([path, content]) => ({ path, content })),
         };
-        await exportAsZip(projectData);
+        await exportAsZip(projectData); // handles its own download
       }
       onClose();
     } catch (err) {
@@ -7901,7 +10080,7 @@ const ENRICH_GROUPS = [
   {
     key: 'characters',
     label: 'Fill In Characters',
-    description: 'Fill missing fields on existing characters (tier, voice notes, stream A/B, network role, etc.). Preserves everything you wrote.',
+    description: 'Fill missing fields on existing characters: Voice Fingerprint (7 fields), MBTI, Enneagram, Zodiac, Sexuality, Religion, Relationship Status, Living Situation, Financial Context, Self-Care patterns, Social Positioning, and more. Preserves everything you wrote.',
     icon: '🎭',
     outputs: ['characters/*.md (updated in-place)'],
   },
@@ -7928,6 +10107,60 @@ const ENRICH_GROUPS = [
   },
 ];
 
+/* ─── Character format detection: which fields are missing from character files? ─── */
+const CHARACTER_EXPECTED_FIELDS = {
+  individual: [
+    'Tier', 'Role', 'Age Range', 'Gender', 'Sexuality', 'Religion', 'Zodiac',
+    'Build', 'Height', 'Hair', 'Eyes',
+    'MBTI Type', 'Enneagram', 'Moral Alignment', 'Emotional Register', 'Life Philosophy',
+    'Core Wound', 'Core Flaw', 'Core Virtue',
+    'Want', 'Need', 'Arc',
+    'Attachment Style', 'Relationship Status', 'Parental Status', 'Living Situation',
+    'Financial Upbringing', 'Current Financial', 'Social Positioning', 'Network',
+    'Core Values', 'Personal Code', 'Healthy Self-Care', 'Destructive Self-Care',
+    'Speech Rhythm', 'Vocabulary Register', 'Volume', 'Dialogue Tic', 'Metaphor Family',
+    'Defensive Speech', 'Subtext Default',
+  ],
+  group: [
+    'Tier', 'Role', 'Composition', 'Power Dynamic', 'Collective Voice',
+    'Emotional Register', 'Core Values', 'Want', 'Wound',
+    'Cost', 'Enforcement', 'What It Cannot See',
+    'Culture', 'Group Identity', 'Internal Tensions', 'External Pressures',
+  ],
+};
+
+function detectMissingCharacterFields(projectFiles) {
+  const charFiles = Object.entries(projectFiles)
+    .filter(([p]) => p.startsWith('characters/') && p.endsWith('.md') && !p.includes('questions-answered'));
+  if (charFiles.length === 0) return { totalChars: 0, missingByChar: {}, avgCompletion: 0 };
+
+  const missingByChar = {};
+  let totalFields = 0;
+  let totalFound = 0;
+
+  charFiles.forEach(([path, content]) => {
+    const name = path.replace('characters/', '').replace('.md', '').split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    const contentLower = content.toLowerCase();
+    const isGroup = /tier.*?:\s*(societal|collective)/i.test(content);
+    const fields = isGroup ? CHARACTER_EXPECTED_FIELDS.group : CHARACTER_EXPECTED_FIELDS.individual;
+    const missing = fields.filter(f => !contentLower.includes(f.toLowerCase().replace(/\s/g, '').length > 4 ? f.toLowerCase() : `**${f.toLowerCase()}`));
+    // More precise check: look for **FieldName**: pattern
+    const trulyMissing = fields.filter(f => {
+      const pattern = new RegExp(`\\*\\*${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+      return !pattern.test(content);
+    });
+    missingByChar[name] = trulyMissing;
+    totalFields += fields.length;
+    totalFound += fields.length - trulyMissing.length;
+  });
+
+  return {
+    totalChars: charFiles.length,
+    missingByChar,
+    avgCompletion: totalFields > 0 ? Math.round((totalFound / totalFields) * 100) : 0,
+  };
+}
+
 /* ─── Add Missing Details Modal ─── */
 function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
   const [selectedGroups, setSelectedGroups] = useState([]);
@@ -7939,6 +10172,9 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
   const loadProjectFiles = useProjectStore(s => s.loadProjectFiles);
   const activeProjectId = useProjectStore(s => s.activeProjectId);
   const navigate = useNavigate();
+
+  // Detect missing fields on mount
+  const charAnalysis = useMemo(() => detectMissingCharacterFields(projectFiles), [projectFiles]);
 
   // ── Quick-add state ──
   const [quickAction, setQuickAction] = useState(null); // null | 'person' | 'relationship'
@@ -8128,7 +10364,9 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
     const parts = [];
     if (projectFiles['author.md']) parts.push(`## Author Profile\n${projectFiles['author.md']}`);
     if (projectFiles['narrator.md']) parts.push(`## Narrator\n${projectFiles['narrator.md']}`);
-    if (projectFiles['world-building.md']) parts.push(`## World Building\n${projectFiles['world-building.md']}`);
+    if (projectFiles['world/world-building.md']) parts.push(`## World Building\n${projectFiles['world/world-building.md']}`);
+    if (projectFiles['world/hallmarks.md']) parts.push(`## World Hallmarks\n${projectFiles['world/hallmarks.md']}`);
+    if (projectFiles['story/arc.md']) parts.push(`## Story Arc\n${projectFiles['story/arc.md']}`);
     if (projectFiles['outline.md']) parts.push(`## Outline\n${projectFiles['outline.md']}`);
     if (projectFiles['story/questions-answered.md']) parts.push(`## Story Analysis\n${projectFiles['story/questions-answered.md']}`);
     // Gather existing characters
@@ -8175,7 +10413,7 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
           const resp = await sendMessage({
             messages: [{ role: 'user', content: prompt }],
             role: 'system',
-            maxTokens: 6000,
+            maxTokens: 12000, // Increased from 6000 — expanded character template with Voice Fingerprint, Social Context, etc.
           });
           if (resp.success && resp.content) {
             // The prompt returns individual character blocks separated by ## headings.
@@ -8203,7 +10441,7 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
       // ── 2. World Hallmarks ──
       if (selectedKeys.includes('hallmarks')) {
         setProgress({ label: 'Generating world hallmarks', completed: completedSteps, total: totalSteps });
-        const worldBuilding = projectFiles['world-building.md'] || '';
+        const worldBuilding = projectFiles['world/world-building.md'] || '';
         const prompt = PROMPTS.PROJECT_ENRICH_WORLD_HALLMARKS.build({ worldBuilding, storyContext });
         const resp = await sendMessage({
           messages: [{ role: 'user', content: prompt }],
@@ -8669,6 +10907,26 @@ function EnrichProjectModal({ onClose, projectFiles, projectMeta }) {
 
         {/* Body */}
         <div style={{ padding: '12px 24px' }}>
+          {/* Character completeness banner */}
+          {charAnalysis.totalChars > 0 && charAnalysis.avgCompletion < 85 && (
+            <div style={{
+              padding: '10px 14px', marginBottom: 12, borderRadius: 'var(--radius-sm)',
+              background: charAnalysis.avgCompletion < 50 ? 'rgba(239,68,68,0.08)' : 'rgba(251,191,36,0.08)',
+              border: `1px solid ${charAnalysis.avgCompletion < 50 ? 'rgba(239,68,68,0.2)' : 'rgba(251,191,36,0.2)'}`,
+            }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 600, color: charAnalysis.avgCompletion < 50 ? '#ef4444' : '#fbbf24', marginBottom: 4 }}>
+                Character profiles are {charAnalysis.avgCompletion}% complete
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                {charAnalysis.totalChars} character{charAnalysis.totalChars !== 1 ? 's' : ''} found.
+                {charAnalysis.avgCompletion < 50
+                  ? ' Many fields are missing — run "Fill In Characters" to add Voice Fingerprint, MBTI, Enneagram, Social Context, and more.'
+                  : ' Some fields could be filled in — select "Fill In Characters" below to complete them.'}
+                {' '}Existing content is always preserved.
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <button onClick={selectAll} style={{
               background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600,
@@ -9420,6 +11678,12 @@ export default function WorkspaceScreen() {
   const [searchParams] = useSearchParams();
   const needsReconnect = useLlmStore(s => s.needsReconnect);
   const llmActiveProviders = useLlmStore(s => s.activeProviders);
+  const llmLoading = useLlmStore(s => s.loading);
+
+  // Re-sync providers from IndexedDB on workspace mount (covers navigation from setup/demo)
+  useEffect(() => {
+    useLlmStore.getState().loadProviders();
+  }, []);
   const initialMode = searchParams.get('mode') || 'guided';
   const initialAction = searchParams.get('action'); // e.g. 'add-character'
   const initialPanel = searchParams.get('panel');   // e.g. 'cast'
@@ -9434,7 +11698,7 @@ export default function WorkspaceScreen() {
   const [gateTargetPhase, setGateTargetPhase] = useState(null);  // which locked phase user tried to access
   const [decomposedHealthRevealed, setDecomposedHealthRevealed] = useState(false); // guard for decomposed health scores
   const [fileAuditReport, setFileAuditReport] = useState(null); // file integrity audit result
-  const [auditDismissed, setAuditDismissed] = useState(false); // user dismissed audit banner
+  const [showAuditModal, setShowAuditModal] = useState(false); // contextual audit modal
   const [showQualityWarning, setShowQualityWarning] = useState(null); // phase num that triggered quality warning
   const [showAddCharModal, setShowAddCharModal] = useState(initialAction === 'add-character');
   const [newChar, setNewChar] = useState({ name: '', role: 'Supporting', tier: 'supporting', type: '', bio: '', voiceNotes: '', avatar: null, isGenerating: false });
@@ -9528,7 +11792,7 @@ export default function WorkspaceScreen() {
   };
   // Phase answers — tracks user input per phase per question (hydrated from store below)
   const [phaseAnswers, setPhaseAnswers] = useState({
-    1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, '⟡': {}, 8: {}, 9: {},
+    1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, 8: {}, 9: {}, 10: {},
   });
 
   // Hydrate phaseAnswers from active project in the store (if available)
@@ -9539,12 +11803,15 @@ export default function WorkspaceScreen() {
   const markClean = useProjectStore(s => s.markClean);
   const tourCompleted = useSettingsStore(s => s.tourCompleted);
 
-  // Redirect to hub if no active project is loaded
+  // Redirect to hub if no active project is loaded; re-sync files on mount
   useEffect(() => {
     if (!activeProject) {
       navigate('/hub', { replace: true });
+    } else {
+      // Re-load project files to ensure phase progress is computed with latest phaseAnswers
+      useProjectStore.getState().loadProjectFiles(activeProject.id);
     }
-  }, [activeProject, navigate]);
+  }, [activeProject?.id, navigate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Track changes in editedFiles as dirty state (for unsaved editor changes)
   useEffect(() => {
@@ -9565,17 +11832,20 @@ export default function WorkspaceScreen() {
     }
   }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Sync phaseAnswers from store → local state whenever the store updates
+  // (e.g. when child components call updatePhaseAnswers for sentinels like _reviewComplete, _outlineComplete)
+  const storePhaseAnswers = activeProject?.phaseAnswers;
   useEffect(() => {
-    if (activeProject?.phaseAnswers && Object.keys(activeProject.phaseAnswers).length > 0) {
+    if (storePhaseAnswers && Object.keys(storePhaseAnswers).length > 0) {
       setPhaseAnswers(prev => {
         const merged = { ...prev };
-        for (const [key, answers] of Object.entries(activeProject.phaseAnswers)) {
+        for (const [key, answers] of Object.entries(storePhaseAnswers)) {
           merged[key] = { ...(merged[key] || {}), ...answers };
         }
         return merged;
       });
     }
-  }, [activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [storePhaseAnswers]); // re-sync whenever store phaseAnswers changes
 
   // Hydrate decomposed phase answers from actual file content
   useEffect(() => {
@@ -9700,6 +11970,7 @@ export default function WorkspaceScreen() {
   // Compute phase percentages dynamically from answers vs questions
   // Decomposed projects have all phases pre-marked as complete
   // Projects explicitly set to 'create' mode (e.g., via Paradigm Shift) are NOT decomposed
+  const projectFiles = useProjectStore(s => s.files);
   const explicitMode = activeProject?.metadata?.mode || activeProject?.mode;
   const isDecomposed = explicitMode === 'decompose' || (
     explicitMode !== 'create' &&
@@ -9707,14 +11978,25 @@ export default function WorkspaceScreen() {
   );
   const phasePcts = {};
   phases.forEach(p => {
-    if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === '⟡')) {
+    if (isDecomposed && (phaseAnswers[p.num]?._decomposed || p.num === 8 || p.num === 9 || p.num === 10)) {
       phasePcts[p.num] = 100;
+    } else if (p.num === 7) {
+      // Phase 7 (Review) — complete when _reviewComplete sentinel is set or skipped
+      phasePcts[p.num] = phaseAnswers[7]?._reviewComplete ? 100 : 0;
+    } else if (p.num === 8) {
+      // Phase 8 (Outline) — complete when _outlineComplete sentinel is set and outline.md exists
+      const hasOutline = (projectFiles?.['outline.md'] || '').trim().length > 50;
+      phasePcts[p.num] = (phaseAnswers[8]?._outlineComplete && hasOutline) ? 100 : 0;
     } else {
       const qs = phaseQuestions[p.num] || [];
       const answered = Object.keys(phaseAnswers[p.num] || {}).filter(k => !k.startsWith('_')).length;
       phasePcts[p.num] = qs.length > 0 ? Math.round((answered / qs.length) * 100) : 0;
     }
   });
+  // Author/narrator completeness flags — used for gating phases 9-10
+  const hasAuthor = (projectFiles?.['author.md'] || '').trim().length > 20;
+  const hasNarrator = (projectFiles?.['narrator.md'] || '').trim().length > 20;
+  const prereqFlags = { hasAuthor, hasNarrator };
   // Derive current active phase = first incomplete non-gated phase
   const derivedCurrentPhase = currentActivePhase(phasePcts);
 
@@ -9729,7 +12011,7 @@ export default function WorkspaceScreen() {
     if (isDecomposed) {
       // Last completed phase — walk backwards to find the last one at 100%
       const completed = phases.filter(p => (phasePcts[p.num] || 0) === 100);
-      const lastDone = completed.length > 0 ? completed[completed.length - 1].num : 8;
+      const lastDone = completed.length > 0 ? completed[completed.length - 1].num : 9;
       setActivePhase(lastDone);
       // Default to StoryAssistant for decomposed projects (unless URL param overrides)
       if (!searchParams.get('mode')) {
@@ -9744,7 +12026,6 @@ export default function WorkspaceScreen() {
   }, [activeProject?.id, isDecomposed, derivedCurrentPhase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Compute health dimensions from real project data
-  const projectFiles = useProjectStore(s => s.files);
   const [healthDimensions, setHealthDimensions] = useState(defaultHealthDimensions.map(d => ({ ...d, rating: 0 })));
   const [overallHealthRating, setOverallHealthRating] = useState(0);
 
@@ -9779,7 +12060,6 @@ export default function WorkspaceScreen() {
     const timer = setTimeout(() => {
       const report = runFileAudit(projectFiles, activeProject);
       setFileAuditReport(report);
-      setAuditDismissed(false); // show banner again after new audit
     }, 800);
     return () => clearTimeout(timer);
   }, [projectFiles, activeProject?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -9799,6 +12079,48 @@ export default function WorkspaceScreen() {
   const [scratchpadOpen, setScratchpadOpen] = useState(false);
   // Drawing Board / Scratchpad items — lifted to workspace level so sidebar can access
   const [boardItems, setBoardItems] = useState([]);
+  const boardItemsInitRef = useRef(false);
+
+  // Load board items from project files on mount
+  useEffect(() => {
+    if (boardItemsInitRef.current) return;
+    const raw = projectFiles?.['drawing-board/notes.md'];
+    if (raw && raw.trim().startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setBoardItems(parsed);
+          boardItemsInitRef.current = true;
+        }
+      } catch (e) { /* not JSON, ignore */ }
+    }
+  }, [projectFiles?.['drawing-board/notes.md']]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist board items to project files when they change
+  useEffect(() => {
+    if (boardItems.length === 0 && !boardItemsInitRef.current) return; // don't overwrite with empty on initial load
+    boardItemsInitRef.current = true;
+    // Strip image dataUrls to keep file size reasonable — save metadata only
+    const serializable = boardItems.map(item => ({
+      ...item,
+      images: item.images?.map(() => '[image]') || undefined, // placeholder — images are in-memory only
+    }));
+    // Also save a human-readable markdown version alongside the JSON
+    const mdParts = ['# Drawing Board Notes\n'];
+    for (const item of boardItems) {
+      mdParts.push(`## ${item.text || item.label || 'Untitled'}`);
+      mdParts.push(`- **Type**: ${item.type} | **Group**: ${item.group || 'Unsorted'}`);
+      if (item.fullText) mdParts.push(`\n${item.fullText}`);
+      if (item.docs?.length) mdParts.push(`- Attached files: ${item.docs.map(d => d.name).join(', ')}`);
+      mdParts.push('');
+    }
+    const updateFile = useProjectStore.getState().updateFile;
+    try {
+      updateFile('drawing-board/notes.md', JSON.stringify(serializable, null, 2));
+      updateFile('drawing-board/board-readable.md', mdParts.join('\n'));
+    } catch (e) { /* ignore */ }
+  }, [boardItems]);
+
   const [quickChatOpen, setQuickChatOpen] = useState(false);
   const [threadExpanded, setThreadExpanded] = useState(false);
   const [overLimitPrompt, setOverLimitPrompt] = useState(false);
@@ -9900,8 +12222,35 @@ export default function WorkspaceScreen() {
   const renderCenter = () => {
     switch (activeMode) {
       case 'guided':
-        // Phase 8 gets a dedicated chapter execution UI
-        if (activePhase === 8) return <ChapterExecutionMode />;
+        // Phase 10 gets a dedicated editorial review UI
+        if (activePhase === 10) return <EditorialReviewMode onGoToChapters={() => setActivePhase(9)} />;
+        // Phase 9 gets a dedicated chapter execution UI
+        if (activePhase === 9) return <ChapterExecutionMode onGoToOutline={() => setActivePhase(8)} />;
+        // Phase 7 (Review) gets its own dedicated UI
+        if (activePhase === 7) return <AIReviewMode
+          onNextPhase={() => {
+            setActivePhase(8);
+          }}
+        />;
+        // Phase 8 (Outline) gets its own dedicated UI
+        if (activePhase === 8) return <OutlineMode
+          onNextPhase={() => {
+            // Check author/narrator completeness before unlocking phases 9-10
+            const authorContent = (projectFiles?.['author.md'] || '').trim();
+            const narratorContent = (projectFiles?.['narrator.md'] || '').trim();
+            if (!authorContent || !narratorContent) {
+              setGateTargetPhase(9);
+              setShowGateWarning(true);
+              return;
+            }
+            setActivePhase(9);
+          }}
+          onPrevPhase={() => setActivePhase(7)}
+          onOpenFile={(filePath) => {
+            setActiveFile(filePath);
+            setActiveMode('file-editor');
+          }}
+        />;
         return <GuidedFlow
             phase={activePhase || derivedCurrentPhase}
             answers={phaseAnswers}
@@ -9914,13 +12263,13 @@ export default function WorkspaceScreen() {
               // Compile current phase answers into the corresponding project file
               const phaseFileMap = {
                 1: 'author.md', 2: 'narrator.md', 3: 'world/world-building.md',
-                6: 'outline.md', 7: 'story/arc.md',
+                6: 'story/arc.md',
               };
               const targetFile = phaseFileMap[activePhase];
               if (targetFile) {
                 const pQuestions = phaseQuestions[activePhase] || [];
                 const pAnswers = phaseAnswers[activePhase] || {};
-                const phaseName = { 1: 'Author Profile', 2: 'Narrator', 3: 'World Building', 6: 'Story Foundation', 7: 'Quality Control' }[activePhase] || '';
+                const phaseName = { 1: 'Author Profile', 2: 'Narrator', 3: 'World Building', 6: 'Story Foundation' }[activePhase] || '';
                 let md = `# ${phaseName}\n\n`;
                 for (const q of pQuestions) {
                   const answer = pAnswers[q.id];
@@ -9939,7 +12288,7 @@ export default function WorkspaceScreen() {
               if (idx < phaseOrder.length - 1) {
                 const nextNum = phaseOrder[idx + 1];
                 const nextPhase = phases[idx + 1];
-                if (nextPhase.gated && !allPrereqsComplete(phasePcts)) {
+                if (nextPhase.gated && !allPrereqsComplete(phasePcts, isDecomposed, prereqFlags)) {
                   setGateTargetPhase(nextNum);
                   setShowGateWarning(true);
                 } else {
@@ -9958,12 +12307,10 @@ export default function WorkspaceScreen() {
               setActiveMode('file-editor');
             }}
           />;
-      case 'editor': return <EditorMode file={activeFile} />;
       case 'reader': return <ReaderMode file={activeFile} onEdit={() => { setActiveMode('file-editor'); }} editedContent={editedFiles[activeFile]} onNavigate={(path) => setActiveFile(path)} />;
       case 'file-editor': return <FileEditorMode
         file={activeFile}
         onPreview={() => setActiveMode('reader')}
-        onEditorReview={() => setActiveMode('editor')}
         editedContent={editedFiles[activeFile]}
         onContentChange={(text) => setEditedFiles(prev => ({ ...prev, [activeFile]: text }))}
         onSave={(text) => {
@@ -9980,7 +12327,7 @@ export default function WorkspaceScreen() {
       />;
       case 'comparison': return <ComparisonMode />;
       case 'graph': return <RelationshipGraph />;
-      case 'chat': return <ChatMode phasePcts={phasePcts} />;
+      case 'chat': return <ChatMode phasePcts={phasePcts} isDecomposed={isDecomposed} prereqFlags={prereqFlags} />;
       case 'timeline': return <TimelineMode />;
       case 'board': return <DrawingBoard onOpenFile={openFile} boardItems={boardItems} setBoardItems={setBoardItems} />;
       case 'world': return <WorldBuildingMode />;
@@ -10024,7 +12371,7 @@ export default function WorkspaceScreen() {
       />
 
       {/* ── Provider reconnection banner ── */}
-      {(needsReconnect || llmActiveProviders.length === 0) && (
+      {!llmLoading && (needsReconnect || llmActiveProviders.length === 0) && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           padding: '8px 16px', background: 'rgba(239,68,68,0.1)', borderBottom: '1px solid rgba(239,68,68,0.2)',
@@ -10049,6 +12396,8 @@ export default function WorkspaceScreen() {
           </button>
         </div>
       )}
+
+      {/* File audit banner removed — audit info now surfaced contextually via showAuditModal */}
 
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
         {/* ─── Thread List (far left) — expandable ─── */}
@@ -10276,24 +12625,6 @@ export default function WorkspaceScreen() {
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: 12 }} data-tour="phase-sidebar">
-                {/* Regenerate button — shown at top of every sidebar tab for decomposed projects */}
-                {isDecomposed && (
-                  <button
-                    onClick={() => setShowRedecomposeModal(true)}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      width: '100%', padding: '7px 12px', marginBottom: 10,
-                      background: 'none', border: '1px dashed var(--border)',
-                      borderRadius: 'var(--radius-sm)', cursor: 'pointer',
-                      fontSize: '0.73rem', color: 'var(--text-muted)',
-                      transition: 'all 0.15s',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                  >
-                    <Sparkles size={12} /> Regenerate Analysis
-                  </button>
-                )}
                 {/* Add Missing Details button — available for all projects that have some content */}
                 <button
                   onClick={() => setShowEnrichModal(true)}
@@ -10310,17 +12641,32 @@ export default function WorkspaceScreen() {
                 >
                   <Brain size={12} /> Add Missing Details
                 </button>
+                {/* Regenerate Analysis button — always available */}
+                <button
+                  onClick={() => setShowRedecomposeModal(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    width: '100%', padding: '7px 12px', marginBottom: 10,
+                    background: 'none', border: '1px dashed var(--border)',
+                    borderRadius: 'var(--radius-sm)', cursor: 'pointer',
+                    fontSize: '0.73rem', color: 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                >
+                  <Sparkles size={12} /> Regenerate Analysis
+                </button>
                 {leftTab === 'phases' && (
-                  <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} onPhaseClick={(num, name, isLocked) => {
+                  <PhaseProgress currentPhase={activePhase} phasePcts={phasePcts} isDecomposed={isDecomposed} prereqFlags={prereqFlags} onPhaseClick={(num, name, isLocked) => {
                     if (isLocked) {
                       setGateTargetPhase(num);
                       setShowGateWarning(true);
                       return;
                     }
-                    // Quality warning for phases 8/9 if health is low (≤2 in any dimension)
-                    if ((num === 8 || num === 9)) {
-                      // Check health scores — using demo values; in production these come from state
-                      const lowHealth = true; // demo: World Integrity is 3, Character Depth is 2
+                    // Quality warning for phase 9 if health is low (≤2 in any dimension)
+                    if (num === 9) {
+                      const lowHealth = healthDimensions.some(d => d.rating && d.rating <= 2);
                       if (lowHealth) {
                         setShowQualityWarning(num);
                         return;
@@ -10556,7 +12902,7 @@ export default function WorkspaceScreen() {
             {(() => {
               const userMode = useSettingsStore(s => s.mode) || 'advanced';
               const visibleModes = userMode === 'simple'
-                ? centerStageModes.filter(m => ['guided', 'chat', 'reader', 'editor', 'board'].includes(m.key))
+                ? centerStageModes.filter(m => ['guided', 'chat', 'reader', 'board'].includes(m.key))
                 : centerStageModes;
               return visibleModes.map((m) => {
                 const Icon = m.icon;
@@ -10739,45 +13085,86 @@ export default function WorkspaceScreen() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 20 }}>
                   {(() => {
                     const steps = [];
-                    // Find ALL phases that are partially complete — finish those first
-                    const partials = phases.filter(p => {
-                      const pct = phasePcts[p.num] || 0;
-                      return pct > 0 && pct < 100;
-                    });
-                    partials.forEach(partial => {
-                      const qs = phaseQuestions[partial.num] || [];
-                      const answered = Object.keys(phaseAnswers[partial.num] || {}).length;
-                      const remaining = qs.length - answered;
-                      steps.push({
-                        label: `Finish ${partial.name} questions (${remaining} remaining)`,
-                        action: () => { setActivePhase(partial.num); setActiveMode('guided'); setLeftTab('phases'); },
+                    const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed, prereqFlags);
+
+                    // --- Chapter execution mode: once prereqs are done, focus on writing workflow ---
+                    if (prereqsDone) {
+                      // Find how many chapters exist
+                      const chapterFiles = Object.keys(projectFiles || {}).filter(f => /^story\/chapter-\d+\.md$/.test(f) && (projectFiles[f] || '').trim().length > 100);
+                      const chapterCount = chapterFiles.length;
+                      const outlineExists = (projectFiles?.['outline.md'] || '').trim().length > 50;
+
+                      if (!outlineExists) {
+                        steps.push({
+                          label: 'Generate your outline before writing chapters',
+                          action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      } else if (chapterCount === 0) {
+                        steps.push({
+                          label: 'Start writing — generate Chapter 1',
+                          action: () => { setActivePhase(9); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      } else {
+                        const nextChapter = chapterCount + 1;
+                        steps.push({
+                          label: `Continue writing — generate Chapter ${nextChapter}`,
+                          action: () => { setActivePhase(9); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                        steps.push({
+                          label: `Review Chapter ${chapterCount} with the Editor`,
+                          action: () => { setActivePhase(10); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      }
+                      // Always offer outline review as a secondary step
+                      if (outlineExists && chapterCount > 0) {
+                        steps.push({
+                          label: 'Revisit or refine your outline',
+                          action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      }
+                    } else {
+                      // --- Pre-execution mode: standard phase progression ---
+                      // Find ALL phases that are partially complete — finish those first
+                      const partials = phases.filter(p => {
+                        const pct = phasePcts[p.num] || 0;
+                        return pct > 0 && pct < 100;
                       });
-                    });
-                    // Find the next phase that has 0% progress
-                    const nextEmpty = phases.find(p => (phasePcts[p.num] || 0) === 0 && !p.gated);
-                    if (nextEmpty) {
-                      const label = typeof nextEmpty.num === 'number'
-                        ? `Begin Phase ${nextEmpty.num} — ${nextEmpty.name}`
-                        : `Begin ${nextEmpty.name} phase`;
-                      steps.push({
-                        label,
-                        action: () => { setActivePhase(nextEmpty.num); setActiveMode('guided'); setLeftTab('phases'); },
+                      partials.forEach(partial => {
+                        const qs = phaseQuestions[partial.num] || [];
+                        const answered = Object.keys(phaseAnswers[partial.num] || {}).length;
+                        const remaining = qs.length - answered;
+                        steps.push({
+                          label: `Finish ${partial.name} questions (${remaining} remaining)`,
+                          action: () => { setActivePhase(partial.num); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
                       });
-                    }
-                    // Quality check — if any health dimension has a flag
-                    const flagged = healthDimensions.filter(d => d.flag);
-                    flagged.forEach(d => {
-                      steps.push({
-                        label: `Resolve: ${d.flag}`,
-                        action: () => { setActivePhase(7); setActiveMode('guided'); setLeftTab('phases'); },
+                      // Find the next phase that has 0% progress
+                      const nextEmpty = phases.find(p => (phasePcts[p.num] || 0) === 0 && !p.gated);
+                      if (nextEmpty) {
+                        steps.push({
+                          label: `Begin Phase ${nextEmpty.num} — ${nextEmpty.name}`,
+                          action: () => { setActivePhase(nextEmpty.num); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
+                      }
+                      // Quality check — if any health dimension has a flag
+                      const flagged = healthDimensions.filter(d => d.flag);
+                      flagged.forEach(d => {
+                        steps.push({
+                          label: `Resolve: ${d.flag}`,
+                          action: () => { setActivePhase(7); setActiveMode('guided'); setLeftTab('phases'); },
+                        });
                       });
-                    });
-                    // If all non-gated phases done, suggest content generation
-                    if (allPrereqsComplete(phasePcts)) {
-                      steps.push({
-                        label: 'All structure complete — begin content generation',
-                        action: () => { setActivePhase(8); setActiveMode('guided'); setLeftTab('phases'); },
-                      });
+                      // Missing files — show contextual link to audit modal
+                      if (fileAuditReport && fileAuditReport.status !== 'healthy' && fileAuditReport.findings?.length > 0) {
+                        const ct = fileAuditReport.summary?.critical || 0;
+                        const label = ct > 0
+                          ? `${ct} critical file${ct > 1 ? 's' : ''} missing — view details`
+                          : 'Some optional files missing — view details';
+                        steps.push({
+                          label,
+                          action: () => setShowAuditModal(true),
+                        });
+                      }
                     }
                     return steps.slice(0, 4).map((step, i) => (
                       <div key={i} onClick={step.action} style={{
@@ -10966,10 +13353,22 @@ export default function WorkspaceScreen() {
             <div style={{ fontSize: '2rem', marginBottom: 12 }}>🔒</div>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 10 }}>Content Generation Locked</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.7, marginBottom: 16 }}>
-              Chapter Execution and Editor phases require all prior phases to be completed first. This ensures your story has a solid foundation before generating content.
+              Chapter Execution and Editor phases require all prior phases to be completed and both the Author and Narrator files to be written. This ensures your story has a solid foundation before generating content.
             </p>
             <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, marginBottom: 20, textAlign: 'left' }}>
-              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>Incomplete Phases</div>
+              <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>Requirements</div>
+              {!hasAuthor && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: '0.8rem' }}>
+                  <span style={{ color: '#ef4444' }}>✗</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Author profile (author.md) is empty</span>
+                </div>
+              )}
+              {!hasNarrator && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: '0.8rem' }}>
+                  <span style={{ color: '#ef4444' }}>✗</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Narrator profile (narrator.md) is empty</span>
+                </div>
+              )}
               {phases.filter(p => !p.gated && (phasePcts[p.num] || 0) < 100).map((p, i) => {
                 const pct = phasePcts[p.num] || 0;
                 return (
@@ -11002,6 +13401,45 @@ export default function WorkspaceScreen() {
                   setActiveMode('guided');
                 }
               }} style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>Unlock Anyway →</Button>
+            </div>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {/* ── Contextual File Audit Modal ── */}
+      {showAuditModal && fileAuditReport && fileAuditReport.status !== 'healthy' && (
+        <ModalOverlay onClose={() => setShowAuditModal(false)}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <AlertTriangle size={18} style={{ color: 'var(--accent)' }} />
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Missing Project Files</h3>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.6, marginBottom: 16 }}>
+              Some sections may be incomplete because the following files are missing or empty. This can affect timelines, health scores, and other analyses.
+            </p>
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: 8, padding: 12, marginBottom: 16, maxHeight: 240, overflowY: 'auto' }}>
+              {(() => {
+                const grouped = {};
+                for (const f of fileAuditReport.findings || []) {
+                  const key = f.phase || 'Other';
+                  if (!grouped[key]) grouped[key] = [];
+                  grouped[key].push(f);
+                }
+                return Object.entries(grouped).map(([phase, items]) => (
+                  <div key={phase} style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>{phase}</div>
+                    {items.map((item, i) => (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '3px 0', fontSize: '0.8rem' }}>
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', flexShrink: 0, background: item.severity === 'critical' ? '#ef4444' : item.severity === 'high' ? '#f97316' : '#eab308' }} />
+                        <code style={{ fontSize: '0.75rem', color: 'var(--text-primary)', background: 'var(--bg-surface)', padding: '1px 5px', borderRadius: 3 }}>{item.file}</code>
+                      </div>
+                    ))}
+                  </div>
+                ));
+              })()}
+            </div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setShowAuditModal(false)}>Dismiss</Button>
             </div>
           </div>
         </ModalOverlay>

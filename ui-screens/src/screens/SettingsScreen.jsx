@@ -153,6 +153,7 @@ function Select({ options, value, onChange }) {
 function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
   const updateSettings = useSettingsStore(s => s.updateSettings);
   const settings = useSettingsStore(useShallow(s => ({
+    authorName: s.authorName,
     mode: s.mode,
     fontSize: s.fontSize,
     editorFont: s.editorFont,
@@ -160,6 +161,7 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
     sidebarPosition: s.sidebarPosition,
   })));
 
+  const [authorName, setAuthorName] = useState(settings.authorName || '');
   const [mode, setMode] = useState(settings.mode);
   const [fontSize, setFontSize] = useState(settings.fontSize);
   const [editorFont, setEditorFont] = useState(settings.editorFont);
@@ -167,6 +169,7 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
   const [sidebarPos, setSidebarPos] = useState(settings.sidebarPosition);
 
   useEffect(() => {
+    setAuthorName(settings.authorName || '');
     setMode(settings.mode);
     setFontSize(settings.fontSize);
     setEditorFont(settings.editorFont);
@@ -207,6 +210,22 @@ function GeneralSettings({ currentTheme, onThemeChange, onSettingChange }) {
   return (
     <>
       <h2 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 24 }}>General</h2>
+
+      <SettingRow label="Your Name" desc="Displayed on the Hub welcome screen">
+        <input
+          type="text"
+          value={authorName}
+          onChange={(e) => setAuthorName(e.target.value)}
+          onBlur={() => updateSettings({ authorName: authorName.trim() })}
+          onKeyDown={(e) => e.key === 'Enter' && updateSettings({ authorName: authorName.trim() })}
+          placeholder="Enter your name"
+          style={{
+            padding: '6px 10px', fontSize: '0.85rem', width: 200,
+            background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+          }}
+        />
+      </SettingRow>
 
       <SettingRow label="Mode" desc="Controls complexity of the interface. Simple mode hides advanced modes (Timeline, Relationships, World Building, Comparison) and focuses on essentials.">
         <Select
@@ -857,13 +876,13 @@ function AISettings({ onSettingChange }) {
 
       <SettingRow label="Role Assignment Mode" desc="How models are assigned to tasks">
         <Select
-          options={['simple', 'standard', 'granular']}
+          options={['simple', 'advanced']}
           value={roleMode}
           onChange={handleRoleModeChange}
         />
       </SettingRow>
 
-      {(roleMode === 'standard' || roleMode === 'granular') && activeProviders.length > 0 && (
+      {roleMode === 'advanced' && activeProviders.length > 0 && (
         <div style={{ marginTop: 16, padding: 16, background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
           <div style={{ fontSize: '0.8rem', fontWeight: 600, marginBottom: 12, color: 'var(--text-secondary)' }}>
             Role → Provider Assignment

@@ -83,7 +83,8 @@ export async function exportAsZip(projectData) {
     genre: projectData.project?.genre,
     seed: projectData.project?.seed,
     exportedAt: new Date().toISOString(),
-    version: '1.0',
+    version: '1.1',
+    characterFormat: '2.0',
   }, null, 2));
 
   const blob = await zip.generateAsync({ type: 'blob' });

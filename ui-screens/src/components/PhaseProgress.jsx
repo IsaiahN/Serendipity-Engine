@@ -4,11 +4,12 @@ import { useSettingsStore } from '../stores/settingsStore';
 
 /*
  * Phase gating rules:
- *   - Phases 8 (Chapter Execution) and 9 (Editor) are gated by default.
- *   - Gates unlock when ALL non-gated phases reach 100% completion.
+ *   - Phases 9 (Chapter Execution) and 10 (Editor) are gated by default.
+ *   - Gates unlock when ALL non-gated phases reach 100% completion
+ *     AND both author.md and narrator.md are non-empty.
  *   - Decompose/Import flow: When `isDecomposed` is true, allPrereqsComplete()
- *     returns true immediately, unlocking Phases 8-9 from the start.
- *     WorkspaceScreen sets phasePcts for 8/9/Bridge to 100 for decomposed projects.
+ *     returns true immediately, unlocking Phases 9-10 from the start.
+ *     WorkspaceScreen sets phasePcts for 9/10/Outline to 100 for decomposed projects.
  */
 export const phases = [
   { num: 1, name: 'Author', gated: false },
@@ -17,17 +18,19 @@ export const phases = [
   { num: 4, name: 'Characters', gated: false },
   { num: 5, name: 'Relationships', gated: false },
   { num: 6, name: 'Story Foundation', gated: false },
-  { num: 7, name: 'Quality Control', gated: false },
-  { num: '⟡', name: 'Bridge', gated: false },
-  { num: 8, name: 'Chapter Execution', gated: true },  // Unlock when decomposed or all prereqs complete
-  { num: 9, name: 'Editor', gated: true },              // Unlock when decomposed or all prereqs complete
+  { num: 7, name: 'Review', gated: false },
+  { num: 8, name: 'Outline', gated: false },
+  { num: 9, name: 'Chapter Execution', gated: true },   // Unlock when decomposed or all prereqs complete
+  { num: 10, name: 'Editor', gated: true },              // Unlock when decomposed or all prereqs complete
 ];
 
 // Check if all non-gated phases are complete (accepts pctMap: { phaseNum: pct })
 // Returns true immediately for decomposed projects (imported manuscripts)
-export function allPrereqsComplete(pctMap = {}, isDecomposed = false) {
+// Also requires author.md and narrator.md to be non-empty (checked via hasAuthor/hasNarrator flags)
+export function allPrereqsComplete(pctMap = {}, isDecomposed = false, { hasAuthor = true, hasNarrator = true } = {}) {
   if (isDecomposed) return true;
-  return phases.filter(p => !p.gated).every(p => (pctMap[p.num] || 0) === 100);
+  const phasesComplete = phases.filter(p => !p.gated).every(p => (pctMap[p.num] || 0) === 100);
+  return phasesComplete && hasAuthor && hasNarrator;
 }
 
 // Compute overall progress
@@ -49,17 +52,17 @@ function StatusIcon({ pct, locked }) {
   return <Circle size={14} color="var(--text-muted)" />;
 }
 
-export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePcts = {}, isDecomposed = false }) {
+export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePcts = {}, isDecomposed = false, prereqFlags = {} }) {
   const [hoveredIdx, setHoveredIdx] = useState(null);
   const pctOverall = overallProgress(phasePcts);
-  const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed);
+  const prereqsDone = allPrereqsComplete(phasePcts, isDecomposed, prereqFlags);
   const userMode = useSettingsStore(s => s.mode) || 'advanced';
 
-  // Filter phases: in simple mode, hide phases 8 & 9 (Chapter Execution & Editor) as "advanced"
-  // Also filter Bridge phase for decomposed projects
-  let visiblePhases = isDecomposed ? phases.filter(p => p.num !== '⟡') : phases;
+  // Filter phases: in simple mode, hide phases 9 & 10 (Chapter Execution & Editor) as "advanced"
+  // Also filter Outline phase for decomposed projects
+  let visiblePhases = isDecomposed ? phases.filter(p => p.num !== 8) : phases;
   if (userMode === 'simple') {
-    visiblePhases = visiblePhases.filter(p => ![8, 9].includes(p.num));
+    visiblePhases = visiblePhases.filter(p => ![9, 10].includes(p.num));
   }
 
   return (
@@ -107,7 +110,7 @@ export default function PhaseProgress({ currentPhase = 3, onPhaseClick, phasePct
               fontWeight: isActive ? 600 : 400,
               flex: 1,
             }}>
-              {typeof p.num === 'number' ? `Phase ${p.num}` : ''} — {p.name}
+              Phase {p.num} — {p.name}
             </span>
             {isLocked && (
               <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)', opacity: 0.7 }}>locked</span>

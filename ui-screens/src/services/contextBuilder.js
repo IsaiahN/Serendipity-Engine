@@ -83,6 +83,7 @@ export function buildChapterContext(files, chapterNum, options = {}) {
     { path: 'outline.md', label: 'Story Outline' },
     { path: 'story/arc.md', label: 'Story Arc' },
     { path: 'world/world-building.md', label: 'World Building' },
+    { path: 'world/hallmarks.md', label: 'World Hallmarks' },
     { path: 'relationships/questions-answered.md', label: 'Relationships' },
   ];
 
@@ -252,6 +253,10 @@ export function buildChatContext(files, chatHistory, options = {}) {
     if (files['author.md']?.trim()) systemPrompt += `## Author\n${files['author.md']}\n\n`;
     if (files['narrator.md']?.trim()) systemPrompt += `## Narrator\n${files['narrator.md']}\n\n`;
     if (files['outline.md']?.trim()) systemPrompt += `## Outline\n${files['outline.md']}\n\n`;
+    if (files['world/world-building.md']?.trim()) systemPrompt += `## World Building\n${files['world/world-building.md']}\n\n`;
+    if (files['world/hallmarks.md']?.trim()) systemPrompt += `## World Hallmarks\n${files['world/hallmarks.md']}\n\n`;
+    if (files['story/arc.md']?.trim()) systemPrompt += `## Story Arc\n${files['story/arc.md']}\n\n`;
+    if (files['relationships/questions-answered.md']?.trim()) systemPrompt += `## Relationships\n${files['relationships/questions-answered.md']}\n\n`;
   }
 
   if (persona === 'character' && characterName) {
@@ -316,6 +321,27 @@ export async function getSeriesContextForProject(project) {
   return buildSeriesContext(seriesData, project.id);
 }
 
+// ─── Universal Message Fitting ─────────────────────────────────────────────
+//
+// Called by sendMessage() BEFORE every API call to ensure prompts never exceed
+// the model's context window. Works on the final messages array regardless of
+// where it was built (chapter generation, chat, phase guide, analysis, etc.).
+
+/**
+ * Fit a messages array into a model's context window.
+ *
+ * Strategy (progressive, least-destructive first):
+ *  1. If it already fits → return as-is.
+ *  2. Trim long assistant turns (AI suggestions the user doesn't need verbatim).
+ *  3. Summarize older user/assistant chat history (keep last 2 turns intact).
+ *  4. Truncate the middle of the system message (keep start + end).
+ *  5. Hard-truncate from the end of the longest message as a last resort.
+ *
+ * @param {Array} messages - [{ role, content }]
+ * @param {number} contextWindow - model's max context tokens
+ * @param {number} outputTokens - tokens reserved for the model's response
+ * @returns {{ messages: Array, trimmed: boolean, strategy: string|null }}
+ */
 // Export estimateTokens for use in token display components
 export { estimateTokens };
 

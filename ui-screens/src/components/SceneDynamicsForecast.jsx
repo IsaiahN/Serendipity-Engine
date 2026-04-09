@@ -3,7 +3,7 @@ import { useProjectStore } from '../stores/projectStore';
 import { useLlmStore } from '../stores/llmStore';
 
 export default function SceneDynamicsForecast({ chapterNum }) {
-  const files = useProjectStore(s => s.projectFiles);
+  const files = useProjectStore(s => s.files);
   const [forecast, setForecast] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -14,7 +14,7 @@ export default function SceneDynamicsForecast({ chapterNum }) {
       const sendMessage = useLlmStore.getState().sendMessage;
 
       // Gather context
-      const outline = files?.['story/outline.md'] || '';
+      const outline = files?.['outline.md'] || '';
       const arc = files?.['story/arc.md'] || '';
       const prevChapter = files?.[`story/chapter-${chapterNum - 1}.md`] || '';
       const prevNotes = files?.[`story/chapter-${chapterNum - 1}-notes.md`] || '';

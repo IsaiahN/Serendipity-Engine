@@ -12,7 +12,7 @@ import { estimateCost, formatCost, getModelPricing } from '../lib/costEstimator'
  * - Total estimated cost
  */
 export default function TokenEstimate({ files, chapterNum, model = 'claude-sonnet-4-5-20250514', showDetails = false }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   // Calculate estimated input tokens from project files
   const estimatedInputTokens = useMemo(() => {

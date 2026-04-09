@@ -39,7 +39,7 @@ export const DECOMPOSITION_STEPS = [
   { key: 'structure', label: 'Story Structure', phase: 6, description: 'Extract plot arc and structure' },
   { key: 'story-detail', label: 'Story Detail', phase: 6, description: 'Story questions and abstract' },
   { key: 'review', label: 'Structural Review', phase: 7, description: 'Analyze and review structure' },
-  { key: 'chapters', label: 'Chapter Split', phase: 8, description: 'Split manuscript into chapters' },
+  { key: 'chapters', label: 'Chapter Split', phase: 9, description: 'Split manuscript into chapters' },
 ];
 
 /**
@@ -381,7 +381,7 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
       // output tokens and silently drop characters at the end. Minor characters are
       // sorted last, so they get dropped first. By batching into groups of ~8,
       // every character gets profiled even on weaker models.
-      const BATCH_SIZE = 8; // Characters per batch — balances depth vs API calls
+      const BATCH_SIZE = 6; // Characters per batch — reduced from 8 to give each character more token budget for expanded profile template (Voice Fingerprint, Social Context, etc.)
       const allCharacterFiles = {};
 
       if (scanLines.length > 0) {
@@ -398,7 +398,7 @@ export async function decomposeStep(sendMessage, sourceText, step, previousFiles
           const batchPrompt = buildCharacterProfilesPrompt(sourceText, batchList);
 
           // Token budget: generous per-character allocation since batch is small
-          const batchMaxTokens = Math.min(16000, Math.max(4000, batch.length * 1500));
+          const batchMaxTokens = Math.min(24000, Math.max(6000, batch.length * 2500));
 
           console.log(`[Decomposition] Batch ${batchIdx + 1}/${batches.length}: ${batch.length} characters, maxTokens=${batchMaxTokens}`);
 

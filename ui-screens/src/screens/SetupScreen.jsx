@@ -388,7 +388,7 @@ export default function SetupScreen() {
                 ))}
               </select>
             </div>
-            {currentProviderDef?.models.length > 0 && (
+            {currentProviderDef?.models.length > 0 ? (
               <div style={{ flex: 1 }}>
                 <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Model</label>
                 <select
@@ -405,6 +405,22 @@ export default function SetupScreen() {
                     <option key={m} value={m}>{m}</option>
                   ))}
                 </select>
+              </div>
+            ) : selectedProvider !== 'ollama' && (
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Model Name</label>
+                <input
+                  type="text"
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  placeholder="e.g. stepfun/step-3.5-flash:free"
+                  style={{
+                    width: '100%', padding: '8px 10px', fontSize: '0.85rem',
+                    background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                    borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                />
               </div>
             )}
           </div>
@@ -433,7 +449,22 @@ export default function SetupScreen() {
           {/* API Key Input */}
           {method === 'api' && selectedProvider !== 'ollama' && (
             <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>API Key</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>API Key</label>
+                {currentProviderDef?.apiKeyUrl && (
+                  <a
+                    href={currentProviderDef.apiKeyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      fontSize: '0.7rem', color: 'var(--accent)',
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                    }}
+                  >
+                    Get your API key <ExternalLink size={11} />
+                  </a>
+                )}
+              </div>
               <input
                 type="password"
                 value={apiKeyInput}
@@ -548,7 +579,7 @@ export default function SetupScreen() {
               </Card>
             )}
 
-            {(assignMode === 'standard' || assignMode === 'granular') && (
+            {assignMode === 'advanced' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {STANDARD_ROLES.map((r) => (
                   <Card key={r.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px' }}>

@@ -14,13 +14,13 @@ import { Bold, Italic, Heading1, Heading2, List, ListOrdered, Code, Undo, Redo, 
  *   minHeight: number — minimum height in px (default 120)
  *   style: object — additional styles for the wrapper
  */
-export default function MarkdownEditor({ value = '', onChange, placeholder = 'Your answer...', minHeight = 120, style = {} }) {
-  const [mode, setMode] = useState('visual'); // 'visual' | 'source'
+export default function MarkdownEditor({ value = '', onChange, placeholder = 'Your answer...', minHeight = 120, style = {}, defaultMode = 'visual' }) {
+  const [mode, setMode] = useState(defaultMode); // 'visual' | 'source'
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
+        heading: { levels: [1, 2, 3, 4] },
       }),
       Placeholder.configure({
         placeholder,
@@ -233,6 +233,12 @@ export default function MarkdownEditor({ value = '', onChange, placeholder = 'Yo
           margin: 0.5em 0 0.3em;
           color: var(--text-secondary);
         }
+        .tiptap-editor-wrapper .tiptap h4 {
+          font-size: 0.88rem;
+          font-weight: 600;
+          margin: 0.4em 0 0.2em;
+          color: var(--text-secondary);
+        }
         .tiptap-editor-wrapper .tiptap ul,
         .tiptap-editor-wrapper .tiptap ol {
           padding-left: 1.5em;
@@ -311,13 +317,20 @@ function ToolbarBtn({ icon, active, onClick, title }) {
 
 function markdownToHtml(md) {
   if (!md) return '';
-  let html = md
+
+  // Preserve tables as preformatted blocks (tables don't survive WYSIWYG well)
+  let html = md.replace(/((?:^\|.+\|$\n?)+)/gm, (tableBlock) => {
+    return `<pre><code>${escapeHtml(tableBlock.trim())}</code></pre>`;
+  });
+
+  html = html
     // Code blocks (must be before other transforms)
     .replace(/```[\s\S]*?```/g, (m) => {
       const code = m.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
       return `<pre><code>${escapeHtml(code)}</code></pre>`;
     })
-    // Headings
+    // Headings (h4 before h3 before h2 before h1)
+    .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
@@ -331,12 +344,14 @@ function markdownToHtml(md) {
     .replace(/`([^`]+)`/g, '<code>$1</code>')
     // Blockquotes
     .replace(/^>\s+(.+)$/gm, '<blockquote><p>$1</p></blockquote>')
-    // Lists (simple)
+    // Nested list items (indented with 2+ spaces)
+    .replace(/^  - (.+)$/gm, '<li class="nested">$1</li>')
+    // Top-level list items
     .replace(/^- (.+)$/gm, '<li>$1</li>')
     .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
 
   // Wrap consecutive <li> in <ul>
-  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+  html = html.replace(/((?:<li[^>]*>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
 
   // Wrap remaining plain text lines in <p>
   html = html.split('\n').map(line => {
@@ -344,7 +359,7 @@ function markdownToHtml(md) {
     if (!trimmed) return '';
     if (trimmed.startsWith('<h') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') ||
         trimmed.startsWith('<li') || trimmed.startsWith('<pre') || trimmed.startsWith('<blockquote') ||
-        trimmed.startsWith('<hr') || trimmed.startsWith('</')) {
+        trimmed.startsWith('<hr') || trimmed.startsWith('</') || trimmed.startsWith('<table')) {
       return trimmed;
     }
     return `<p>${trimmed}</p>`;
@@ -358,12 +373,17 @@ function htmlToMarkdown(html) {
   let md = html
     // Remove wrapper divs
     .replace(/<div>/g, '').replace(/<\/div>/g, '')
-    // Code blocks
-    .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (_, code) => `\`\`\`\n${unescapeHtml(code)}\n\`\`\``)
+    // Code blocks — check if content looks like a table, restore as table rather than code fence
+    .replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, (_, code) => {
+      const decoded = unescapeHtml(code);
+      if (decoded.trim().startsWith('|')) return decoded; // table — restore as-is
+      return `\`\`\`\n${decoded}\n\`\`\``;
+    })
     // Headings
     .replace(/<h1>(.*?)<\/h1>/g, '# $1')
     .replace(/<h2>(.*?)<\/h2>/g, '## $1')
     .replace(/<h3>(.*?)<\/h3>/g, '### $1')
+    .replace(/<h4>(.*?)<\/h4>/g, '#### $1')
     // HR
     .replace(/<hr\s*\/?>/g, '---')
     // Bold + Italic
@@ -377,6 +397,8 @@ function htmlToMarkdown(html) {
     // Lists
     .replace(/<ul>/g, '').replace(/<\/ul>/g, '')
     .replace(/<ol>/g, '').replace(/<\/ol>/g, '')
+    .replace(/<li class="nested"><p>(.*?)<\/p><\/li>/g, '  - $1')
+    .replace(/<li class="nested">(.*?)<\/li>/g, '  - $1')
     .replace(/<li><p>(.*?)<\/p><\/li>/g, '- $1')
     .replace(/<li>(.*?)<\/li>/g, '- $1')
     // Paragraphs
