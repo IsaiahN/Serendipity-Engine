@@ -33,7 +33,11 @@ StoryWeaver is available in three flavors depending on how you prefer to work.
 
 **Progressive Web App** — The primary experience. Clone the repo, run `npm install && npm run dev`, and open it in your browser. Install it as a standalone app from the browser's address bar for offline use. Everything runs locally — no server, no accounts, no data leaves your machine. See [Getting Started](#getting-started) below.
 
-**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. Install it from the Chrome Web Store or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch. To install the pre-built extension directly, download [`storyweaver-extension.zip`](https://github.com/IsaiahN/Serendipity-Engine/raw/chrome-extension/storyweaver-extension.zip), then:
+**Chrome Extension** — The full StoryWeaver experience packaged as a Chrome extension. 
+
+Install it from the [Chrome Web Store](https://chromewebstore.google.com/detail/bkpphanncdhpcbmalnpknoieglmopjib?utm_source=item-share-cb) or build it yourself from the [`chrome-extension`](https://github.com/IsaiahN/Serendipity-Engine/tree/chrome-extension) branch. 
+
+To install the pre-built extension directly, download [`storyweaver-extension.zip`](https://github.com/IsaiahN/Serendipity-Engine/raw/chrome-extension/storyweaver-extension.zip), then:
 
 1. Unzip the file to a folder on your computer
 2. Open `chrome://extensions` in Chrome
