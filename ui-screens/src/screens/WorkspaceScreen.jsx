@@ -268,9 +268,6 @@ function GuidedFlow({ phase, answers, onAnswer, onNextPhase, onPrevPhase, isDeco
   // Reset question index when phase changes so we start at Q1
   useEffect(() => { setCurrentQ(0); }, [phase]);
 
-  // Reset question index when phase changes so we start at Q1
-  useEffect(() => { setCurrentQ(0); }, [phase]);
-
   // Count how many questions are answered
   const answeredCount = Object.keys(phaseAnswerMap).filter(k => {
     const v = phaseAnswerMap[k];

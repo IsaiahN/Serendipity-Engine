@@ -321,30 +321,6 @@ export async function getSeriesContextForProject(project) {
   return buildSeriesContext(seriesData, project.id);
 }
 
-// ─── Universal Message Fitting ─────────────────────────────────────────────
-//
-// Called by sendMessage() BEFORE every API call to ensure prompts never exceed
-// the model's context window. Works on the final messages array regardless of
-// where it was built (chapter generation, chat, phase guide, analysis, etc.).
-
-/**
- * Fit a messages array into a model's context window.
- *
- * Strategy (progressive, least-destructive first):
- *  1. If it already fits → return as-is.
- *  2. Trim long assistant turns (AI suggestions the user doesn't need verbatim).
- *  3. Summarize older user/assistant chat history (keep last 2 turns intact).
- *  4. Truncate the middle of the system message (keep start + end).
- *  5. Hard-truncate from the end of the longest message as a last resort.
- *
- * @param {Array} messages - [{ role, content }]
- * @param {number} contextWindow - model's max context tokens
- * @param {number} outputTokens - tokens reserved for the model's response
- * @returns {{ messages: Array, trimmed: boolean, strategy: string|null }}
- */
-// Export estimateTokens for use in token display components
-export { estimateTokens };
-
 // ── Universal Message Fitting ──────────────────────────────────────
 // Called by sendMessage() before every API call to ensure prompt fits
 // within the model's context window.  Uses 4 progressive strategies
@@ -427,3 +403,6 @@ export function fitMessagesToContext(messages, contextWindow, outputTokens) {
 
   return { messages: fitted, trimmed: true, strategy };
 }
+
+// Export estimateTokens for use in token display components
+export { estimateTokens };
