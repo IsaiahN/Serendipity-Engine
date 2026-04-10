@@ -14,7 +14,7 @@ import Badge from '../components/Badge';
 import {
   FileText, FolderTree, ChevronRight, ChevronDown,
   Compass, Edit3, BookOpen, GitCompare, Network, MessageSquare,
-  Clock, Palette, Settings, Download, Volume2, Search,
+  Clock, Palette, Settings, Download, Volume2, Search, Pause, Play, Square,
   Lightbulb, AlertTriangle, Pencil, ChevronUp, Send, SendHorizontal, ChevronsLeft, ChevronsRight, Globe,
   Upload, Plus, Library, ArrowLeftRight, TrendingUp, Brain, Eye, Globe2, Users, Heart, BarChart3, Music, HelpCircle, UserCheck, Sparkles, ChevronLeft, X, Copy, UserPlus, Link2, Loader2,
 } from 'lucide-react';
@@ -2821,6 +2821,14 @@ function OutlineMode({ onNextPhase, onPrevPhase, onOpenFile }) {
 }
 
 function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
+  // All hooks must be called unconditionally (before any early returns)
+  const tts = useTTS();
+  const [showReaderSettings, setShowReaderSettings] = useState(false);
+  const [readerFontSize, setReaderFontSize] = useState(1.05);
+  const [readerLineHeight, setReaderLineHeight] = useState(2);
+  const [readerFont, setReaderFont] = useState('Georgia, serif');
+  const storeFiles = useProjectStore(s => s.files);
+
   // Welcome screen when no file is selected
   if (!file) {
     return (
@@ -2845,13 +2853,6 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
     );
   }
 
-  const tts = useTTS();
-  const [showReaderSettings, setShowReaderSettings] = useState(false);
-  const [readerFontSize, setReaderFontSize] = useState(1.05);
-  const [readerLineHeight, setReaderLineHeight] = useState(2);
-  const [readerFont, setReaderFont] = useState('Georgia, serif');
-  // Prefer live project data; only fall back to static demo data for the demo project
-  const storeFiles = useProjectStore(s => s.files);
   const fc = storeFileToFc(storeFiles, file) || getDemoFileContent(file) || defaultFileContent(file || 'chapter-1.md');
   const isMarkdown = file && file.endsWith('.md');
   // If there's edited content, parse it into paragraphs for display
@@ -2890,8 +2891,24 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
               } else if (tts.isPaused) {
                 tts.resume();
               } else {
-                const text = displayContent.rawText || displayContent.content.join('\n\n');
-                tts.speak(text);
+                // Strip markdown syntax so TTS reads clean prose
+                const raw = displayContent.rawText || displayContent.content.join('\n\n');
+                const cleanText = raw
+                  .replace(/^#{1,6}\s+/gm, '')       // headings
+                  .replace(/\*\*(.+?)\*\*/g, '$1')    // bold
+                  .replace(/\*(.+?)\*/g, '$1')         // italic
+                  .replace(/_(.+?)_/g, '$1')           // underscore italic
+                  .replace(/~~(.+?)~~/g, '$1')         // strikethrough
+                  .replace(/`(.+?)`/g, '$1')           // inline code
+                  .replace(/^\s*[-*+]\s+/gm, '')       // list bullets
+                  .replace(/^\s*\d+\.\s+/gm, '')       // numbered lists
+                  .replace(/^\s*>\s?/gm, '')            // blockquotes
+                  .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // links
+                  .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1') // images
+                  .replace(/---+/g, '')                 // horizontal rules
+                  .replace(/\n{3,}/g, '\n\n')           // excessive newlines
+                  .trim();
+                tts.speak(cleanText);
               }
             }}
             style={{
@@ -2906,7 +2923,7 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
             }}
             title={tts.isSpeaking ? (tts.isPaused ? 'Resume reading' : 'Pause reading') : 'Read aloud'}
           >
-            <Volume2 size={16} />
+            {tts.isSpeaking && !tts.isPaused ? <Pause size={16} /> : tts.isPaused ? <Play size={16} /> : <Volume2 size={16} />}
             {tts.isSpeaking && (
               <span>{tts.isPaused ? 'Paused' : 'Reading...'}</span>
             )}
@@ -2914,10 +2931,10 @@ function ReaderMode({ file, onEdit, editedContent, onNavigate }) {
           {tts.isSpeaking && (
             <button
               onClick={() => tts.stop()}
-              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem' }}
+              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: 3 }}
               title="Stop reading"
             >
-              ■ Stop
+              <Square size={12} fill="#ef4444" /> Stop
             </button>
           )}
           <button
@@ -12124,7 +12141,7 @@ export default function WorkspaceScreen() {
 
   // Modal state
   const [showExportModal, setShowExportModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [_showSettingsModal, _setShowSettingsModal] = useState(false); // preserved for hook ordering stability
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [currentTheme, setCurrentTheme] = useState('amber');
@@ -12168,7 +12185,7 @@ export default function WorkspaceScreen() {
         }
       } else if (isMod && e.key === ',') {
         e.preventDefault();
-        setShowSettingsModal(true);
+        navigate('/settings');
       } else if (isMod && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
         e.preventDefault();
         setLeftCollapsed(prev => !prev);
@@ -12361,7 +12378,7 @@ export default function WorkspaceScreen() {
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
           }, 100);
         }}
-        onSettingsClick={() => setShowSettingsModal(true)}
+        onSettingsClick={() => navigate('/settings')}
         onThemeClick={() => setShowThemeModal(true)}
         onTourClick={() => setShowTour(true)}
         onShowShortcuts={() => setShowShortcutsModal(true)}
@@ -13296,7 +13313,7 @@ export default function WorkspaceScreen() {
 
       {/* Modals */}
       {showExportModal && <ExportModal onClose={() => setShowExportModal(false)} />}
-      {showSettingsModal && <SettingsModal onClose={() => setShowSettingsModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} onGoToFullSettings={() => { setShowSettingsModal(false); navigate('/settings'); }} />}
+      {/* SettingsModal removed -- settings icon now navigates directly to /settings */}
       {showThemeModal && <ThemePickerModal onClose={() => setShowThemeModal(false)} currentTheme={currentTheme} onThemeChange={applyTheme} />}
       {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
       {showTour && <ProductTour onComplete={() => setShowTour(false)} />}

@@ -87,12 +87,14 @@ export default function WritingProfile({ projectId = null, compact = false, show
   const [analyzing, setAnalyzing] = useState(false);
 
   const files = useProjectStore(s => s.files);
-  const settings = useSettingsStore(s => ({ silentAssessment: s.silentAssessment }));
+  const fileCount = Object.keys(files || {}).length;
+  const silentAssessment = useSettingsStore(s => s.silentAssessment);
 
   // Load profile on mount and when projectId changes
+  // Use fileCount instead of files object to avoid infinite re-render loop
   useEffect(() => {
     loadProfile();
-  }, [projectId, files]);
+  }, [projectId, fileCount]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadProfile = async () => {
     setLoading(true);
@@ -160,12 +162,12 @@ export default function WritingProfile({ projectId = null, compact = false, show
             No Writing Data Yet
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-            {settings.silentAssessment
+            {silentAssessment
               ? 'Your writing will be analyzed automatically as you write.'
               : 'Enable Silent Assessment in settings to get started.'}
           </div>
         </div>
-        {showAnalyzeButton && settings.silentAssessment && (
+        {showAnalyzeButton && silentAssessment && (
           <Button
             size="sm"
             onClick={handleAnalyzeNow}

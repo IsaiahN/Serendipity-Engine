@@ -1,11 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Serendipity | StoryWeaver",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "An AI-powered creative writing workbench that guides authors through building complete works of fiction.",
-  "permissions": [
-    "storage"
-  ],
+  "permissions": [],
   "host_permissions": [
     "https://api.anthropic.com/*",
     "https://api.openai.com/*",
