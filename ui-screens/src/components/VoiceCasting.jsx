@@ -285,7 +285,7 @@ Respond ONLY with the JSON array.` },
               background: 'var(--bg-card)', border: '1px solid var(--border)',
               borderRadius: 'var(--radius-md)', padding: 16,
             }}>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 10, color: 'var(--accent)' }}>{c.name}</div>
+              <div style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: 10, color: 'var(--accent)', textTransform: 'capitalize' }}>{c.name}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.75rem', marginBottom: 10 }}>
                 <div><span style={{ color: 'var(--text-muted)' }}>Age:</span> {c.ageRange}</div>
                 <div><span style={{ color: 'var(--text-muted)' }}>Accent:</span> {c.accent}</div>

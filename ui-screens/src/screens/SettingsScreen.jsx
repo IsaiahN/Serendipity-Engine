@@ -1702,7 +1702,7 @@ function AboutSettings() {
           Built with passion by the Serendipity team
         </p>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          MIT License · Copyright 2024-2025
+          MIT License · Copyright 2026
         </p>
       </div>
     </>
