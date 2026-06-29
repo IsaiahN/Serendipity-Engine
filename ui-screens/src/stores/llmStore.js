@@ -19,9 +19,14 @@ const PROVIDER_ENDPOINTS = {
   deepseek: 'https://api.deepseek.com/chat/completions',
   google: 'https://generativelanguage.googleapis.com/v1beta/models',
   ollama: 'http://localhost:11434/api/chat',
+  lmstudio: 'http://localhost:1234/v1/chat/completions',
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   custom: null, // user-provided
 };
+
+// Self-configured providers (local servers + custom endpoints) the user points
+// at their own base URL. Local ones don't require a real API key.
+const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
 
 /**
  * Lazy load settings store to avoid circular dependencies
@@ -202,7 +207,8 @@ export const useLlmStore = create((set, get) => ({
    */
   testConnection: async (providerKey) => {
     const apiKey = await getApiKey(providerKey);
-    if (!apiKey) {
+    // Local providers (Ollama, LM Studio) run on-device and need no API key.
+    if (!apiKey && !LOCAL_PROVIDERS.includes(providerKey)) {
       set({ lastError: 'No API key found for ' + providerKey });
       return { success: false, error: 'No API key stored' };
     }
@@ -233,15 +239,17 @@ export const useLlmStore = create((set, get) => ({
         case 'openai':
         case 'deepseek':
         case 'openrouter':
+        case 'lmstudio':
         case 'custom': {
           const url = get().providers[providerKey]?.baseUrl || PROVIDER_ENDPOINTS[providerKey];
+          if (!url) return { success: false, error: 'No base URL configured for this provider.' };
           const defaultModel = providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o';
+          const headers = { 'Content-Type': 'application/json' };
+          // Send auth only when a key is present (LM Studio / local servers don't need one).
+          if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
           response = await fetch(url, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
-            },
+            headers,
             body: JSON.stringify({
               model: get().providers[providerKey]?.model || defaultModel,
               max_tokens: 10,
@@ -416,7 +424,7 @@ export const useLlmStore = create((set, get) => ({
     const provider = providers[providerKey];
     const apiKey = await getApiKey(providerKey);
 
-    if (!apiKey) {
+    if (!apiKey && !LOCAL_PROVIDERS.includes(providerKey)) {
       // Mark this provider as needing reconnection
       const newActive = get().activeProviders.filter(k => k !== providerKey);
       set(state => ({
@@ -515,15 +523,16 @@ export const useLlmStore = create((set, get) => ({
         case 'openai':
         case 'deepseek':
         case 'openrouter':
+        case 'lmstudio':
         case 'custom': {
           const url = provider.baseUrl || PROVIDER_ENDPOINTS[providerKey];
+          if (!url) throw new Error('No base URL configured for this provider.');
+          const headers = { 'Content-Type': 'application/json' };
+          if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
           response = await retryWithBackoff(() =>
             fetch(url, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-              },
+              headers,
               body: JSON.stringify({
                 model: provider.model || (providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
                 max_tokens: outputTokens,
@@ -714,7 +723,7 @@ export const useLlmStore = create((set, get) => ({
     const provider = providers[providerKey];
     const apiKey = await getApiKey(providerKey);
 
-    if (!apiKey) {
+    if (!apiKey && !LOCAL_PROVIDERS.includes(providerKey)) {
       throw new Error('API key not found. Please reconnect provider.');
     }
 
@@ -815,15 +824,16 @@ export const useLlmStore = create((set, get) => ({
         case 'openai':
         case 'deepseek':
         case 'openrouter':
+        case 'lmstudio':
         case 'custom': {
           const url = provider.baseUrl || PROVIDER_ENDPOINTS[providerKey];
+          if (!url) throw new Error('No base URL configured for this provider.');
+          const headers = { 'Content-Type': 'application/json' };
+          if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
           response = await retryWithBackoff(() =>
             fetch(url, {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
-              },
+              headers,
               body: JSON.stringify({
                 model: provider.model || (providerKey === 'deepseek' ? 'deepseek-chat' : 'gpt-4o'),
                 max_tokens: streamMaxTokens,

@@ -10,7 +10,8 @@
     "https://api.deepseek.com/*",
     "https://generativelanguage.googleapis.com/*",
     "https://openrouter.ai/*",
-    "http://localhost:11434/*"
+    "http://localhost:11434/*",
+    "http://localhost:1234/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -26,6 +27,6 @@
     "128": "icons/icon-128.png"
   },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.anthropic.com https://api.openai.com https://api.deepseek.com https://generativelanguage.googleapis.com https://openrouter.ai http://localhost:11434;"
+    "extension_pages": "script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: http://localhost:11434 http://localhost:1234;"
   }
 }

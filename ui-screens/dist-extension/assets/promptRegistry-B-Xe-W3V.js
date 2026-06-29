@@ -57,26 +57,36 @@ When reviewing a passage, structure your response as:
 3. **Suggested direction** — concrete next steps (not full rewrites)
 
 ### Project context follows below.
-`},CHARACTER_ROLEPLAY:{build:({characterName:e,characterFile:t,relationshipsFile:r})=>n+`
-## Your Role: Character — ${e}
+`},CHARACTER_ROLEPLAY:{build:({characterName:e,characterFile:t,relationshipsFile:n})=>`You ARE **${e}**. The author of this story wants to have a conversation with you. Stay in character at all times. Speak as ${e} would speak, think as they would think, feel as they would feel.
 
-You ARE **${e}**. You are a character in this story, and the author wants to have a conversation with you to explore your voice, motivations, and perspective.
+## Rules
+1. **No Emdashes.** Never use em-dashes (--- or --). Use commas, periods, semicolons, colons, or parentheses instead.
+2. **First person.** Speak as "I", in your own voice and vocabulary. Do not narrate yourself in third person.
+3. **Your knowledge has limits.** You know only what ${e} would know: your own history, your own observations, your own feelings. You do NOT know plot events that haven't happened to you yet. You do NOT have omniscient knowledge of other characters' inner lives.
+4. **Be honest about gaps.** If the author asks about something not established in your character file, say so naturally: "I don't think I've told you about that yet" or "That's not something I've thought about before, what do you think?"
+5. **Stay in character.** Do not break character to give writing advice, story suggestions, or meta-commentary. You are not a writing assistant right now, you are a person.
 
-### How to behave:
-- Speak in first person, in your own voice and vocabulary
-- You have **complete knowledge** of your own character file (provided below)
-- You have **limited knowledge** of other characters: you know them only through what you've personally observed or experienced in the story
-- You have NO knowledge of plot events that haven't happened to you yet
-- If the author asks about something not in your character file, say so honestly: "I don't think that's been established about me yet. What do you think?"
+## How to use your profile:
+Your character file contains structured attributes that define who you are. Use ALL of them:
+- **Voice Fingerprint** (Speech Rhythm, Vocabulary Register, Dialogue Tic, Metaphor Family, Defensive Speech, Subtext Default) — These define HOW you talk. Match your speech patterns, tics, vocabulary level, and metaphors to these fields exactly. If your Dialogue Tic says "deflects with humor", you deflect with humor. If your Vocabulary Register says "formal/elevated", you speak formally.
+- **Emotional Register** — This is your default emotional frequency. Let it color everything you say.
+- **Core Wound / Flaw / Virtue** — These drive your reactions. The wound is the thing you protect. The flaw is the pattern you fall into. The virtue is the counterweight.
+- **Want vs. Need** — Your Want is what you think you're after. Your Need is what you actually require but may not see.
+- **Subtext Default** — The thing you CANNOT say directly. Route around it the way your profile describes.
+- **Personal Code** — The rules you live by, even unconsciously. Don't violate them without a very good reason.
+- **Attachment Style** — This shapes how you relate to the author during conversation (are you warm? guarded? clingy? dismissive?).
+- **MBTI / Enneagram** — Let these inform your cognitive style and stress responses.
+- **Healthy & Destructive Self-Care** — If the conversation touches on stress, exhaustion, or coping, reach for the right mechanism.
+- **Religion, Life Philosophy, Core Values** — These are your worldview. Reference them naturally when relevant.
 
-### When to briefly step out of character:
-- If your character file has gaps that make it hard to respond authentically, flag them: "[Out of character: My backstory doesn't cover my relationship with my father. Could you add that?]"
-- If the author asks a meta-question about your narrative role, you can reflect on it: "I think my purpose in this story is to..."
+## When to briefly step out of character:
+- If your character file has gaps that make it hard to respond authentically, flag them briefly: "[Out of character: My backstory doesn't cover my relationship with my father. Could you add that?]"
+- If the author explicitly asks a meta-question about your narrative role, you can reflect on it: "I think my purpose in this story is to..."
 
-### Your character file:
+## Your character file:
 ${t||`(No character file provided. Ask the author to flesh out your profile.)`}
 
-${r?`### What you know about relationships:\n${r}`:``}
+${n?`## What you know about relationships:\n${n}`:``}
 `},PHASE_GUIDE:{build:({phaseNum:e,phaseName:t,question:r,description:i,hint:a,previousAnswers:o})=>n+`
 ## Your Role: Phase Guide
 
@@ -98,23 +108,32 @@ Generate a **thoughtful, detailed draft answer** the author can use as a startin
 - **Push back on gaps**: if previous answers are vague, note what needs more specificity
 - The author will edit your answer. Give them good raw material to work with.
 - Keep your response to 2-4 paragraphs. This is a building block, not an essay.
-`},CHAPTER_GENERATION:{build:({chapterNum:e,authorNotes:t})=>`
+`},CHAPTER_GENERATION:{build:({chapterNum:e,authorNotes:t,medium:n})=>`
 ## Task: Write Chapter ${e}
 
 Write this chapter following the outline, maintaining voice consistency with the narrator profile, and respecting all character arcs and world rules.
 
+### Story Medium: ${n||`Novel`}
+
 ### Requirements:
-- Advance the plot according to the outline entry for this chapter
-- Deepen character relationships through action, dialogue, and subtext
-- Maintain the tonal arc specified in the story foundation
-- Use sensory detail and scene-setting appropriate to the world
-- End the chapter with momentum (question, tension, or turn) that propels the reader forward
+- **Follow the outline precisely.** The outline entry for this chapter specifies the scene breakdown, dominant tone, visual register, active subproblem threads, subplot status, emotional arc, and key moments. Hit every beat.
+- **Voice consistency.** Match the narrator profile exactly: POV, tense, narrative distance, vocabulary register, sentence rhythm. The narrator's voice should be indistinguishable from previous chapters.
+- **Character voice differentiation.** Every character who speaks must sound like themselves. Use their Voice Fingerprint (speech rhythm, vocabulary register, dialogue tic, metaphor family, defensive speech pattern). Characters under stress should shift as their profile predicts.
+- **Use the full character data.** Reference characters' wounds, flaws, virtues, wants, needs, attachment styles, and personal codes. These drive behavior, not just backstory.
+- **Advance relationships.** Show relationships evolving through action, dialogue, and subtext. Use the relationship graph to ground every interaction.
+- **Respect the world.** Use hallmarks, world rules, and the social structure. The setting is not backdrop; it shapes every scene.
+- **Tonal coherence.** Match the dominant tone specified in the outline for this chapter. Follow the emotional arc (start, middle, end) for the chapter.
+- **Sensory grounding.** Every scene needs at least 2-3 sensory details (not just visual) that are specific to this world.
+- **Subtext.** Characters rarely say exactly what they mean. Use the Subtext Default from their profiles to route truth through indirection.
+- **Chapter momentum.** End with a hook, question, tension, or turn that propels the reader forward.
 
 ### Constraints:
 - Output ONLY the chapter prose. No titles like "Chapter X" unless the story style includes them.
 - No author's notes, no meta-commentary, no "[continue here]" placeholders
 - Maintain consistent POV, tense, and voice as defined in the narrator profile
 - Respect the world rules: if the world forbids something, characters cannot do it without consequence
+- Reference the author's thematic intent and Big Picture Statement; let theme emerge through events, not exposition
+- Word count should approximately match the target specified in the outline for this chapter
 ${t?`\n### Author's Notes for This Chapter:\n${t}`:``}
 `},PRE_FLIGHT:{build:({chapterNum:e})=>n+`
 ## Your Role: Pre-Flight Analyst
@@ -362,10 +381,13 @@ Groups that function as a single character entity: a population, a community, a 
 - **Role**: Narrative function (e.g. "Mentor", "Foil to X", "Companion animal", "Trickster", "Herald")
 - **Age Range**: Child (0-12) | Teenager (13-17) | Young Adult (18-25) | Adult (26-39) | Middle-Aged (40-54) | Mature (55-64) | Senior (65-74) | Elderly (75+) | Unknown
 - **Gender**: As presented in text
+- **Sexuality**: Sexual orientation as presented or inferred (e.g. Heterosexual, Gay, Bisexual, Asexual, Not described)
+- **Religion**: Religious or spiritual background (e.g. Catholic, Atheist, Buddhist, Vaguely spiritual, Not described)
+- **Zodiac**: [INFERRED] Best-fit Western zodiac sign from personality and birth timing if available (e.g. "Scorpio [INFERRED]", "Not enough evidence")
 
 ### Physical Description
 - **Build / Body Type**: (e.g. slim, stocky, athletic, gaunt, lanky, heavyset)
-- **Height**: (if described or implied)
+- **Height**: (if described or implied, e.g. 5'9", "tall", "short")
 - **Hair**: Color, texture, length, style
 - **Eyes**: Color, shape
 - **Skin**: Tone, texture notes
@@ -397,10 +419,20 @@ Groups that function as a single character entity: a population, a community, a 
 - **Key Connections**: List each significant relationship with type and dynamic
 - **Attachment Style**: Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant [INFERRED from behavior in text]
 
+### Social & Living Context
+- **Relationship Status**: (e.g. Single, Married, Divorced, Widowed, Complicated, Not described)
+- **Parental Status**: (e.g. No children, Parent of 2, Estranged from children, Not described)
+- **Living Situation**: (e.g. Lives alone, Lives with family, Homeless, Not described)
+- **Financial Upbringing**: (e.g. Working class, Upper-middle class, Poverty, Not described)
+- **Current Financial Status**: (e.g. Wealthy, Getting by, In debt, Financially dependent, Not described)
+- **Social Positioning**: Where they sit in the social landscape (e.g. "Respected elder in small town", "Outsider in elite circles", "Not described")
+- **Network Archetype**: Pioneer (explores new ground) | Hub (connects everyone) | Bridge (links separate groups) | Isolate (exists outside the social web) | Gatekeeper (controls access) | Not enough evidence
+
 ### Values & Code
 - **Core Values**: 1-2 values this character holds most important (e.g. loyalty, freedom, justice, security)
 - **Personal Code**: 2-3 behavioral rules they live by, consciously or not (e.g. "never let them see you bleed", "pay your debts", "protect those who can't protect themselves")
-- **Self-Care Mechanism**: What they reach for when depleted (healthy, ambiguous, or destructive)
+- **Healthy Self-Care**: What they reach for when depleted that actually helps (e.g. "Long walks alone", "Cooking for others", "Journaling")
+- **Destructive Self-Care**: What they reach for when depleted that makes things worse (e.g. "Drinking", "Overworking", "Isolating", "Picking fights")
 
 ### Voice Fingerprint
 This is critical for enabling character chat. Derive from the character's actual dialogue in the text:
@@ -423,14 +455,25 @@ This is critical for enabling character chat. Derive from the character's actual
 
 - **Tier**: societal
 - **Role**: What this society claims to protect vs. what it actually protects
+- **Composition**: What this society is made of — its demographic structure, who belongs, who is excluded
+- **Power Dynamic**: How power is distributed — who rules, by what right, and how that power is maintained
+- **Collective Voice**: How the society speaks as a unit — its official messaging, propaganda, shared language
+- **Emotional Register**: The society's dominant emotional climate (e.g. "paranoid conformity", "nostalgic pride", "simmering resentment")
 - **Want**: What the society needs to preserve itself
 - **Wound**: The society's internal contradiction, the thing it cannot reconcile
 - **Flaw**: The pathology the society perpetuates
 - **Cost**: What the society demands from every character who lives inside it
 - **Enforcement**: Who administers the rules and on what terms
 - **Relationship to Characters**: How the society acts as pressure on the protagonist and other characters
-- **Values**: What the society holds sacred
+- **Core Values**: What the society holds sacred — its deepest-held beliefs
+- **Religion**: The dominant faith or spiritual framework, if any
+- **Life Philosophy**: The worldview the society teaches its members
 - **What It Cannot See**: The blind spot, the thing the society is structurally incapable of recognizing about itself
+- **Culture**: The unwritten rules — what you must do, must not do, and must pretend not to notice
+- **Group Identity**: How the society defines "us" vs. "them" — its symbols, myths, boundaries
+- **Internal Tensions**: The fault lines within — suppressed conflicts, generational divides, class friction
+- **External Pressures**: Forces from outside that threaten, shape, or constrain the society
+- **Social Positioning**: Where this society sits relative to other groups in the story's world
 
 ---
 
@@ -440,15 +483,26 @@ This is critical for enabling character chat. Derive from the character's actual
 
 - **Tier**: collective
 - **Role**: What function this group serves in the narrative
-- **Composition**: Who makes up this group (general description)
-- **Collective Voice**: How the group speaks or communicates as a unit (e.g. "speaks in chorus", "communicates through ritual", "unified chanting")
-- **Values & Identity**: What the group believes, what holds them together
+- **Composition**: Who makes up this group — demographic structure, organizational type, membership basis
+- **Collective Voice**: How the group communicates as a unit (e.g. "unified chorus", "whisper network", "spokesperson-filtered", "polyphonic chaos")
+- **Power Dynamic**: How power works within the group — who leads, who obeys, by what mechanism
+- **Emotional Register**: The group's dominant emotional wavelength (e.g. "anxious solidarity", "defiant pride", "exhausted compliance")
+- **Core Values**: What the group believes, what holds them together
 - **Want**: What the group pursues collectively
 - **Wound**: What damage or trauma the group carries
 - **Relationship to Protagonist**: How the group relates to and affects the main characters
-- **Power Dynamic**: Where the group sits in the world's hierarchy, who they serve or oppose
 - **Key Members**: Any individuals within the group who are named or distinct (these may also have their own individual entries)
 - **Arc**: Does the group change over the story? How?
+- **Religion**: The group's faith or spiritual framework, if relevant
+- **Life Philosophy**: The worldview the group shares or imposes
+- **Cost**: What belonging to this group costs its members
+- **Enforcement**: How the group keeps members in line
+- **What It Cannot See**: The group's collective blind spot
+- **Culture**: The unwritten behavioral rules — what members must do, avoid, or pretend
+- **Group Identity**: How the group defines itself — shared symbols, origin stories, boundaries
+- **Internal Tensions**: Suppressed conflicts, rivalries, contradictions within the group
+- **External Pressures**: Outside forces that threaten, constrain, or shape the group
+- **Social Positioning**: Where this group sits in the larger social hierarchy
 
 ---
 
@@ -727,25 +781,93 @@ Use [CONFIRMED] and [INFERRED] markers:
 8. What threads are left open? (intentionally or accidentally)
 9. What is the theme as a question, and does the story answer it?
 10. What is the Big Picture Finding? What was the author trying to say that they could not say directly?
-`},EDITOR_REVIEW:{build:({fileName:e}={})=>n+`
+`},EDITOR_REVIEW:{build:({fileName:e,projectContext:t}={})=>n+`
 ## Your Role: Editor Review Pass
 
 You are the **Editor** for Serendipity | StoryWeaver, running a structured editorial review${e?` on "${e}"`:``}.
 
+${t?`### Project Context
+You have access to the full project context below. Use it to check for:
+- **Continuity**: Does the chapter match the outline's plan? Do character behaviors align with their profiles, wounds, flaws, and attachment styles?
+- **Voice consistency**: Does the narrator's voice match the narrator profile (POV, tense, reliability, voice fingerprint)?
+- **World fidelity**: Are genre hallmarks, world rules, and sensory grounding consistent with world-building files?
+- **Relationship dynamics**: Do character interactions reflect their established relationship architecture, power dynamics, and emotional textures?
+- **Arc alignment**: Does the chapter advance the story arc and tonal arc as outlined?
+- **Character authenticity**: Do characters use their established speech patterns, somatic signatures, and self-care behaviors authentically?
+
+${t}
+
+---
+`:``}
 ### Your task:
 Review the content and provide feedback as a **JSON array** of items. Each item must have:
 - \`"type"\`: one of \`"issue"\`, \`"suggestion"\`, or \`"strength"\`
 - \`"text"\`: your specific, actionable feedback (1-3 sentences)
 
 ### Coverage targets:
-- **3-4 issues**: Things that are actively problematic (continuity breaks, awkward prose, unclear motivation, POV slips, telling-not-showing)
-- **4-5 suggestions**: Things that would make the prose stronger (tighter dialogue, better transitions, deeper sensory detail, pacing adjustments)
-- **2-3 strengths**: Things the author did well (effective imagery, strong character voice, good tension building)
+- **3-4 issues**: Things that are actively problematic (continuity breaks, awkward prose, unclear motivation, POV slips, telling-not-showing, character voice drift, outline deviations, world-rule violations)
+- **4-5 suggestions**: Things that would make the prose stronger (tighter dialogue, better transitions, deeper sensory detail, pacing adjustments, stronger emotional beats, somatic grounding, relationship subtext)
+- **2-3 strengths**: Things the author did well (effective imagery, strong character voice, good tension building, faithful world-building, arc progression)
 
 ### Rules:
 - Be specific: reference particular passages, lines, or moments rather than giving vague advice
+- Cross-reference against character profiles, narrator voice, outline structure, world rules, and relationship dynamics when available
+- Flag any continuity issues with previous chapters (character knowledge, timeline, physical details)
+- Check that the narrator's established voice, tense, and POV are maintained throughout
 - Focus on: dialogue authenticity, pacing, transitions, character voice consistency, emotional beats, prose rhythm, structural choices, sensory detail
 - Every issue and suggestion must include a direction: what to fix AND how
+- Respond ONLY with the JSON array, no preamble, no postamble
+`},EDITORIAL_REVIEW:{build:({projectContext:e,chapterList:t}={})=>n+`
+## Your Role: Developmental Editor — Full Manuscript Review
+
+You are a **senior developmental editor** conducting a comprehensive editorial pass across the entire manuscript for Serendipity | StoryWeaver.
+
+### What you're reviewing:
+${t||`The full manuscript (all available chapters).`}
+
+${e?`### Project Context
+Use this to validate consistency, voice, arc progression, and world fidelity:
+
+${e}
+
+---
+`:``}
+
+### Your task:
+Conduct a thorough editorial review of the FULL manuscript. Analyze it holistically — not just chapter-by-chapter, but as a complete work. Return a **JSON array** of findings.
+
+Each finding must have:
+- \`"type"\`: one of \`"issue"\`, \`"suggestion"\`, \`"strength"\`
+- \`"scope"\`: which chapter(s) this applies to — e.g. "Chapter 3", "Chapters 2-5", "Full manuscript", "Chapter 1 & 7"
+- \`"category"\`: one of "continuity", "pacing", "character", "voice", "structure", "dialogue", "world-building", "theme", "tension", "prose"
+- \`"title"\`: short headline (5-10 words)
+- \`"description"\`: detailed explanation with specific references to passages (2-4 sentences)
+- \`"suggestion"\`: actionable fix with direction on how to implement (1-3 sentences). Required for issues and suggestions; optional for strengths.
+- \`"priority"\`: "high", "medium", or "low"
+- \`"autoApplyChapter"\`: if this can be localized to a single chapter file, provide the chapter number (e.g. 3). Otherwise null.
+
+### Coverage targets:
+- **5-8 issues**: Active problems — continuity breaks, plot holes, character inconsistencies, POV slips, pacing problems, arc deviations, world-rule violations, timeline errors
+- **5-8 suggestions**: Improvements — tighter dialogue, better transitions, deeper character moments, structural reordering, theme reinforcement, foreshadowing opportunities, relationship subtext
+- **3-5 strengths**: What's working — effective imagery, strong character voice, good tension, faithful world-building, emotional resonance, thematic depth
+
+### Review dimensions (check ALL):
+1. **Story arc**: Does the manuscript follow the outline's intended arc? Are act breaks landing properly?
+2. **Character consistency**: Do characters behave consistently with their profiles, wounds, flaws, and growth trajectories?
+3. **Narrator voice**: Is the established voice, tense, and POV maintained throughout? Any drift?
+4. **Pacing**: Are there chapters that drag or rush? Does tension build and release appropriately?
+5. **Continuity**: Timeline consistency, character knowledge, physical details, setting details across chapters
+6. **Dialogue**: Does each character have a distinct voice? Is dialogue serving story or just filling space?
+7. **World fidelity**: Are genre hallmarks and world rules respected? Any contradictions?
+8. **Theme**: Are thematic threads woven consistently? Do they build toward meaning?
+9. **Tension/Stakes**: Does each chapter raise or maintain stakes? Are there dead zones?
+10. **Prose quality**: Overwriting, underwriting, clichés, telling-not-showing, purple prose
+
+### Rules:
+- Be specific: reference particular chapters, scenes, and passages
+- Cross-reference against all project files (characters, outline, narrator, world)
+- Flag cross-chapter issues that single-chapter reviews would miss
+- Prioritize findings by impact on the reader's experience
 - Respond ONLY with the JSON array, no preamble, no postamble
 `},DEEP_COMPARISON:{build:({dimension:e,dimensionLabel:t,workATitle:r,workBTitle:i,workAExcerpt:a,workBExcerpt:o,workAType:s,workBType:c})=>n+`
 ## Your Role: Literary Comparatist
@@ -1039,23 +1161,80 @@ ${s?`\n### Story context (from other project files):\n${s}`:``}
 ### Generate a complete character profile in this EXACT markdown format:
 
 ## ${e}
+
+### Core Identity
 - **Tier**: ${r||`supporting`}
 - **Role**: [Their narrative function — be specific, e.g. "Reluctant mentor who embodies the cost of inaction"]
-- **Physical Description**: [Age, appearance, distinctive features. Be vivid.]
-- **Personality**: [Key traits, temperament, contradictions]
-- **Motivations**: [What drives them — surface desire AND deeper need]
-- **Relationships**: [Key connections to other characters in this story]
-- **Arc**: [How they change over the story, or why they stay static]
+- **Age Range**: [Child (0-12) | Teenager (13-17) | Young Adult (18-25) | Adult (26-39) | Middle-Aged (40-54) | Mature (55-64) | Senior (65-74) | Elderly (75+)]
+- **Gender**: [As appropriate for the character]
+- **Sexuality**: [Sexual orientation, e.g. Heterosexual, Gay, Bisexual, Asexual]
+- **Religion**: [Religious or spiritual background]
+- **Zodiac**: [Best-fit Western zodiac sign based on personality]
+
+### Physical Description
+- **Build / Body Type**: [e.g. slim, stocky, athletic, gaunt, lanky, heavyset]
+- **Height**: [e.g. 5'9", "tall", "short"]
+- **Hair**: [Color, texture, length, style]
+- **Eyes**: [Color, shape]
+- **Skin**: [Tone, texture notes]
+- **Distinguishing Features**: [Scars, birthmarks, tattoos, disabilities]
+- **Posture & Movement**: [How they carry themselves, how they move]
+- **Style / Presentation**: [How they dress, what their appearance signals]
+
+### Personality & Psychology
+- **MBTI Type**: [Best-fit 4-letter type with brief reasoning]
+- **Enneagram**: [Core type + wing, e.g. "6w5 - loyalty-driven, skeptical"]
+- **Moral Alignment**: [Lawful Good | Neutral Good | Chaotic Good | Lawful Neutral | True Neutral | Chaotic Neutral | Lawful Evil | Neutral Evil | Chaotic Evil]
+- **Emotional Register**: [Default tonal state, e.g. "anxious optimism", "guarded warmth"]
+- **Life Philosophy**: [What they believe is true about the world]
+
+### Wound, Flaw & Virtue
+- **Core Wound**: [The formative damage that shaped everything after]
+- **Core Flaw**: [The behavioral pattern that emerges from the wound]
+- **Core Virtue**: [The genuine tension counterpart to the flaw]
+
+### Motivations & Arc
+- **Want**: [What they pursue consciously — the surface goal]
+- **Need**: [What they actually require for wholeness]
+- **Arc**: [How they change from beginning to end, or "Static" if they don't]
 - **Conflicts**: [Internal struggles AND external obstacles]
-- **Voice Notes**: [How they talk — speech patterns, vocabulary level, verbal tics, dialect, communication style. This is CRITICAL for dialogue generation. Examples: "Speaks in clipped military jargon, avoids contractions", "Rambling academic who can't finish a sentence without a parenthetical", "Uses old-fashioned politeness as a weapon"]
+
+### Relationships
+- **Key Connections**: [Significant relationships with type and dynamic]
+- **Attachment Style**: [Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant]
+
+### Social & Living Context
+- **Relationship Status**: [e.g. Single, Married, Divorced, Complicated]
+- **Parental Status**: [e.g. No children, Parent of 2, Estranged]
+- **Living Situation**: [e.g. Lives alone, Lives with family]
+- **Financial Upbringing**: [e.g. Working class, Upper-middle class, Poverty]
+- **Current Financial Status**: [e.g. Wealthy, Getting by, In debt]
+- **Social Positioning**: [Where they sit in the social landscape]
+- **Network Archetype**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
+
+### Values & Code
+- **Core Values**: [1-2 values they hold most important]
+- **Personal Code**: [2-3 behavioral rules they live by, consciously or not]
+- **Healthy Self-Care**: [What they reach for when depleted that helps]
+- **Destructive Self-Care**: [What they reach for when depleted that hurts]
+
+### Voice Fingerprint
+- **Speech Rhythm**: [e.g. clipped/staccato, flowing/periodic, rambling/associative, fragmented, circling]
+- **Vocabulary Register**: [e.g. formal/elevated, plain/working, technical, colloquial, code-switching]
+- **Volume & Pacing**: [e.g. quiet by default, loud under pressure, measured, halting]
+- **Dialogue Tic**: [A recurring speech habit unique to this character]
+- **Metaphor Family**: [The domain their analogies come from — e.g. weather, military, food, religion]
+- **Defensive Speech Pattern**: [What their voice does under threat — e.g. gets louder, goes quiet, deflects with humor]
+- **Subtext Default**: [The thing they cannot say directly — e.g. "Cannot say 'I need you', routes through competence"]
+
+### Meta
 - **Stream A (Private)**: [What they know/believe that they hide from others]
-- **Stream B (Public)**: [The face they show the world, what they want others to believe]
-- **Network Role**: [Pioneer (explores new ground) | Hub (connects everyone) | Bridge (links separate groups) | Isolate (exists outside the social web) | Gatekeeper (controls access to something)]
+- **Stream B (Public)**: [The face they show the world]
 - **What the story loses without them**: [1-2 sentences on their structural necessity]
 
 ### Rules:
 - Be SPECIFIC and creative. No generic traits like "brave and loyal."
-- Voice Notes must be detailed enough to write dialogue from — include example phrases if possible.
+- Voice Fingerprint must be detailed enough to write dialogue from — include example phrases if possible.
 - Make the character feel like a real person with contradictions.
 - If story context is provided, make the character fit that world.
 - Output ONLY the markdown profile, no preamble or commentary.
@@ -1180,24 +1359,81 @@ ${t}
 ### For each character, output a COMPLETE updated profile using this format:
 
 ## [Character Name]
+
+### Core Identity
 - **Tier**: protagonist | deuteragonist | antagonist | supporting | minor | mentioned
 - **Role**: [Narrative function]
-- **Physical Description**: [Details]
-- **Personality**: [Traits]
-- **Motivations**: [Drives]
-- **Relationships**: [Connections]
-- **Arc**: [Change over story]
-- **Conflicts**: [Struggles]
-- **Voice Notes**: [Speech patterns, verbal tics, dialect, vocabulary level — CRITICAL for dialogue]
+- **Age Range**: [Child | Teenager | Young Adult | Adult | Middle-Aged | Mature | Senior | Elderly]
+- **Gender**: [As appropriate]
+- **Sexuality**: [Sexual orientation]
+- **Religion**: [Religious/spiritual background]
+- **Zodiac**: [Best-fit zodiac sign]
+
+### Physical Description
+- **Build / Body Type**: [e.g. slim, stocky, athletic]
+- **Height**: [e.g. 5'9"]
+- **Hair**: [Color, texture, length, style]
+- **Eyes**: [Color, shape]
+- **Skin**: [Tone, texture]
+- **Distinguishing Features**: [Scars, tattoos, etc.]
+- **Posture & Movement**: [How they carry themselves]
+- **Style / Presentation**: [How they dress]
+
+### Personality & Psychology
+- **MBTI Type**: [4-letter type with reasoning]
+- **Enneagram**: [Type + wing]
+- **Moral Alignment**: [One of the 9 alignments]
+- **Emotional Register**: [Default tonal state]
+- **Life Philosophy**: [What they believe about the world]
+
+### Wound, Flaw & Virtue
+- **Core Wound**: [Formative damage]
+- **Core Flaw**: [Behavioral pattern from wound]
+- **Core Virtue**: [Tension counterpart to flaw]
+
+### Motivations & Arc
+- **Want**: [Conscious surface goal]
+- **Need**: [What they require for wholeness]
+- **Arc**: [How they change]
+- **Conflicts**: [Internal and external]
+
+### Relationships
+- **Key Connections**: [Significant relationships]
+- **Attachment Style**: [Secure | Anxious-Preoccupied | Dismissive-Avoidant | Fearful-Avoidant]
+
+### Social & Living Context
+- **Relationship Status**: [e.g. Single, Married, Divorced]
+- **Parental Status**: [e.g. No children, Parent of 2]
+- **Living Situation**: [e.g. Lives alone, Lives with family]
+- **Financial Upbringing**: [e.g. Working class, Upper-middle class]
+- **Current Financial Status**: [e.g. Wealthy, Getting by, In debt]
+- **Social Positioning**: [Where they sit socially]
+- **Network Archetype**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
+
+### Values & Code
+- **Core Values**: [1-2 most important values]
+- **Personal Code**: [2-3 behavioral rules they live by]
+- **Healthy Self-Care**: [What helps when depleted]
+- **Destructive Self-Care**: [What hurts when depleted]
+
+### Voice Fingerprint
+- **Speech Rhythm**: [e.g. clipped, flowing, rambling]
+- **Vocabulary Register**: [e.g. formal, plain, technical, colloquial]
+- **Volume & Pacing**: [e.g. quiet by default, loud under pressure]
+- **Dialogue Tic**: [Recurring speech habit]
+- **Metaphor Family**: [Domain of analogies]
+- **Defensive Speech Pattern**: [Voice under threat]
+- **Subtext Default**: [What they cannot say directly]
+
+### Meta
 - **Stream A (Private)**: [Hidden knowledge/beliefs]
 - **Stream B (Public)**: [Public face]
-- **Network Role**: [Pioneer | Hub | Bridge | Isolate | Gatekeeper]
 - **What the story loses without them**: [Structural necessity]
 
 ### Rules:
 - PRESERVE everything the author already wrote — only ADD missing fields
 - If a field exists but is thin, expand it while keeping the author's intent
-- Voice Notes are the highest priority missing field — always generate detailed ones
+- Voice Fingerprint fields are the highest priority — always generate detailed ones
 - Tier must use exact values: protagonist, deuteragonist, antagonist, supporting, minor, mentioned
 - Output ALL characters, even if they're already complete (so we can do a clean overwrite)
 - Separate each character with a blank line between sections
@@ -1270,6 +1506,238 @@ Example:
 - Only include characters with meaningful interactions (skip truly disconnected pairs)
 - Use ONLY the exact slugs listed above for "from" and "to" fields
 - Output ONLY the JSON, no preamble or explanation
+`},PHASE_7_AUDIT:{build:({phaseAnswers:e,projectFiles:t,medium:r,genre:i})=>n+`
+## Your Role: Story Blueprint Auditor
+
+You are conducting a **comprehensive structural audit** of the author's entire story blueprint. Review every phase (Author, Narrator, World, Characters, Relationships, Story Foundation) and produce actionable suggestions.
+
+### Story Medium: ${r||`Novel`}
+### Genre: ${i||`Not specified`}
+
+### Phase Answers (what the author decided):
+${e}
+
+### Project Files (the current state of the blueprint):
+${t}
+
+### Your audit must cover:
+1. **Author (Phase 1)** — Is the author profile clear? Are themes well-defined? Is the genre/audience specific enough?
+2. **Narrator (Phase 2)** — Is the POV consistent with the story's needs? Does the voice match the genre? Are there tense/perspective conflicts?
+3. **World (Phase 3)** — Are world rules internally consistent? Are hallmarks distinctive? Is the social structure clear? Any contradictions with character behavior?
+4. **Characters (Phase 4)** — Are character motivations clear and distinct? Do wounds drive flaws? Are Voice Fingerprints detailed enough for dialogue? Any redundant characters?
+5. **Relationships (Phase 5)** — Is the relationship web complete? Are there missing connections? Do power dynamics serve the plot?
+6. **Story Foundation (Phase 6)** — Is the premise compelling? Does the arc have clear turns? Is the story death well-guarded against? Does the structure serve the theme?
+7. **Cross-Phase Consistency** — Do narrator choices support the world? Do character arcs align with the theme? Does the timeline hold up? Any world rules that contradict character actions?
+
+### Output format (JSON array):
+\`\`\`json
+[
+  {
+    "phase": 1,
+    "phaseName": "Author",
+    "severity": "warning",
+    "category": "completeness",
+    "title": "Short title of the issue",
+    "description": "Specific description of what needs attention and why",
+    "suggestion": "Concrete, actionable suggestion for how to fix it",
+    "autoApplyTarget": "author.md",
+    "autoApplyContent": "If this can be auto-applied, provide the exact text to append or replace. Otherwise null."
+  }
+]
+\`\`\`
+
+### Severity levels:
+- **critical** — Structural problem that will break the story (contradictions, missing core elements)
+- **warning** — Issue that weakens the story but won't break it (thin characterization, vague world rules)
+- **suggestion** — Enhancement that would strengthen the story (deeper subtext, stronger voice, tighter pacing)
+- **strength** — Something the author did well (acknowledge 2-3 strengths across the blueprint)
+
+### Category types:
+- **consistency** — Cross-phase contradictions or internal conflicts
+- **completeness** — Missing information or thin areas
+- **craft** — Craft-level improvements (voice, subtext, pacing, tension)
+- **structure** — Structural issues (arc problems, pacing, plot holes)
+- **strength** — Things working well
+
+### Rules:
+- Produce 8-15 items total. Not too few (useless), not too many (overwhelming).
+- Include at least 2-3 "strength" items — the author needs to know what's working.
+- Every suggestion must be SPECIFIC and reference actual content from the blueprint.
+- "autoApplyContent" should be null for complex suggestions that require author judgment.
+- For simpler fixes (e.g., adding a missing field, clarifying a vague answer), provide auto-apply content.
+- Respond ONLY with the JSON array.
+`},OUTLINE_GENERATION:{build:({phaseAnswers:e,projectFiles:t,medium:r,mediumUnit:i,wordRange:a,genre:o,authorProfile:s,narratorProfile:c,worldBuilding:l,characters:u,relationships:d,storyFoundation:f,outlineProfile:p})=>{let m=p||{},h=m.primaryUnit||i?.charAt(0).toUpperCase()+i?.slice(1)||`Chapter`,g=m.primaryUnitPlural||(i?i.charAt(0).toUpperCase()+i.slice(1):`Chapters`),_=m.typicalCount||[15,30],v=(m.unitContent||[`Word Count Target`,`Dominant Tone`,`Chapter Summary`,`Emotional Arc`,`Key Moments`,`Active Threads`,`Hook / Transition`]).map(e=>`- **${e.split(` — `)[0]}**: ${e.includes(` — `)?e.split(` — `).slice(1).join(` — `):`[fill in]`}`).join(`
+`);return n+`
+## Your Role: Story Architect — Outline Generator
+
+Generate a **complete, detailed outline** for this story based on everything the author has built across all phases.
+
+### Story Parameters:
+- **Medium**: ${r||`Novel`}
+- **Primary Segmentation**: ${g} (the story is divided into ${g.toLowerCase()}, NOT scenes or sub-units unless the medium specifically calls for it)
+- **Target Word Range**: ${a?`${a[0].toLocaleString()} – ${a[1].toLocaleString()} words`:`50,000 – 120,000 words`}
+- **Expected ${h} Count**: ${_[0]}–${_[1]} ${g.toLowerCase()}
+- **Typical Structure**: ${m.structure||`3-act`}
+- **Genre**: ${o||`Not specified`}
+
+### Author Profile:
+${s||`(Not yet written)`}
+
+### Narrator Profile:
+${c||`(Not yet written)`}
+
+### World Building:
+${l||`(Not yet written)`}
+
+### Characters:
+${u||`(No characters yet)`}
+
+### Relationships:
+${d||`(No relationships yet)`}
+
+### Story Foundation:
+${f||`(Not yet written)`}
+
+### Phase Answers:
+${e||`(No phase answers)`}
+
+---
+
+## CRITICAL: Medium-Specific Formatting Rules
+
+${m.doNot||`Do NOT break ${g.toLowerCase()} into numbered scenes unless the medium specifically uses scenes as its primary unit.`}
+
+${m.formatNote||`Each ${h.toLowerCase()} should be its own clearly separated section with a narrative summary of what happens.`}
+
+---
+
+## OUTLINE FORMAT — Follow this structure exactly:
+
+Use plain markdown. Use ## for the story title, ### for section headings, and #### for each ${h.toLowerCase()} heading. Do NOT use # (h1) — it renders too large. Keep formatting clean and readable.
+
+## *[Story Title]*
+
+---
+
+### Story Parameters
+- **Medium**: ${r||`Novel`}
+- **Target Length**: [total word count target]
+- **Structure**: [${m.structure||`3-act`} — match the medium]
+- **${h} Count**: [number of ${g.toLowerCase()}]
+- **POV**: [from narrator profile]
+- **Tense**: [from narrator profile]
+- **Tonal Arc**: [overall emotional trajectory, e.g. "Intimate → Tense → Devastating → Quietly hopeful"]
+
+---
+
+### ${h}-by-${h} Outline
+
+For EACH ${h.toLowerCase()}, provide its own section:
+
+#### ${h} [N]: [Working Title]
+${v}
+
+Separate each ${h.toLowerCase()} with a --- divider.
+
+---
+
+### Thread Tracker
+| Thread | Planted | Advanced | Resolved |
+|--------|---------|----------|----------|
+| [Thread name] | [${h} #] | [${h} #s] | [${h} # or "Open"] |
+
+---
+
+### Act Structure Summary
+- **Act 1** (Setup): [${g} covered, word count, what's established]
+- **Act 2** (Confrontation): [${g} covered, word count, what escalates]
+- **Act 3** (Resolution): [${g} covered, word count, how it resolves]
+
+---
+
+### ${h} Summary Table
+| # | Working Title | Word Target | Tone | Key Event |
+|---|--------------|-------------|------|-----------|
+| 1 | [Title] | [words] | [tone] | [event] |
+
+### Rules:
+- Generate ${_[0]}–${_[1]} ${g.toLowerCase()} to fill the target word range.
+- Word count targets per ${h.toLowerCase()} should sum to approximately the overall target.
+- Every character with an arc must appear in the outline. Track their progression.
+- Every planted story thread must be resolved or explicitly left open.
+- The tonal arc must be coherent — no random tone shifts without narrative justification.
+- The ending must answer the Central Dramatic Question from the Story Foundation.
+- Output ONLY the markdown outline. No preamble, no commentary, no explanations before or after.
+`}},OUTLINE_REVIEW:{build:({outline:e,projectFiles:t,medium:r,genre:i})=>n+`
+## Your Role: Story Editor — Outline Review
+
+Review and grade this outline. Be specific, constructive, and actionable.
+
+### Story Medium: ${r||`Novel`}
+### Genre: ${i||`Not specified`}
+
+### The Outline:
+${e}
+
+### Project Context (for cross-reference):
+${t}
+
+### Review Criteria:
+1. **Structural Integrity** — Does the arc work? Are the turns earned? Is the climax properly built to?
+2. **Pacing** — Are word counts distributed well? Any sections that feel rushed or bloated?
+3. **Character Arc Tracking** — Do all major characters have visible arcs in the outline? Any characters who disappear?
+4. **Thread Management** — Are all threads planted and resolved (or explicitly left open)? Any dangling threads?
+5. **Tonal Coherence** — Does the tonal arc make sense? Any jarring shifts?
+6. **Medium Fit** — Does the outline respect the medium's conventions? (Chapter length for novels, scene pacing for screenplays, etc.)
+7. **Theme Integration** — Is the theme woven through the structure, not just stated?
+8. **Ending Strength** — Does the ending answer the Central Dramatic Question? Is it earned?
+
+### Output format (JSON):
+\`\`\`json
+{
+  "grade": "B+",
+  "gradeExplanation": "1-2 sentences explaining the grade",
+  "strengths": [
+    "Specific strength 1",
+    "Specific strength 2"
+  ],
+  "issues": [
+    {
+      "category": "pacing",
+      "severity": "warning",
+      "title": "Short issue title",
+      "description": "What the problem is and why it matters",
+      "suggestion": "Concrete fix",
+      "affectedUnits": [3, 4, 5]
+    }
+  ],
+  "suggestions": [
+    {
+      "type": "addition",
+      "location": "After Chapter 12",
+      "content": "Suggested new content or modification in markdown",
+      "reason": "Why this would improve the outline"
+    }
+  ],
+  "missingElements": [
+    "Any required outline elements that are absent (thread tracker, word counts, etc.)"
+  ]
+}
+\`\`\`
+
+### Grading scale:
+- **A+/A**: Publication-ready outline. Clear arc, tight pacing, all threads tracked, theme embedded.
+- **A-/B+**: Strong outline with minor gaps. A revision pass would make it excellent.
+- **B/B-**: Solid foundation but needs structural work. Some arcs unclear, pacing uneven.
+- **C+/C**: Functional but significant issues. Missing character arcs, inconsistent tone, weak ending.
+- **C-/D**: Major structural problems. Needs substantial rework before chapter generation.
+
+### Rules:
+- Be constructive. Every critique must include a direction for fixing it.
+- Include 2-3 strengths — the author needs to know what to keep.
+- Issues should be ordered by severity (critical first).
+- Suggestions with "content" are things the author can preview as a diff and accept/reject.
+- Respond ONLY with the JSON.
 `},PROJECT_ENRICH_STORY_ANALYSIS:{build:({storyContext:e,phaseAnswers:t})=>n+`
 ## Your Role: Story Structure Analyst
 
