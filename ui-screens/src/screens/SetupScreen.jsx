@@ -5,7 +5,7 @@ import Card from '../components/Card';
 import { Key, LogIn, Check, AlertTriangle, Loader, Server, Plus, Trash2, ExternalLink, Shield, Info } from 'lucide-react';
 import { useLlmStore } from '../stores/llmStore';
 import { useSettingsStore } from '../stores/settingsStore';
-import { LLM_PROVIDERS, STANDARD_ROLES, ROLE_ASSIGNMENT_MODES } from '../lib/constants';
+import { LLM_PROVIDERS, STANDARD_ROLES, ROLE_ASSIGNMENT_MODES, SELF_CONFIGURED_PROVIDERS, LOCAL_PROVIDERS } from '../lib/constants';
 
 export default function SetupScreen() {
   const navigate = useNavigate();
@@ -34,16 +34,19 @@ export default function SetupScreen() {
   }));
 
   const handleConnect = async () => {
-    if (!apiKeyInput.trim()) return;
+    const isLocal = LOCAL_PROVIDERS.includes(selectedProvider);
+    const needsBaseUrl = SELF_CONFIGURED_PROVIDERS.includes(selectedProvider);
+    if (!apiKeyInput.trim() && !isLocal) return;
 
     const providerDef = LLM_PROVIDERS.find(p => p.key === selectedProvider);
     const model = selectedModel || providerDef?.models[0] || '';
 
     await connectProvider({
       provider: selectedProvider,
-      apiKey: apiKeyInput.trim(),
+      // Local servers (Ollama, LM Studio) don't need a key — store a placeholder.
+      apiKey: apiKeyInput.trim() || (isLocal ? 'local' : ''),
       model,
-      baseUrl: selectedProvider === 'custom' ? customBaseUrl : null,
+      baseUrl: needsBaseUrl ? (customBaseUrl.trim() || providerDef?.defaultBaseUrl || null) : null,
     });
 
     // Test the connection
@@ -158,6 +161,8 @@ export default function SetupScreen() {
   };
 
   const currentProviderDef = LLM_PROVIDERS.find(p => p.key === selectedProvider);
+  const isLocalProvider = LOCAL_PROVIDERS.includes(selectedProvider);
+  const needsBaseUrl = SELF_CONFIGURED_PROVIDERS.includes(selectedProvider);
 
   return (
     <div style={{
@@ -425,17 +430,17 @@ export default function SetupScreen() {
             )}
           </div>
 
-          {/* Custom Base URL */}
-          {(selectedProvider === 'custom' || selectedProvider === 'ollama') && (
+          {/* Base URL — local servers (Ollama, LM Studio) + custom endpoints */}
+          {needsBaseUrl && (
             <div style={{ marginBottom: 12 }}>
               <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
-                {selectedProvider === 'ollama' ? 'Ollama URL' : 'Base URL'}
+                {isLocalProvider ? 'Server URL' : 'Base URL'}
               </label>
               <input
                 type="text"
                 value={customBaseUrl}
                 onChange={(e) => setCustomBaseUrl(e.target.value)}
-                placeholder={selectedProvider === 'ollama' ? 'http://localhost:11434' : 'https://your-endpoint.com/v1/chat/completions'}
+                placeholder={currentProviderDef?.defaultBaseUrl || 'https://your-endpoint.com/v1/chat/completions'}
                 style={{
                   width: '100%', padding: '8px 10px', fontSize: '0.85rem',
                   background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
@@ -446,8 +451,8 @@ export default function SetupScreen() {
             </div>
           )}
 
-          {/* API Key Input */}
-          {method === 'api' && selectedProvider !== 'ollama' && (
+          {/* API Key Input — hidden for local servers (no key required) */}
+          {method === 'api' && !isLocalProvider && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>API Key</label>
@@ -510,7 +515,7 @@ export default function SetupScreen() {
           <Button
             variant="primary"
             onClick={handleConnect}
-            disabled={testing || (!apiKeyInput.trim() && selectedProvider !== 'ollama')}
+            disabled={testing || (!apiKeyInput.trim() && !isLocalProvider)}
             style={{ width: '100%', justifyContent: 'center' }}
           >
             {testing ? (

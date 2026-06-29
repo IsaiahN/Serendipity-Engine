@@ -256,15 +256,26 @@ export const TONAL_TYPES = [
 export const CONTENT_RATINGS = ['G', 'PG', 'PG-13', 'R', '18+'];
 
 // ── LLM Providers ───────────────────────────────────────
+// `defaultBaseUrl` is the chat endpoint used for self-configured providers
+// (local servers or custom OpenAI-compatible APIs). `local` providers run on
+// the user's machine and do not require an API key.
 export const LLM_PROVIDERS = [
   { key: 'anthropic', label: 'Anthropic (Claude)', models: ['claude-sonnet-4-6', 'claude-opus-4-6', 'claude-haiku-4-5-20251001', 'claude-sonnet-4-5', 'claude-opus-4-5'], apiKeyUrl: 'https://console.anthropic.com/settings/keys' },
   { key: 'openai', label: 'OpenAI', models: ['gpt-4o', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'], apiKeyUrl: 'https://platform.openai.com/api-keys' },
   { key: 'deepseek', label: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'], apiKeyUrl: 'https://platform.deepseek.com/api_keys' },
   { key: 'google', label: 'Google (Gemini)', models: ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'], apiKeyUrl: 'https://aistudio.google.com/apikey' },
-  { key: 'ollama', label: 'Ollama (Local)', models: [], apiKeyUrl: 'https://ollama.com/download' },
+  { key: 'ollama', label: 'Ollama (Local)', models: [], local: true, defaultBaseUrl: 'http://localhost:11434/api/chat', apiKeyUrl: 'https://ollama.com/download' },
+  { key: 'lmstudio', label: 'LM Studio (Local)', models: [], local: true, defaultBaseUrl: 'http://localhost:1234/v1/chat/completions', apiKeyUrl: 'https://lmstudio.ai/' },
   { key: 'openrouter', label: 'OpenRouter', models: [], apiKeyUrl: 'https://openrouter.ai/keys' },
-  { key: 'custom', label: 'Custom (OpenAI-compatible)', models: [] },
+  { key: 'custom', label: 'Custom (OpenAI-compatible)', models: [], custom: true, defaultBaseUrl: '' },
 ];
+
+// Providers the user configures with their own base URL: local servers
+// (Ollama, LM Studio) and custom OpenAI-compatible endpoints (BYOK).
+export const SELF_CONFIGURED_PROVIDERS = ['ollama', 'lmstudio', 'custom'];
+
+// Self-configured providers that run locally and don't require an API key.
+export const LOCAL_PROVIDERS = ['ollama', 'lmstudio'];
 
 // ── Model Context Windows (tokens) ─────────────────────
 // Maps model name → { context: max input tokens, maxOutput: max output tokens }

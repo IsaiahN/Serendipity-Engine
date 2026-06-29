@@ -8,7 +8,7 @@ import { useLlmStore } from '../stores/llmStore';
 import { useSettingsStore } from '../stores/settingsStore';
 import { useProjectStore } from '../stores/projectStore';
 import SessionCostTracker from '../components/SessionCostTracker';
-import { LLM_PROVIDERS, STANDARD_ROLES } from '../lib/constants';
+import { LLM_PROVIDERS, STANDARD_ROLES, SELF_CONFIGURED_PROVIDERS, LOCAL_PROVIDERS } from '../lib/constants';
 import {
   Settings, Cpu, FolderOpen, Pencil, Edit3, Shield, User, Info,
   ExternalLink, Trash2, Download, Heart, RefreshCw, Key, ArrowLeft,
@@ -325,6 +325,7 @@ function AISettings({ onSettingChange }) {
 
   const [selectedProvider, setSelectedProvider] = useState('anthropic');
   const [selectedModel, setSelectedModel] = useState('');
+  const [baseUrlInput, setBaseUrlInput] = useState('');
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -367,6 +368,12 @@ function AISettings({ onSettingChange }) {
       setSelectedModel(def.models[0]);
     } else {
       setSelectedModel('');
+    }
+    // Pre-fill the base URL for self-configured providers (local + custom)
+    if (SELF_CONFIGURED_PROVIDERS.includes(selectedProvider)) {
+      setBaseUrlInput(existing?.baseUrl || def?.defaultBaseUrl || '');
+    } else {
+      setBaseUrlInput('');
     }
     setApiKeyInput('');
     setTestResult(null);
@@ -417,22 +424,34 @@ function AISettings({ onSettingChange }) {
   const providerDef = LLM_PROVIDERS.find(p => p.key === selectedProvider);
   const isConnected = activeProviders.includes(selectedProvider);
   const providerInfo = providers[selectedProvider];
+  // Self-configured providers expose a base-URL field; local ones (Ollama, LM Studio)
+  // run on-device and treat the API key as optional.
+  const needsBaseUrl = SELF_CONFIGURED_PROVIDERS.includes(selectedProvider);
+  const keyOptional = LOCAL_PROVIDERS.includes(selectedProvider);
 
   const handleSaveKey = async () => {
-    if (!apiKeyInput.trim()) return;
+    // Local providers (Ollama, LM Studio) don't need a key — store a placeholder
+    // so the connection record exists and the base URL persists.
+    const trimmedKey = apiKeyInput.trim();
+    if (!trimmedKey && !keyOptional) return;
+    if (needsBaseUrl && !baseUrlInput.trim() && !providerDef?.defaultBaseUrl) {
+      setTestResult({ success: false, message: 'Enter a base URL for this provider.' });
+      return;
+    }
     setSaving(true);
     setTestResult(null);
     try {
       const { connectProvider } = useLlmStore.getState();
       await connectProvider({
         provider: selectedProvider,
-        apiKey: apiKeyInput.trim(),
+        apiKey: trimmedKey || (keyOptional ? 'local' : ''),
         model: selectedModel || undefined,
+        baseUrl: needsBaseUrl ? (baseUrlInput.trim() || providerDef?.defaultBaseUrl || null) : null,
       });
-      setTestResult({ success: true, message: 'API key saved. Click "Test Connection" to verify.' });
+      setTestResult({ success: true, message: 'Saved. Click "Test Connection" to verify.' });
       setApiKeyInput('');
     } catch (err) {
-      setTestResult({ success: false, message: err.message || 'Failed to save key' });
+      setTestResult({ success: false, message: err.message || 'Failed to save' });
     } finally {
       setSaving(false);
     }
@@ -750,6 +769,38 @@ function AISettings({ onSettingChange }) {
             )}
           </div>
 
+          {/* Base URL (self-configured providers: local servers + custom endpoints) */}
+          {needsBaseUrl && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                {selectedProvider === 'custom' ? 'Base URL' : 'Server URL'}
+              </span>
+              <input
+                type="text"
+                value={baseUrlInput}
+                onChange={(e) => setBaseUrlInput(e.target.value)}
+                placeholder={providerDef?.defaultBaseUrl || 'https://your-endpoint.example/v1/chat/completions'}
+                style={{
+                  padding: '6px 10px', fontSize: '0.8rem',
+                  minWidth: 140, maxWidth: '60%', marginLeft: 'auto', flex: 1,
+                  background: 'var(--bg-primary)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-sm)', color: 'var(--text-primary)',
+                  fontFamily: 'monospace',
+                }}
+              />
+            </div>
+          )}
+
+          {needsBaseUrl && (
+            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', lineHeight: 1.5, marginTop: -4 }}>
+              {selectedProvider === 'lmstudio'
+                ? 'Start the local server in LM Studio (Developer tab → Start Server), load a model, then enter its model name above. The API key is optional.'
+                : selectedProvider === 'ollama'
+                ? 'Point at your running Ollama server and enter a pulled model name (e.g. llama3). The API key is optional.'
+                : 'Enter any OpenAI-compatible /chat/completions endpoint and your API key.'}
+            </div>
+          )}
+
           {/* Connection status */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status</span>
@@ -778,6 +829,7 @@ function AISettings({ onSettingChange }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 {isConnected ? 'Update API Key' : 'API Key'}
+                {keyOptional && <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}> (optional)</span>}
               </span>
               {providerDef?.apiKeyUrl && (
                 <a
@@ -799,7 +851,7 @@ function AISettings({ onSettingChange }) {
                   type={showApiKey ? 'text' : 'password'}
                   value={apiKeyInput}
                   onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder={isConnected ? 'Enter new key to update...' : 'Paste your API key here...'}
+                  placeholder={keyOptional ? 'Not required for local servers' : isConnected ? 'Enter new key to update...' : 'Paste your API key here...'}
                   style={{
                     width: '100%', padding: '8px 36px 8px 10px', fontSize: '0.8rem',
                     background: 'var(--bg-primary)', border: '1px solid var(--border)',
@@ -819,9 +871,9 @@ function AISettings({ onSettingChange }) {
                   {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
               </div>
-              <Button size="sm" variant="secondary" onClick={handleSaveKey} disabled={!apiKeyInput.trim() || saving}>
+              <Button size="sm" variant="secondary" onClick={handleSaveKey} disabled={(!apiKeyInput.trim() && !keyOptional) || saving}>
                 <Key size={12} style={{ marginRight: 3 }} />
-                {saving ? 'Saving...' : 'Save Key'}
+                {saving ? 'Saving...' : keyOptional ? 'Save' : 'Save Key'}
               </Button>
             </div>
           </div>
